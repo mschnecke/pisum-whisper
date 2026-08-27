@@ -2,37 +2,111 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Status
+## Layout
 
-Early scaffold: project configuration only, no source code yet. What exists:
+```
+Pisum.Whisper.slnx
+├── src/Pisum.Whisper.Core        domain + orchestration; no platform or UI dependencies
+├── src/Pisum.Whisper.Platform    the OS-specific surface (autostart, notifications, shell)
+├── src/Pisum.Whisper.App         Avalonia tray shell and the composition root
+└── tests/Pisum.Whisper.Core.Tests
 
-- `Pisum.Whisper.slnx` — an empty solution in the XML `.slnx` format; no projects added yet.
-  Add projects with `dotnet sln Pisum.Whisper.slnx add <path>`.
-- `global.json` — pins the .NET SDK to `10.0.400`.
-- `.idea/.idea.Pisum.Whisper/` — Rider project files; Rider is the IDE in use.
-- `openspec/` — spec-driven change workflow (see below).
+spikes/Pisum.Whisper.Spikes       throwaway; NOT in the solution — see "Spikes" below
+```
 
-There is no buildable code, test suite, or lint configuration. **When the first project is added,
-replace this section with real build/test/lint commands and an architecture overview.** Do not
-leave this notice in place once the project has substance.
+One `net10.0` target for every project, including `Platform`: everything OS-specific here is
+P/Invoke or `Process.Start`, so runtime `OperatingSystem.IsWindows()` checks plus
+`[SupportedOSPlatform]` are enough. Settings live in `Directory.Build.props` (nullable, implicit
+usings, **warnings as errors**) and package versions in `Directory.Packages.props` (central package
+management — a `PackageReference` must carry no `Version`).
+
+`NuGet.config` clears inherited sources and pins nuget.org. Do not remove it: the usual developer
+configuration here restores from private feeds that CI cannot reach, and two active sources trip
+NU1507 under central package management.
+
+## Build, test, run
+
+```bash
+dotnet build Pisum.Whisper.slnx           # must stay at 0 warnings — they are errors
+dotnet test Pisum.Whisper.slnx
+dotnet run --project src/Pisum.Whisper.App
+```
+
+The app is a **tray-only process**: no window, no taskbar button, no console. It stays alive on the
+tray icon and exits only via Quit, so `dotnet run` will not return — that is correct behaviour, not
+a hang. Its startup log goes to the terminal it was launched from (a `WinExe` inherits console
+handles), so `dbug: Pisum.Whisper.App.App[0] Service container built and resolved` is the sign it
+came up.
+
+Per-runtime builds must name a project, not the solution — `dotnet build -r <rid>` against a `.slnx`
+fails with `NETSDK1134`:
+
+```bash
+dotnet build src/Pisum.Whisper.App -r win-x64
+dotnet build src/Pisum.Whisper.App -r osx-arm64      # cross-builds fine from Windows
+```
+
+There is no lint or format step configured. Warnings-as-errors is the whole quality gate today.
+
+## Spikes
+
+`spikes/Pisum.Whisper.Spikes` is deliberately outside the solution and deleted when change 1
+archives. It exists because the macOS half of that change is blocked on hardware, so the harness is
+kept to be **re-run rather than re-written**.
+
+```bash
+dotnet run --project spikes/Pisum.Whisper.Spikes -- hook       # global hook, both key edges
+dotnet run --project spikes/Pisum.Whisper.Spikes -- paste      # simulated Ctrl+V into Notepad
+dotnet run --project spikes/Pisum.Whisper.Spikes -- audio      # capture format and rate conversion
+dotnet run --project spikes/Pisum.Whisper.Spikes -- opus       # Ogg/Opus encode + decode round trip
+dotnet run --project spikes/Pisum.Whisper.Spikes -- tray       # tray icon, tooltip, runtime swap
+dotnet run --project spikes/Pisum.Whisper.Spikes -- combined   # hook + Avalonia run loop together
+dotnet run --project spikes/Pisum.Whisper.Spikes -- api <assembly> [filter]
+```
+
+`opus` consumes what `audio` writes, so run `audio` first. `combined` is the one to run **first on a
+Mac**: it is the shape changes 6, 8 and 9 all take, and the macOS run-loop question is the highest
+open risk in the project. Results so far are recorded in
+`openspec/changes/bootstrap-solution/design.md` under *Windows spike results* and the *Platform
+verification* matrix; `api` is a reflection dumper for exploring package surfaces.
 
 ## What this is
 
 Hotkey-driven dictation: hold a global hotkey to record speech, release to transcribe it via AI,
-and the transcript is pasted at the cursor position. Nothing about *how* — audio capture, the
-transcription backend, the tray/UI shell, the hotkey mechanism — has been decided yet. Confirm
-with the user before scaffolding any of it.
+and the transcript is pasted at the cursor position.
+
+```
+global hotkey (hold or toggle) -> mic capture -> Opus/WAV encode
+  -> Gemini upload with the active preset's system prompt
+  -> clipboard + synthetic Ctrl+V / Cmd+V at the cursor
+```
+
+Targets Windows x64 and macOS Apple Silicon. Cloud-only and Gemini-only: **local Whisper inference
+is out of scope despite the repository name.** It is a re-creation of `W:\github-pisum-transcript`
+(Tauri 2 + Svelte 5), which is the behavioural specification — wire formats, the recording state
+machine and its timing constants, the settings schema and the error taxonomy all come from it. None
+of its code transfers; it is read and re-expressed.
 
 ## Stack
 
-.NET on the `10.0.400` SDK, developed in JetBrains Rider on Windows. Target framework, UI
-framework, and transcription backend are all still open.
+.NET 10 (`net10.0`) on the `10.0.400` SDK, developed in JetBrains Rider on Windows. Avalonia 12.1
+for the tray and, later, the settings window. SharpHook for the global hook and the paste
+simulation, SoundFlow (miniaudio) for capture, Concentus plus `Concentus.Oggfile` for Ogg/Opus,
+Serilog for file logging, Google Gemini for transcription. Every version is pinned in
+`Directory.Packages.props`.
+
+The three risky dependencies — global key **release**, cross-platform capture, a macOS menu-bar icon
+— were spiked in change 1 and pass on Windows; the macOS half is unverified and blocked on hardware.
 
 ## Spec-driven workflow (OpenSpec)
 
 `openspec/config.yaml` sets `schema: spec-driven`. Change proposals live in `openspec/changes/`,
-completed ones move to `openspec/changes/archive/`, and capability specs land in `openspec/specs/`
-— all three are empty so far. Drive the workflow with the `/opsx:*` commands (`explore`, `propose`,
+completed ones move to `openspec/changes/archive/`, and capability specs land in `openspec/specs/`.
+`openspec/ROADMAP.md` sequences the work as **12 ordered changes**, each tracked by a GitHub issue
+labelled `change:NN`. Note that `openspec/specs/` is still empty: change 1 does not archive until
+its macOS verification is done, so changes 2-5 must read
+`openspec/changes/bootstrap-solution/specs/` directly rather than the synced location. Drive the
+workflow with the `/opsx:*` commands (`explore`, `propose`,
 `apply`, `sync`, `archive`); the backing skills are in `.claude/skills/openspec-*`. Project context
 and per-artifact rules can be filled in at the bottom of `openspec/config.yaml` (all commented out
 today).

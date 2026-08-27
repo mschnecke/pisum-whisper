@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Pisum.Whisper.Core\Pisum.Whisper.Core.csproj" />
+  </ItemGroup>
+
+</Project>

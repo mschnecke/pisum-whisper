@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Throwaway. Deliberately NOT in Pisum.Whisper.slnx: kept in the repository so the deferred
+       macOS half of change 1 is re-run rather than re-written, and deleted when the change archives.
+       Package versions come from the root Directory.Packages.props, so what the spikes prove is what
+       the production code will reference. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <RootNamespace>Pisum.Whisper.Spikes</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="Assets/**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SharpHook" />
+    <PackageReference Include="SoundFlow" />
+    <PackageReference Include="Concentus" />
+    <PackageReference Include="Concentus.Oggfile" />
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+  </ItemGroup>
+
+</Project>
