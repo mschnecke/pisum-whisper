@@ -1,1 +1,1 @@
-# pisum-whisper
+# Pisum Whisper
