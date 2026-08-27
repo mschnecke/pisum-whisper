@@ -38,6 +38,12 @@ with hand-written `WH_KEYBOARD_LL` + `CGEventTap` interop; a failed S2 replaces 
 PortAudioSharp2 or a NAudio/CoreAudio split. Later proposals are written against the stack this
 change proves, so they must not be finalised until it lands.
 
+No Apple Silicon hardware is available, so this change lands **Windows-verified and stays open**
+until the macOS column of the Platform verification matrix in `design.md` is filled. The skeleton
+alone is enough to unblock `add-settings-store`, `add-file-logging` and `add-gemini-transcription`,
+none of which depends on a spike outcome; `add-audio-pipeline`, `add-global-hotkey`,
+`add-text-output` and `add-tray-icon` do, and must wait.
+
 ## Non-goals
 
 - No dictation behaviour, no hotkey handling, no audio, no Gemini calls.

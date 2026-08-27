@@ -1,2 +1,10 @@
 <Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Pisum.Whisper.App/Pisum.Whisper.App.csproj" />
+    <Project Path="src/Pisum.Whisper.Core/Pisum.Whisper.Core.csproj" />
+    <Project Path="src/Pisum.Whisper.Platform/Pisum.Whisper.Platform.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Pisum.Whisper.Core.Tests/Pisum.Whisper.Core.Tests.csproj" />
+  </Folder>
 </Solution>
