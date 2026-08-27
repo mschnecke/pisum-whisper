@@ -18,3 +18,57 @@ schema: spec-driven
 #       - Always include a "Non-goals" section
 #     tasks:
 #       - Break tasks into chunks of max 2 hours
+
+context: |
+  Pisum Whisper — hotkey-driven dictation utility for Windows x64 and macOS Apple Silicon.
+
+  Pipeline: hold (or toggle) a global hotkey -> capture microphone -> encode Opus/WAV
+  -> upload to Google Gemini with the active preset's system prompt -> put the transcript
+  on the clipboard and paste it at the cursor.
+
+  It is a tray-only / menu-bar-only app: no dock icon on macOS, no taskbar entry on Windows.
+  The single settings window starts hidden and hides (rather than quits) on close.
+
+  Tech stack:
+  - .NET 10 (SDK pinned to 10.0.400 in global.json), C#, nullable enabled
+  - Avalonia 12.1 for the tray icon and settings window; CommunityToolkit.Mvvm for MVVM
+  - SharpHook 8 (libuiohook) for the global hotkey — it delivers key DOWN and UP, which
+    Win32 RegisterHotKey and Carbon RegisterEventHotKey do not, and hold-to-record needs both.
+    Its EventSimulator also sends the paste keystroke.
+  - SoundFlow (miniaudio) for microphone capture
+  - Concentus 2.2.2 for Opus encoding, with a hand-rolled Ogg muxer
+  - Serilog + Serilog.Sinks.File for rolling file logs with a runtime-switchable level
+  - System.Text.Json with a source-generated context for settings
+  - MSTest + FakeItEasy + Shouldly for tests
+
+  Solution layout:
+  - src/Pisum.Whisper.Core      — all logic, no UI (Configuration, Audio, Ai, Hotkeys,
+                                  Output, Pipeline, Diagnostics)
+  - src/Pisum.Whisper.Platform  — the small residue of OS-specific code (autostart,
+                                  notifications, shell, macOS permission checks).
+                                  One project, runtime OS switches, no -windows TFM.
+  - src/Pisum.Whisper.App       — Avalonia shell and DI composition root
+  - tests/Pisum.Whisper.Core.Tests
+
+  Reference implementation: W:\github-pisum-transcript is the same product built with
+  Tauri 2 (Rust) + Svelte 5. It is the behavioural spec — wire formats, the recording state
+  machine and its timing constants, the settings schema, and the error taxonomy all come from
+  it. It is NOT a .NET project, so nothing is copied; it is read and re-expressed.
+
+  Deliberately out of scope: local Whisper inference, OpenAI as a provider, input device
+  selection, localization. Deliberately unchanged from the reference: API keys stored in
+  plaintext, and settings living at the home-directory root (~/.pisum-whisper.json).
+
+rules:
+  proposal:
+    - State what changes and why; keep it under 400 words.
+    - Always include a "Non-goals" section.
+    - Name the reference file in W:\github-pisum-transcript that specifies the behaviour, when one exists.
+  design:
+    - Name concrete types, namespaces and NuGet packages — no hand-waving.
+    - Call out anything that differs between Windows and macOS explicitly.
+    - Record rejected alternatives in one short list with the reason.
+  tasks:
+    - Break tasks into chunks of at most 2 hours.
+    - Every task must state how it is verified (unit test, manual step, or command to run).
+    - Put tests in the same task as the code they cover, not in a trailing "write tests" task.
