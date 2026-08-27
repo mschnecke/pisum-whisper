@@ -39,5 +39,5 @@ repository precisely so these are re-run rather than re-written.
 
 ## 4. Documentation
 
-- [ ] 4.1 Replace the placeholder "Status" section in `CLAUDE.md` with the real solution layout and the build, test and run commands. Verify: every command in it runs successfully as written.
-- [ ] 4.2 Update `README.md` with prerequisites and the macOS Accessibility and Microphone permission notes. Verify: a reader can go from clone to running app using only the README.
+- [x] 4.1 Replace the placeholder "Status" section in `CLAUDE.md` with the real solution layout and the build, test and run commands. Verify: every command in it runs successfully as written.
+- [x] 4.2 Update `README.md` with prerequisites and the macOS Accessibility and Microphone permission notes. Verify: a reader can go from clone to running app using only the README.

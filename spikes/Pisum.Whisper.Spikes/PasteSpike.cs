@@ -41,6 +41,17 @@ internal static partial class PasteSpike
 
         try
         {
+            // Windows 11 Notepad restores its previous session, so a leftover document would be
+            // selected by the Ctrl+A below and concatenated into the read-back. Clear it first.
+            simulator.SimulateKeyPress(KeyCode.VcLeftControl);
+            simulator.SimulateKeyPress(KeyCode.VcA);
+            simulator.SimulateKeyRelease(KeyCode.VcA);
+            simulator.SimulateKeyRelease(KeyCode.VcLeftControl);
+            await Task.Delay(250);
+            simulator.SimulateKeyPress(KeyCode.VcDelete);
+            simulator.SimulateKeyRelease(KeyCode.VcDelete);
+            await Task.Delay(250);
+
             Clipboard.Set(token);
             await Task.Delay(200);
 
