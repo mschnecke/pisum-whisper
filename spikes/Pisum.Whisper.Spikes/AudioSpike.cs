@@ -20,6 +20,13 @@ internal static class AudioSpike
         using var engine = new MiniAudioEngine();
         engine.UpdateAudioDevicesInfo();
 
+        Console.WriteLine($"playback devices: {engine.PlaybackDevices.Length}");
+        foreach (var d in engine.PlaybackDevices)
+        {
+            var prates = d.SupportedDataFormats.Select(f => (int)f.SampleRate).Distinct().OrderBy(x => x);
+            Console.WriteLine($"  [{(d.IsDefault ? "default" : "       ")}] {d.Name} :: {string.Join(",", prates)}");
+        }
+
         Console.WriteLine($"capture devices: {engine.CaptureDevices.Length}");
         foreach (var d in engine.CaptureDevices)
         {

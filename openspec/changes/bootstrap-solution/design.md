@@ -151,8 +151,13 @@ a 16 kHz request was honoured — but under-delivers: 93.9% of expected, from 94
 instead of 100, with buffers still uniformly 160 samples. Nothing is partially filled; the stream
 simply runs slow.
 
-This machine has only one input device and it is natively 48 kHz, so **the production direction
-(44.1 kHz device → 48 kHz request) could not be tested at all.** Consequence for `add-audio-pipeline`:
+This machine has **no non-48 kHz audio endpoint at all** — one capture device and three playback
+devices, every one of them natively 48 kHz — so **the production direction (44.1 kHz device → 48 kHz
+request) could not be tested.** WASAPI loopback capture was considered as a way to obtain a
+differently-clocked source and does not help for the same reason. Closing this needs one of: a
+44.1 kHz USB microphone, temporarily setting a playback endpoint to 44.1 kHz in Windows sound
+settings and capturing it via loopback, or a virtual audio device. The first two are cheap; all
+three change the machine, so none was done unasked. Consequence for `add-audio-pipeline`:
 deleting the reference's resampling stage is safe on a 48 kHz-native device, which is the common case,
 but is *not yet justified* in general. Re-measure on a 44.1 kHz input before relying on it; a 6%
 shortfall would drop roughly 36 seconds from a ten-minute dictation.
