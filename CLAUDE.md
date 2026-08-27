@@ -50,9 +50,9 @@ There is no lint or format step configured. Warnings-as-errors is the whole qual
 
 ## Spikes
 
-`spikes/Pisum.Whisper.Spikes` is deliberately outside the solution and deleted when change 1
-archives. It exists because the macOS half of that change is blocked on hardware, so the harness is
-kept to be **re-run rather than re-written**.
+`spikes/Pisum.Whisper.Spikes` is deliberately outside the solution and kept until the macOS
+verification tracked by issue #15 is done. That half is blocked on hardware, so the harness is kept
+to be **re-run rather than re-written**. Delete it when #15 closes.
 
 ```bash
 dotnet run --project spikes/Pisum.Whisper.Spikes -- hook       # global hook, both key edges
@@ -67,8 +67,8 @@ dotnet run --project spikes/Pisum.Whisper.Spikes -- api <assembly> [filter]
 `opus` consumes what `audio` writes, so run `audio` first. `combined` is the one to run **first on a
 Mac**: it is the shape changes 6, 8 and 9 all take, and the macOS run-loop question is the highest
 open risk in the project. Results so far are recorded in
-`openspec/changes/bootstrap-solution/design.md` under *Windows spike results* and the *Platform
-verification* matrix; `api` is a reflection dumper for exploring package surfaces.
+`openspec/changes/archive/2026-08-27-bootstrap-solution/design.md` under *Windows spike results* and
+the *Platform verification* matrix; `api` is a reflection dumper for exploring package surfaces.
 
 ## What this is
 
@@ -103,9 +103,9 @@ The three risky dependencies — global key **release**, cross-platform capture,
 `openspec/config.yaml` sets `schema: spec-driven`. Change proposals live in `openspec/changes/`,
 completed ones move to `openspec/changes/archive/`, and capability specs land in `openspec/specs/`.
 `openspec/ROADMAP.md` sequences the work as **12 ordered changes**, each tracked by a GitHub issue
-labelled `change:NN`. Note that `openspec/specs/` is still empty: change 1 does not archive until
-its macOS verification is done, so changes 2-5 must read
-`openspec/changes/bootstrap-solution/specs/` directly rather than the synced location. Drive the
+labelled `change:NN`. Change 1 is archived and its `application-host` spec is synced, so read it
+from `openspec/specs/` like any other; the macOS verification it left unfinished is tracked
+separately by issue #15 rather than by an open change. Drive the
 workflow with the `/opsx:*` commands (`explore`, `propose`,
 `apply`, `sync`, `archive`); the backing skills are in `.claude/skills/openspec-*`. Project context
 and per-artifact rules can be filled in at the bottom of `openspec/config.yaml` (all commented out

@@ -16,7 +16,8 @@ transcription and no settings UI yet.
 
 macOS is currently **unverified**: no Apple Silicon hardware has been available, so while the code
 cross-builds for `osx-arm64`, nothing on that platform has been run. See the *Platform verification*
-matrix in [`openspec/changes/bootstrap-solution/design.md`](openspec/changes/bootstrap-solution/design.md).
+matrix in [`design.md`](openspec/changes/archive/2026-08-27-bootstrap-solution/design.md), and
+[issue #15](https://github.com/mschnecke/pisum-whisper/issues/15), which tracks the work to close it.
 
 ## Prerequisites
 
@@ -62,7 +63,8 @@ dotnet build src/Pisum.Whisper.App -r osx-arm64
 
 A caution for anyone developing on macOS: the Accessibility grant is bound to the binary's **code
 signature**, so an unsigned binary re-prompts on every rebuild. Establishing a stable development
-signing identity is part of change 1 and is worth doing before iterating on the hotkey.
+signing identity is tracked by [issue #15](https://github.com/mschnecke/pisum-whisper/issues/15)
+and is worth doing before iterating on the hotkey.
 
 **Windows** needs no grant for the hotkey or for pasting. Two limits are worth knowing: microphone
 access is governed by `Settings → Privacy & security → Microphone`, and a non-elevated process
