@@ -143,11 +143,6 @@ than by an open change. Drive the workflow with the `/opsx:*` commands (`explore
 and per-artifact rules can be filled in at the bottom of `openspec/config.yaml` (all commented out
 today).
 
-## Remote
-
-`origin` is `git@github.pisum:mschnecke/pisum-whisper.git`. `github.pisum` is an SSH host alias for
-github.com — this is a **GitHub** repo, so use the `gh` CLI (not `glab`) for PRs, issues, and CI.
-
 ## Code Intelligence
 
 For any question about code inside this repo — how something works,
