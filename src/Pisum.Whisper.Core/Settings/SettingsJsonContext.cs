@@ -1,8 +1,8 @@
+namespace Pisum.Whisper.Core.Settings;
+
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-
-namespace Pisum.Whisper.Core.Settings;
 
 /// <summary>
 /// Source-generated serialization for the settings file. camelCase matches the reference's on-disk

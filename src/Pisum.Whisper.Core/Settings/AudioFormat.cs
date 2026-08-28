@@ -4,5 +4,6 @@ namespace Pisum.Whisper.Core.Settings;
 public enum AudioFormat
 {
     Opus,
+
     Wav,
 }

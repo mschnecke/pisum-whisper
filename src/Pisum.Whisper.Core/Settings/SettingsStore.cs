@@ -1,7 +1,7 @@
+namespace Pisum.Whisper.Core.Settings;
+
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
-
-namespace Pisum.Whisper.Core.Settings;
 
 /// <summary>
 /// The single owner of application settings: loads them once, repairs what the reference found
@@ -41,8 +41,10 @@ public sealed class SettingsStore
     /// <summary>The settings as they currently stand. Defaults until <see cref="Load"/> has run.</summary>
     public AppSettings Current { get; private set; } = new();
 
-    public static string DefaultFilePath() =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), FileName);
+    public static string DefaultFilePath()
+    {
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), FileName);
+    }
 
     /// <summary>
     /// Reads the settings file, creating it with defaults if it is absent, and repairs the two
@@ -125,7 +127,7 @@ public sealed class SettingsStore
     public void DeletePreset(string id)
     {
         var preset = Current.Presets.FirstOrDefault(candidate => candidate.Id == id)
-            ?? throw new SettingsException($"No preset with id '{id}' exists.");
+                     ?? throw new SettingsException($"No preset with id '{id}' exists.");
 
         if (preset.IsBuiltin)
         {
@@ -193,6 +195,6 @@ public sealed class SettingsStore
         var temporaryPath = FilePath + ".tmp";
 
         File.WriteAllText(temporaryPath, json);
-        File.Move(temporaryPath, FilePath, overwrite: true);
+        File.Move(temporaryPath, FilePath, true);
     }
 }
