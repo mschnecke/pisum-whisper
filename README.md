@@ -10,11 +10,12 @@ local Whisper inference is out of scope.
 ## Status
 
 Under construction, and **not yet usable**. Work is sequenced as twelve ordered changes in
-[`openspec/ROADMAP.md`](openspec/ROADMAP.md); changes 1 to 3 of 12 have landed, which means the
+[`openspec/ROADMAP.md`](openspec/ROADMAP.md); changes 1 to 4 of 12 have landed, which means the
 solution builds and starts as a tray-only process with a Quit menu, reads its settings from
-`~/.pisum-whisper.json`, creating that file on first run and repairing it when it has gone stale, and
-writes a rolling log to `~/.pisum-whisper/logs/`. There is no hotkey, no recording, no transcription
-and no settings UI yet.
+`~/.pisum-whisper.json`, creating that file on first run and repairing it when it has gone stale,
+writes a rolling log to `~/.pisum-whisper/logs/`, and can capture microphone audio and encode it to
+Opus or WAV — though nothing yet triggers that pipeline from the app. There is no hotkey,
+transcription or settings UI yet.
 
 macOS is currently **unverified**: no Apple Silicon hardware has been available, so while the code
 cross-builds for `osx-arm64`, nothing on that platform has been run. See the *Platform verification*
