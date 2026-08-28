@@ -38,6 +38,17 @@ shapes.
 **camelCase naming to match the reference's on-disk format.** The file is user-editable and users may
 already have one; there is no reason to churn the format.
 
+**Non-ASCII is written as itself, not escaped.** `System.Text.Json`'s default encoder escapes every
+character outside ASCII, which writes the German built-in prompts as a wall of `ü` and makes the
+file unreadable exactly where a user is most likely to want to edit it. Serializing with
+`JavaScriptEncoder.UnsafeRelaxedJsonEscaping` restores the reference's output. What that encoder
+relaxes is escaping intended for HTML contexts — `<`, `>`, `&`, `'`, `+` — and a settings file is not
+one; nothing reads it into a page. Its name warrants the check, not avoidance. This is the mechanism
+that makes the hand-editability claim above true rather than nominal, so the two decisions stand or
+fall together. It cannot be expressed on `JsonSourceGenerationOptions`, which has no `Encoder`, so
+the store serializes through a context built over options that carry it rather than through
+`Default`.
+
 **Settings shape is the reference's minus three fields.** `transcriptionMode` and `whisperConfig` go
 with local inference, and `providerType` goes because Gemini is the only provider type. Adding a
 single-valued discriminator "in case OpenAI returns" is speculative; `ITranscriptionProvider` is
