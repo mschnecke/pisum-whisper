@@ -7,9 +7,10 @@ public sealed class LoggingConfig
 {
     /// <summary>
     /// Represents the logging verbosity level for the application.
-    /// Acceptable values may include predefined levels such as "debug", "info",
-    /// "warn", "error", or other custom-defined levels, depending on system configuration.
-    /// This property is used to control the amount of detail included in log output.
+    /// Exactly five values are accepted, matched case-insensitively: "trace", "debug", "info",
+    /// "warn" and "error". Anything else falls back to "info" with a warning naming what was found.
+    /// This property is used to control the amount of detail included in log output, and a change to
+    /// it takes effect immediately rather than at the next launch.
     /// </summary>
     public string LogLevel { get; set; } = "info";
 

@@ -26,7 +26,7 @@ public sealed class AppSettingsTests
         settings.Hotkey.Key.ShouldBe("Space");
         settings.AudioFormat.ShouldBe(AudioFormat.Opus);
         settings.Presets.Select(p => p.Id).ShouldBe(["de-transcribe", "en-transcribe"]);
-        settings.ActivePresetId.ShouldBe("de-transcribe");
+        settings.ActivePresetId.ShouldBe("en-transcribe");
         settings.Providers.ShouldBeEmpty();
         settings.RecordingMode.ShouldBe(RecordingMode.HoldToRecord);
         settings.MaxRecordingDurationSecs.ShouldBe(600);

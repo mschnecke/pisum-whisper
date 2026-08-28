@@ -34,9 +34,17 @@ dotnet run --project src/Pisum.Whisper.App
 
 The app is a **tray-only process**: no window, no taskbar button, no console. It stays alive on the
 tray icon and exits only via Quit, so `dotnet run` will not return — that is correct behaviour, not
-a hang. Its startup log goes to the terminal it was launched from (a `WinExe` inherits console
-handles), so `dbug: Pisum.Whisper.App.App[0] Service container built and resolved` is the sign it
-came up.
+a hang. Every build writes to `~/.pisum-whisper/logs/pisum-whisper.log`, and a **debug** build also
+echoes to the terminal it was launched from (a `WinExe` inherits console handles), where at the
+default `info` level
+
+```
+[10:09:56 INF] Settings loaded from C:\Users\you\.pisum-whisper.json (first launch: False).
+```
+
+is the sign it came up. A release build prints nothing to the console at all, and
+`[10:09:57 DBG] Service container built and resolved; initialising the tray icon.` appears only with
+`logLevel` at `debug`.
 
 Per-runtime builds must name a project, not the solution — `dotnet build -r <rid>` against a `.slnx`
 fails with `NETSDK1134`:
@@ -99,6 +107,28 @@ Serilog for file logging, Google Gemini for transcription. Every version is pinn
 
 The three risky dependencies — global key **release**, cross-platform capture, a macOS menu-bar icon
 — were spiked in change 1 and pass on Windows; the macOS half is unverified and blocked on hardware.
+
+## Logging
+
+Everything logs through `ILogger<T>`. Serilog is the implementation, registered by `AddFileLogging`
+in `Core/Logging/` from `Program.cs` before the container is built, so a `ValidateOnBuild` failure
+reaches the file rather than a console the release build does not have. Output rolls by size and is
+swept by age; the console sink is `#if DEBUG` only.
+
+`logLevel` in settings takes effect immediately, through a `LoggingLevelSwitch`. **Never add a
+`SetMinimumLevel` call**: `AddSerilog` installs a provider-scoped filter at `Trace`, so
+`Microsoft.Extensions.Logging` does not gate Serilog, and a minimum level put back would be a second
+gate in front of the switch that silently breaks the runtime level change.
+
+Three rules every later change is written against:
+
+- **Never log transcript text or API key values.** Transcripts are the user's speech and the settings
+  file holds API keys. Log lengths, categories and outcomes instead — the character count, not the
+  characters.
+- **No `IsEnabled` guard on hot-path statements.** A suppressed call costs about 0.1 µs, which is less
+  than the guard, so the trace statements in the audio path are written plain.
+- **Never use Serilog's static `Log`.** It is in scope project-wide because `Core` references Serilog,
+  but the configured logger is always passed explicitly.
 
 ## Spec-driven workflow (OpenSpec)
 

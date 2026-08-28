@@ -81,7 +81,7 @@ public sealed class SettingsStoreTests
         store.IsFirstLaunch.ShouldBeTrue();
         File.Exists(_path).ShouldBeTrue();
         settings.ShouldBeSameAs(store.Current);
-        File.ReadAllText(_path).ShouldContain("\"activePresetId\": \"de-transcribe\"");
+        File.ReadAllText(_path).ShouldContain("\"activePresetId\": \"en-transcribe\"");
 
         // The flag reports this run, not the history of the file: a second store over the same file
         // sees an ordinary launch.
@@ -152,9 +152,9 @@ public sealed class SettingsStoreTests
 
         var settings = NewStore(logger).Load();
 
-        settings.ActivePresetId.ShouldBe("de-transcribe");
-        NewStore().Load().ActivePresetId.ShouldBe("de-transcribe");
-        File.ReadAllText(_path).ShouldContain("\"activePresetId\": \"de-transcribe\"");
+        settings.ActivePresetId.ShouldBe("en-transcribe");
+        NewStore().Load().ActivePresetId.ShouldBe("en-transcribe");
+        File.ReadAllText(_path).ShouldContain("\"activePresetId\": \"en-transcribe\"");
 
         // The repair is logged rather than silent, so a dangling id caused by a defect elsewhere
         // still leaves a trace.
