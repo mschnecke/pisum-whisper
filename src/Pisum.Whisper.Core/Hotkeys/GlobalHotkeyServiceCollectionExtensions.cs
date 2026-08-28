@@ -1,7 +1,6 @@
 namespace Pisum.Whisper.Core.Hotkeys;
 
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using SharpHook.Data;
 using SharpHook.Logging;
 

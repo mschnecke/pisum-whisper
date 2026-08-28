@@ -15,8 +15,12 @@ namespace Pisum.Whisper.Core.Hotkeys;
 public enum HotkeyModifiers
 {
     None = 0,
+
     Shift = 1,
+
     Ctrl = 2,
+
     Alt = 4,
+
     Meta = 8,
 }

@@ -241,6 +241,27 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
         Observed().ShouldBeEmpty();
     }
 
+    [TestMethod]
+    public async Task HookThatNeverStarts_DoesNotHangStartup()
+    {
+        // Change 1's macOS spike, on an Apple M4 with no Accessibility grant: libuiohook neither
+        // failed nor prompted, it blocked at zero CPU with the tap never installed. Waiting only on
+        // HookEnabled would hang host startup for good, and this process has no window to say so.
+        using var service = new GlobalHotkeyService(
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<GlobalHotkeyService>.Instance,
+            Settings,
+            new RecordingLogSource(),
+            new BlockingHookProvider(),
+            TimeSpan.FromMilliseconds(300));
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        await service.StartAsync(CancellationToken.None);
+        stopwatch.Stop();
+
+        stopwatch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(5), "startup must not wait on the hook");
+        service.Availability.ShouldBe(HotkeyAvailability.Failed);
+    }
+
     // ---- Task 3.6: rebinding without restarting the hook ----
 
     [TestMethod]

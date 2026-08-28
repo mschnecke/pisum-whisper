@@ -51,7 +51,7 @@ internal static class Program
         // This process has no console in a release build, so stderr is nowhere.
         builder.Services.AddFileLogging(out var logger);
 
-        // A singleton, because it is cache-authoritative: it reads the file once and every later
+        // A singleton, because it is cache-authoritative: it reads the file once, and every later
         // read is served from memory.
         builder.Services.AddSingleton<SettingsStore>();
 
@@ -67,7 +67,7 @@ internal static class Program
         {
             logger.Fatal(exception, "The service container could not be built.");
 
-            // Nothing else will dispose it: the container that would have owned it does not exist.
+            // Nothing else will dispose of it: the container that would have owned it does not exist.
             // The asynchronous sink discards its queue rather than draining it if it is not disposed.
             (logger as IDisposable)?.Dispose();
             throw;

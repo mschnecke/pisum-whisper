@@ -58,12 +58,15 @@ public static class ModifierGroups
     /// modifier key. This is how a release is attributed to the chord: the mask on a release event
     /// cannot be relied on to have shed the key that is being released.
     /// </summary>
-    public static HotkeyModifiers FromKeyCode(KeyCode keyCode) => keyCode switch
+    public static HotkeyModifiers FromKeyCode(KeyCode keyCode)
     {
-        KeyCode.VcLeftShift or KeyCode.VcRightShift => HotkeyModifiers.Shift,
-        KeyCode.VcLeftControl or KeyCode.VcRightControl => HotkeyModifiers.Ctrl,
-        KeyCode.VcLeftAlt or KeyCode.VcRightAlt => HotkeyModifiers.Alt,
-        KeyCode.VcLeftMeta or KeyCode.VcRightMeta => HotkeyModifiers.Meta,
-        _ => HotkeyModifiers.None,
-    };
+        return keyCode switch
+        {
+            KeyCode.VcLeftShift or KeyCode.VcRightShift => HotkeyModifiers.Shift,
+            KeyCode.VcLeftControl or KeyCode.VcRightControl => HotkeyModifiers.Ctrl,
+            KeyCode.VcLeftAlt or KeyCode.VcRightAlt => HotkeyModifiers.Alt,
+            KeyCode.VcLeftMeta or KeyCode.VcRightMeta => HotkeyModifiers.Meta,
+            _ => HotkeyModifiers.None,
+        };
+    }
 }
