@@ -10,14 +10,15 @@ local Whisper inference is out of scope.
 ## Status
 
 Under construction, and **not yet usable**. Work is sequenced as twelve ordered changes in
-[`openspec/ROADMAP.md`](openspec/ROADMAP.md); changes 1, 2, 3 and 6 of 12 have landed, which means
+[`openspec/ROADMAP.md`](openspec/ROADMAP.md); changes 1, 2, 3, 4 and 6 of 12 have landed, which means
 the solution builds and starts as a tray-only process with a Quit menu, reads its settings from
 `~/.pisum-whisper.json`, creating that file on first run and repairing it when it has gone stale,
-writes a rolling log to `~/.pisum-whisper/logs/`, and observes the configured global hotkey — both
-edges of it, withheld from whatever application has focus, and re-bindable without a restart.
+writes a rolling log to `~/.pisum-whisper/logs/`, can capture microphone audio and encode it to Opus
+or WAV, and observes the configured global hotkey — both edges of it, withheld from whatever
+application has focus, and re-bindable without a restart.
 
-The hotkey currently reports press and release to nothing: there is no recording, no transcription
-and no settings UI yet.
+Nothing yet connects the hotkey to the audio pipeline: there is no recording, no transcription and
+no settings UI yet.
 
 macOS is **partly verified**. Change 1's spikes were re-run on an Apple M4 (macOS 26.6.2) under
 [issue #15](https://github.com/mschnecke/pisum-whisper/issues/15), now closed: the global hook, its
