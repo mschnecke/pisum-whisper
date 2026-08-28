@@ -58,9 +58,11 @@ There is no lint or format step configured. Warnings-as-errors is the whole qual
 
 ## Spikes
 
-`spikes/Pisum.Whisper.Spikes` is deliberately outside the solution and kept until the macOS
-verification tracked by issue #15 is done. That half is blocked on hardware, so the harness is kept
-to be **re-run rather than re-written**. Delete it when #15 closes.
+`spikes/Pisum.Whisper.Spikes` is deliberately outside the solution. It was kept until the macOS
+verification tracked by issue #15 was done, so that the harness could be **re-run rather than
+re-written**; #15 closed on 2026-08-28, which by the rule written here makes the harness deletable.
+It is still on disk — deleting it is a decision for whoever no longer wants the two macOS `FAIL`
+rows re-runnable, not an oversight.
 
 ```bash
 dotnet run --project spikes/Pisum.Whisper.Spikes -- hook       # global hook, both key edges
@@ -106,7 +108,10 @@ Serilog for file logging, Google Gemini for transcription. Every version is pinn
 `Directory.Packages.props`.
 
 The three risky dependencies — global key **release**, cross-platform capture, a macOS menu-bar icon
-— were spiked in change 1 and pass on Windows; the macOS half is unverified and blocked on hardware.
+— were spiked in change 1 and pass on Windows. Issue #15 re-ran them on an Apple M4 (macOS 26.6.2)
+and all three pass there too; what came back **FAIL** is the synthetic paste into a foreign app and
+the Accessibility grant surviving a rebuild. Both are in the *Platform verification* matrix in
+`openspec/changes/archive/2026-08-27-bootstrap-solution/design.md`, each with its fallback.
 
 ## Logging
 
@@ -149,6 +154,16 @@ channel; a dispatch loop raises the events, so a consumer that takes a second to
 cannot cost the user their hotkey. Never add work to a hook handler, and never raise an event
 directly from one.
 
+**Startup is bounded, because a missing grant does not fail.** On macOS an absent Accessibility
+grant neither throws nor prompts: change 1's spike found libuiohook blocking for ever at zero CPU
+with the tap never installed. `StartAsync` therefore races the hook against a five second timeout
+and, on losing, records `HotkeyAvailability.Failed`, says so in the log and lets the process come up
+without a hotkey. A hook that enables *after* that timeout still reports itself, so the timeout
+bounds the waiting rather than settling the verdict. This is not a recovery path for a late grant:
+macOS does not reliably deliver one to a running process, so there is deliberately **no retry
+loop** and the user relaunches. Keep it that way — a start that blocks here has no window to explain
+itself from.
+
 Two consequences worth knowing before touching the matcher: `SharpHook.Data.EventMask`'s group values
 are unions of both sides (`Ctrl` is `LeftCtrl | RightCtrl`), so `HasFlag` demands both keys at once;
 and the mask also carries the lock keys and the mouse buttons. `ModifierGroups.FromEventMask` folds
@@ -159,13 +174,13 @@ those away, and matching compares the folded groups for equality.
 `openspec/config.yaml` sets `schema: spec-driven`. Change proposals live in `openspec/changes/`,
 completed ones move to `openspec/changes/archive/`, and capability specs land in `openspec/specs/`.
 `openspec/ROADMAP.md` sequences the work as **12 ordered changes**, each tracked by a GitHub issue
-labelled `change:NN`. Changes 1, 2 and 3 are archived and their `application-host`,
-`settings-persistence` and `file-logging` specs are synced, so read them from `openspec/specs/` like
-any other; the macOS verification change 1 left unfinished is tracked separately by issue #15 rather
-than by an open change. Drive the workflow with the `/opsx:*` commands (`explore`, `propose`,
-`apply`, `sync`, `archive`); the backing skills are in `.claude/skills/openspec-*`. Project context
-and per-artifact rules can be filled in at the bottom of `openspec/config.yaml` (all commented out
-today).
+labelled `change:NN`. Changes 1, 2, 3 and 6 are archived and their `application-host`,
+`settings-persistence`, `file-logging` and `global-hotkey` specs are synced, so read them from
+`openspec/specs/` like any other; the macOS verification change 1 left unfinished was tracked by
+issue #15 rather than by an open change, and closed on 2026-08-28. Drive the workflow with the
+`/opsx:*` commands (`explore`, `propose`, `apply`, `sync`, `archive`); the backing skills are in
+`.claude/skills/openspec-*`. Project context and per-artifact rules can be filled in at the bottom
+of `openspec/config.yaml` (all commented out today).
 
 ## Code Intelligence
 
