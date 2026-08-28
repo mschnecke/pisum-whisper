@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Pisum.Whisper.Core.Audio;
 using Pisum.Whisper.Core.Logging;
 using Pisum.Whisper.Core.Settings;
 
@@ -53,6 +54,8 @@ internal static class Program
         // A singleton, because it is cache-authoritative: it reads the file once and every later
         // read is served from memory.
         builder.Services.AddSingleton<SettingsStore>();
+
+        builder.Services.AddAudioPipeline();
 
         try
         {
