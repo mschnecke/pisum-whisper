@@ -48,5 +48,9 @@ S2 failed, the capture implementation changes here but `IAudioCapture` does not.
 - No input device picker — the system default only, matching the reference.
 - No voice activity detection, noise suppression, gain control or level meter.
 - No resampler of our own unless spike S2 proved miniaudio cannot convert.
-- No minimum-recording-duration or empty-recording guard — that belongs to `add-dictation-pipeline`
-  (change 8), which owns the hold/release state machine, matching where the reference places it.
+- No minimum- or maximum-recording-duration enforcement, and no empty-recording guard. In the
+  reference, `MaxRecordingDurationSecs` (`AppSettings.cs`, default 600s) is enforced by an external
+  watchdog thread in `hotkey/manager.rs::start_recording` that races the user's key release — the
+  recorder itself has no awareness of the cap, same as the 50ms minimum-duration check. `IAudioCapture`
+  stays equally unaware of both; that belongs to `add-dictation-pipeline` (change 8), which owns the
+  hold/release state machine.

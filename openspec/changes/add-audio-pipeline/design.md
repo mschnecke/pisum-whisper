@@ -35,12 +35,16 @@ the encoder module itself has no fallback logic; the caller tries the settings' 
 - No voice activity detection, noise suppression, gain control or level meter.
 - No resampler of our own — miniaudio's is proven accurate for the production target (S2).
 - No hand-rolled Ogg muxer — `Concentus.Oggfile` already produces a correct one (S4).
-- No minimum-recording-duration or empty-recording guard. In the reference, `MIN_RECORDING_DURATION`
-  (50 ms) and the `samples.is_empty()` → `AppError::Audio("No audio recorded")` check both live in
-  `hotkey/manager.rs::process_and_transcribe`, not in `audio/recorder.rs` or `audio/encoder.rs` —
-  `AudioRecorderHandle::stop()` just returns whatever it captured. `IAudioCapture.StopAsync()` and
-  `IAudioEncoder.Encode()` do the same; that validation belongs to `add-dictation-pipeline` (change 8),
-  which owns the hold/release state machine and its timing constants.
+- No minimum- or maximum-recording-duration enforcement, and no empty-recording guard. In the
+  reference, `MIN_RECORDING_DURATION` (50 ms) and the `samples.is_empty()` →
+  `AppError::Audio("No audio recorded")` check both live in `hotkey/manager.rs::process_and_transcribe`,
+  not in `audio/recorder.rs` or `audio/encoder.rs` — `AudioRecorderHandle::stop()` just returns
+  whatever it captured. The maximum (`AppSettings.MaxRecordingDurationSecs`, default 600s, already
+  present in `AppSettings.cs`) is enforced the same way: an external watchdog thread spawned in
+  `hotkey/manager.rs::start_recording` races the user's key release and calls the same stop path,
+  rather than the recorder stopping itself. `IAudioCapture.StopAsync()` and `IAudioEncoder.Encode()`
+  stay equally unaware of all three; that validation and timing belongs to `add-dictation-pipeline`
+  (change 8), which owns the hold/release state machine and its timing constants.
 
 ## Decisions
 
