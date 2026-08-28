@@ -40,6 +40,7 @@
     <PackageVersion Include="MSTest" Version="4.3.3" />
     <PackageVersion Include="FakeItEasy" Version="9.0.1" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
+    <PackageVersion Include="SharpHook.Testing" Version="8.0.0" />
   </ItemGroup>
 
 </Project>

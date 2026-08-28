@@ -120,15 +120,39 @@ swept by age; the console sink is `#if DEBUG` only.
 `Microsoft.Extensions.Logging` does not gate Serilog, and a minimum level put back would be a second
 gate in front of the switch that silently breaks the runtime level change.
 
-Three rules every later change is written against:
+Four rules every later change is written against:
 
 - **Never log transcript text or API key values.** Transcripts are the user's speech and the settings
   file holds API keys. Log lengths, categories and outcomes instead — the character count, not the
   characters.
+- **Never log a keystroke that is not the configured hotkey.** `Core/Hotkeys/` observes every key on
+  the machine in order to match one combination, so a `Trace` statement dumping `e.Data.KeyCode` —
+  the obvious thing to write while debugging it — turns the log file into a keylog, one that change
+  10's "Open Log Folder" button then puts a click away. The binding, its edges, counts and outcomes
+  are loggable; nothing else about a key is, at any level.
 - **No `IsEnabled` guard on hot-path statements.** A suppressed call costs about 0.1 µs, which is less
   than the guard, so the trace statements in the audio path are written plain.
 - **Never use Serilog's static `Log`.** It is in scope project-wide because `Core` references Serilog,
   but the configured logger is always passed explicitly.
+
+## The global hotkey
+
+`Core/Hotkeys/` owns the one global keyboard hook this process is allowed to run — libuiohook keeps a
+single static callback, so a second concurrent hook corrupts its internal state. `AddGlobalHotkey`
+registers `GlobalHotkeyService` once and resolves it as the service, the contract and the hosted
+service; change 10's hotkey recorder reuses it through `CaptureAsync` rather than building its own.
+
+**Nothing but matching runs on the hook thread.** Windows removes a low-level hook that exceeds
+`LowLevelHooksTimeout` — 1000 ms by default — with no exception and no event, and macOS disables an
+event tap that stops responding. The handlers match, set `SuppressEvent` and write one enum to a
+channel; a dispatch loop raises the events, so a consumer that takes a second to open a microphone
+cannot cost the user their hotkey. Never add work to a hook handler, and never raise an event
+directly from one.
+
+Two consequences worth knowing before touching the matcher: `SharpHook.Data.EventMask`'s group values
+are unions of both sides (`Ctrl` is `LeftCtrl | RightCtrl`), so `HasFlag` demands both keys at once;
+and the mask also carries the lock keys and the mouse buttons. `ModifierGroups.FromEventMask` folds
+those away, and matching compares the folded groups for equality.
 
 ## Spec-driven workflow (OpenSpec)
 
@@ -142,11 +166,6 @@ than by an open change. Drive the workflow with the `/opsx:*` commands (`explore
 `apply`, `sync`, `archive`); the backing skills are in `.claude/skills/openspec-*`. Project context
 and per-artifact rules can be filled in at the bottom of `openspec/config.yaml` (all commented out
 today).
-
-## Remote
-
-`origin` is `git@github.pisum:mschnecke/pisum-whisper.git`. `github.pisum` is an SSH host alias for
-github.com — this is a **GitHub** repo, so use the `gh` CLI (not `glab`) for PRs, issues, and CI.
 
 ## Code Intelligence
 
