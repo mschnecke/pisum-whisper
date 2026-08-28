@@ -10,20 +10,20 @@ public sealed class ProviderConfig
     /// <summary>
     /// The unique identifier for the provider configuration. This value is required.
     /// </summary>
-    public required string Id { get; init; }
+    public required string Id { get; set; }
 
     /// <summary>
     /// The API key used to authenticate requests with the provider.
     /// </summary>
-    public required string ApiKey { get; init; }
+    public required string ApiKey { get; set; }
 
     /// <summary>
     /// Specifies the model configuration for the provider. Can be set to a model name or <c>null</c> to allow the provider to use its default model.
     /// </summary>
-    public string? Model { get; init; }
+    public string? Model { get; set; }
 
     /// <summary>
     /// Indicates whether the provider is enabled. Defaults to <c>true</c>.
     /// </summary>
-    public bool Enabled { get; init; } = true;
+    public bool Enabled { get; set; } = true;
 }

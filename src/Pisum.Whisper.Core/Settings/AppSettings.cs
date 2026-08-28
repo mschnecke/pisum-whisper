@@ -9,19 +9,19 @@ public sealed class AppSettings
     /// The value indicating whether the application starts with the system.
     /// When enabled, the application will automatically launch during system startup.
     /// </summary>
-    public bool StartWithSystem { get; init; } = true;
+    public bool StartWithSystem { get; set; } = true;
 
     /// <summary>
     /// Indicates whether notifications are displayed in the system tray.
     /// When enabled, the application can show relevant alerts and messages in the tray area during operation.
     /// </summary>
-    public bool ShowTrayNotifications { get; init; } = true;
+    public bool ShowTrayNotifications { get; set; } = true;
 
     /// <summary>
     /// Represents the user's configured hotkey binding used to trigger specific application functionalities.
     /// This property allows customization of key combinations for optimal user experience.
     /// </summary>
-    public HotkeyBinding Hotkey { get; init; } = new();
+    public HotkeyBinding Hotkey { get; set; } = new();
 
     /// <summary>
     /// Represents the audio format used for recording or playback in the application.
@@ -29,7 +29,7 @@ public sealed class AppSettings
     /// - Opus: A lossy compressed format optimized for low-latency audio.
     /// - Wav: An uncompressed audio format that provides high fidelity.
     /// </summary>
-    public AudioFormat AudioFormat { get; init; } = AudioFormat.Opus;
+    public AudioFormat AudioFormat { get; set; } = AudioFormat.Opus;
 
     /// <summary>
     /// A collection of configuration presets used to customize application behavior.
@@ -37,7 +37,7 @@ public sealed class AppSettings
     /// name, system prompt, and whether it is built-in. This property provides the ability to
     /// load and manage multiple presets, including both built-in and custom ones.
     /// </summary>
-    public List<Preset> Presets { get; init; } = BuiltinPresets.Create();
+    public List<Preset> Presets { get; set; } = BuiltinPresets.Create();
 
     /// <summary>
     /// The identifier of the currently active preset in the application settings.
@@ -52,7 +52,7 @@ public sealed class AppSettings
     /// represents configuration details for a specific provider, such as API keys, model details, or other relevant settings.
     /// This allows the application to support multiple providers, enabling flexible and extensible integration.
     /// </summary>
-    public List<ProviderConfig> Providers { get; init; } = [];
+    public List<ProviderConfig> Providers { get; set; } = [];
 
     /// <summary>
     /// Specifies the mode of operation for recording.
@@ -61,7 +61,7 @@ public sealed class AppSettings
     /// - HoldToRecord: Recording is active only while a designated control is held down.
     /// - Toggle: Recording is started and stopped with a single toggle action.
     /// </summary>
-    public RecordingMode RecordingMode { get; init; } = RecordingMode.HoldToRecord;
+    public RecordingMode RecordingMode { get; set; } = RecordingMode.HoldToRecord;
 
     /// <summary>
     /// Specifies the maximum allowable duration for a recording session, in seconds.
@@ -70,7 +70,7 @@ public sealed class AppSettings
     /// could be useful for managing storage or enforcing shorter recording limits,
     /// while increasing it may allow for extended recordings.
     /// </summary>
-    public int MaxRecordingDurationSecs { get; init; } = 600;
+    public int MaxRecordingDurationSecs { get; set; } = 600;
 
     /// <summary>
     /// Represents configuration settings for logging functionality.
@@ -79,5 +79,5 @@ public sealed class AppSettings
     /// These settings are utilized by the logging system to determine how logs
     /// are written and maintained.
     /// </summary>
-    public LoggingConfig LoggingConfig { get; init; } = new();
+    public LoggingConfig LoggingConfig { get; set; } = new();
 }
