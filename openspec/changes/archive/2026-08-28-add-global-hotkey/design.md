@@ -25,7 +25,11 @@ macOS half is deferred on hardware. `HotkeyBinding` and `RecordingMode` already 
 
 Facts below marked *measured* were obtained on this win-x64 machine during design; facts marked
 *from the assembly* were read out of SharpHook 8.0.0's shipped metadata and XML documentation.
-Nothing about macOS is measured.
+
+This design was first written while every macOS question was deferred for lack of hardware. Issue #15
+has since run change 1's spikes on an Apple M4, and the results are folded in below rather than left
+as assumptions — two of them change decisions in this document. The macOS facts cited here come from
+that run, recorded in `openspec/changes/archive/2026-08-27-bootstrap-solution/design.md`.
 
 ## Goals / Non-Goals
 
@@ -338,10 +342,28 @@ in this change's runtime path consults it.
   fallback that degrades gracefully — the hotkey still works, it just also reaches the focused
   application.
 
-- **Everything about macOS in this design is reasoned, not measured.** Accessibility handling, tap
-  revocation, suppression, and the run-loop question change 1 left open all rest on documentation and
-  on change 1's desk research. → The `combined` spike remains the first thing to run on hardware, and
-  this change lands Windows-verified with an explicit deferred column, exactly as change 1 did.
+- **The macOS run-loop question is settled, and it settled in this design's favour.** Change 1's
+  desk research predicted co-existence; issue #15's Apple M4 run confirmed it — the `combined` spike
+  matched the Windows result in shape, 9 presses and 9 releases marshalled through
+  `Dispatcher.UIThread.Post` with no contention. That was the highest-severity open risk in the
+  project and it is closed. What remains unmeasured on macOS is narrower: suppression of the matched
+  chord, and whether `HookDisabled` fires on a lock.
+
+- **A missing Accessibility grant on macOS is silent, which invalidated this design's first
+  answer to it.** The decision above assumed `RunAsync` would throw `ErrorAxApiDisabled` and that
+  the default prompt would put the process into the Accessibility list. Issue #15 found neither:
+  macOS never prompted, nothing was thrown, and libuiohook blocked indefinitely at zero CPU with no
+  TCC activity at all. → `StartAsync` therefore races the hook against a five-second timeout as well
+  as against its own failure, and reports the timeout with the macOS precondition named. Without
+  that, a Mac with no grant would hang host startup for good — a worse failure than the reference's,
+  and in a process with no window to explain itself from. The `HookException` paths are kept: they
+  are what a *revoked* grant produces, and they are cheap.
+
+- **The grant is given to the launching process, not to this binary, and does not survive a
+  rebuild.** Issue #15 had to grant Accessibility to Rider — the terminal's parent — and found the
+  first run after each `dotnet build` observing zero key events before reverting to working on the
+  second. That is change 1's task 1.4 (a stable signing identity) rather than anything this change
+  can fix, but it is the first thing to suspect when the hotkey appears dead on a Mac.
 
 - **`Core` gains a native dependency.** SharpHook ships `runtimes/*/native/`, which change 1 already
   confirmed restores for `osx-arm64` from Windows. The architectural cost is that `Core` is no longer
@@ -354,11 +376,11 @@ Following change 1's convention: a deferred row carries no evidence either way a
 
 | What must be demonstrated | win-x64 | osx-arm64 |
 |---|---|---|
-| Chord matched on both edges with the correct modifier groups | **PASS** — S1, plus 190 unit tests over `TestProvider` | deferred |
+| Chord matched on both edges with the correct modifier groups | **PASS** — S1, plus unit tests over `TestProvider` | **PASS** — S1 on an Apple M4 (#15) |
 | Left/right modifiers equivalent; lock keys and mouse buttons ignored | **PASS** — unit tests | deferred |
-| Consumers never run on the hook thread | **PASS** — unit test times a two-second handler | deferred |
+| Consumers never run on the hook thread | **PASS** — unit test times a two-second handler | **PASS** — `combined` co-existence (#15) |
 | Hook survives a rebind without restarting | **PASS** — unit test | deferred |
-| A denied Accessibility grant is non-fatal, and distinguished from a revoked one | **PASS** — unit tests over `RunResult`; the grant itself is n/a on Windows | deferred |
+| A denied Accessibility grant is non-fatal, and distinguished from a revoked one | **PASS** — unit tests over `RunResult`; the grant itself is n/a on Windows | **PARTIAL** — #15 found it silent, not thrown; covered by the start timeout, unverified on hardware |
 | No keystroke other than the binding reaches the log | **PASS** — unit test at `Verbose` over 50 keystrokes | deferred |
 | Application starts and logs the observed binding | **PASS** — `Observing the hotkey Ctrl+Shift+Space.` | deferred |
 | Suppressed chord does not reach a focused foreign application | **PASS** — physical keys, held over a text editor | deferred |
@@ -378,10 +400,11 @@ rather than only over `TestProvider`.
 **Suppression, verified.** The held chord inserted nothing into a focused text editor, and a plain
 Space still typed normally straight afterwards, so the pass cannot be explained by a dead hook.
 
-Every `osx-arm64` cell is deferred rather than blank: no Apple Silicon hardware is available, and
-this change adds no evidence either way. Change 1's `combined` spike remains the first thing to run
-on a Mac — it is the shape changes 6, 8 and 9 all take, and the run-loop question it was written for
-is still the highest open risk in the project.
+The `osx-arm64` column is no longer uniformly deferred. Issue #15 ran change 1's spikes on an Apple
+M4 (macOS 26.6.2) after this design was written, and the rows that column can now answer are answered
+above. What it cannot answer is what the spikes did not exercise: this change's own suppression
+behaviour and its handling of a lock. Those stay deferred, and honestly so — the spike proved the
+hook, not the matcher built on it.
 
 ## Open Questions
 

@@ -25,6 +25,7 @@ using SharpHook.Data;
 public static class KeyCodeMap
 {
     private static readonly FrozenDictionary<string, KeyCode> KeysByName;
+
     private static readonly FrozenDictionary<KeyCode, string> NamesByKeyCode;
 
     private static readonly FrozenDictionary<string, HotkeyModifiers> ModifiersByName =
@@ -54,7 +55,10 @@ public static class KeyCodeMap
             byKeyCode[code] = name;
         }
 
-        void Alias(string name, KeyCode code) => byName[name] = code;
+        void Alias(string name, KeyCode code)
+        {
+            byName[name] = code;
+        }
 
         // The letter, digit, function and numpad ranges are generated rather than written out.
         // Enum.Parse on a constructed name fails loudly at type initialisation if SharpHook ever

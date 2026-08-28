@@ -57,10 +57,10 @@ Everything from #8 onward is strictly sequential.
 
 ## Artifact status
 
-Changes **1**, **2** and **3** are implemented and archived under `openspec/changes/archive/`, with
-their `application-host`, `settings-persistence` and `file-logging` specs synced into
-`openspec/specs/`. Changes **4-12** have `proposal.md` only; their `specs`, `design` and `tasks` are
-written when their turn comes.
+Changes **1**, **2**, **3** and **6** are implemented and archived under
+`openspec/changes/archive/`, with their `application-host`, `settings-persistence`, `file-logging`
+and `global-hotkey` specs synced into `openspec/specs/`. The rest — **4**, **5** and **7-12** — have
+`proposal.md` only; their `specs`, `design` and `tasks` are written when their turn comes.
 
 This is deliberate. The four spikes in change 1 can invalidate design decisions downstream — if
 SharpHook cannot report key release, or miniaudio cannot resample, the affected designs change rather

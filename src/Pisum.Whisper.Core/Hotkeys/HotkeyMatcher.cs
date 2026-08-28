@@ -35,10 +35,15 @@ public sealed class HotkeyMatcher
     private readonly Lock _gate = new();
 
     private HotkeyChord _chord;
+
     private bool _engaged;
+
     private KeyCode? _suppressedKey;
 
-    public HotkeyMatcher(HotkeyChord chord) => _chord = chord;
+    public HotkeyMatcher(HotkeyChord chord)
+    {
+        _chord = chord;
+    }
 
     /// <summary>The binding currently being matched.</summary>
     public HotkeyChord Chord

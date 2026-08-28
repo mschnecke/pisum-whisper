@@ -8,6 +8,7 @@ using SharpHook;
 using SharpHook.Data;
 using SharpHook.Logging;
 using SharpHook.Providers;
+using LogLevel = SharpHook.Data.LogLevel;
 
 /// <summary>
 /// Owns the one global keyboard hook this process is allowed to run, matches the configured binding
@@ -30,23 +31,41 @@ using SharpHook.Providers;
 /// </remarks>
 public sealed class GlobalHotkeyService : IGlobalHotkeyService, IHostedService, IDisposable
 {
+    /// <summary>
+    /// How long <see cref="StartAsync"/> waits for the hook to report itself observing before it
+    /// gives up waiting and lets the application start without a hotkey.
+    /// </summary>
+    private static readonly TimeSpan DefaultStartTimeout = TimeSpan.FromSeconds(5);
+
     private readonly ILogger<GlobalHotkeyService> _logger;
+
     private readonly SettingsStore _settings;
+
     private readonly ILogSource _logSource;
+
     private readonly IGlobalHook _hook;
+
     private readonly HotkeyMatcher _matcher;
+
     private readonly Channel<HotkeyEdge> _edges;
+
     private readonly Lock _captureGate = new();
 
+    private readonly TimeSpan _startTimeout;
+
+    private readonly TaskCompletionSource _enabled = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
     private TaskCompletionSource<HotkeyCapture>? _capture;
+
     private Task? _dispatchTask;
+
     private Task? _hookTask;
+
     private bool _disposed;
 
-    public GlobalHotkeyService(
-        ILogger<GlobalHotkeyService> logger,
-        SettingsStore settings,
-        ILogSource logSource)
+    public GlobalHotkeyService(ILogger<GlobalHotkeyService> logger,
+                               SettingsStore settings,
+                               ILogSource logSource)
         : this(logger, settings, logSource, UioHookProvider.Instance)
     {
     }
@@ -56,15 +75,16 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService, IHostedService, 
     /// without touching the machine — the same shape as <see cref="SettingsStore"/>'s explicit-path
     /// constructor.
     /// </summary>
-    internal GlobalHotkeyService(
-        ILogger<GlobalHotkeyService> logger,
-        SettingsStore settings,
-        ILogSource logSource,
-        IGlobalHookProvider hookProvider)
+    internal GlobalHotkeyService(ILogger<GlobalHotkeyService> logger,
+                                 SettingsStore settings,
+                                 ILogSource logSource,
+                                 IGlobalHookProvider hookProvider,
+                                 TimeSpan? startTimeout = null)
     {
         _logger = logger;
         _settings = settings;
         _logSource = logSource;
+        _startTimeout = startTimeout ?? DefaultStartTimeout;
 
         _matcher = new HotkeyMatcher(Compile(settings.Current.Hotkey));
 
@@ -78,6 +98,7 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService, IHostedService, 
         });
 
         _hook = new SimpleGlobalHook(hookProvider);
+        _hook.HookEnabled += OnHookEnabled;
         _hook.KeyPressed += OnKeyPressed;
         _hook.KeyReleased += OnKeyReleased;
         _hook.HookDisabled += OnHookDisabled;
@@ -97,31 +118,62 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService, IHostedService, 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         _dispatchTask = Task.Run(DispatchAsync, CancellationToken.None);
+        _hookTask = RunHookAsync();
 
-        // Completed by the hook once it is actually observing; raced against the run task so a
-        // failure to start is known before StartAsync returns rather than surfacing later.
-        var enabled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        void OnEnabled(object? sender, HookEventArgs e) => enabled.TrySetResult();
-        _hook.HookEnabled += OnEnabled;
+        // Three outcomes, and the third is why there is a timeout at all. On macOS a missing
+        // Accessibility grant neither raises nor prompts: change 1's macOS spike found libuiohook
+        // blocking indefinitely at zero CPU with the tap never installed and no TCC activity at all.
+        // Racing only HookEnabled against the run task would hang host startup for good, and this
+        // process has no window from which to explain itself.
+        var settled = await Task
+            .WhenAny(_enabled.Task, _hookTask, Task.Delay(_startTimeout))
+            .ConfigureAwait(false);
 
-        try
+        if (settled == _enabled.Task)
         {
-            _hookTask = RunHookAsync();
-
-            // Whichever finishes first settles it: HookEnabled means the hook is observing, and the
-            // run task finishing this early means it failed to start.
-            var settled = await Task.WhenAny(enabled.Task, _hookTask).ConfigureAwait(false);
-
-            if (settled == enabled.Task)
-            {
-                Availability = HotkeyAvailability.Available;
-                _logger.LogInformation("Observing the hotkey {Binding}.", _matcher.Chord);
-            }
+            // OnHookEnabled only signals; the reporting it used to do runs here instead, where the
+            // hook thread has already been left behind.
+            ReportEnabled();
+            return;
         }
-        finally
+
+        if (settled == _hookTask)
         {
-            _hook.HookEnabled -= OnEnabled;
+            // Already reported by RecordUnavailable.
+            return;
         }
+
+        Availability = HotkeyAvailability.Failed;
+        _logger.LogError(
+            "The global hook did not start within {StartTimeoutSeconds} seconds, so the hotkey "
+            + "{Binding} is not being observed. On macOS this is what a missing Accessibility grant "
+            + "looks like — it blocks silently rather than failing, and the grant belongs to the "
+            + "process that launched this one. The application continues without a hotkey.",
+            _startTimeout.TotalSeconds,
+            _matcher.Chord);
+
+        // Outside StartAsync's lifetime on purpose: a start that timed out and then succeeded still
+        // reports itself, which is what makes the timeout a bound on waiting rather than a verdict
+        // on the hook. Scheduled rather than run inline, because _enabled completes its
+        // continuations asynchronously and so never on the hook thread.
+        _ = _enabled.Task.ContinueWith(
+            _ => ReportEnabled(),
+            CancellationToken.None,
+            TaskContinuationOptions.None,
+            TaskScheduler.Default);
+    }
+
+    // Signal only. This runs on the hook thread, where nothing but matching belongs, so the state
+    // change and the log line it used to carry are left to ReportEnabled, off that thread.
+    private void OnHookEnabled(object? sender, HookEventArgs e)
+    {
+        _enabled.TrySetResult();
+    }
+
+    private void ReportEnabled()
+    {
+        Availability = HotkeyAvailability.Available;
+        _logger.LogInformation("Observing the hotkey {Binding}.", _matcher.Chord);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
@@ -187,6 +239,7 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService, IHostedService, 
 
         _settings.Changed -= OnSettingsChanged;
         _logSource.MessageLogged -= OnLibUioHookMessage;
+        _hook.HookEnabled -= OnHookEnabled;
         _hook.KeyPressed -= OnKeyPressed;
         _hook.KeyReleased -= OnKeyReleased;
         _hook.HookDisabled -= OnHookDisabled;
@@ -287,7 +340,10 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService, IHostedService, 
         return capture?.TrySetResult(result) == true;
     }
 
-    private void OnHookDisabled(object? sender, HookEventArgs e) => ReleaseIfEngaged();
+    private void OnHookDisabled(object? sender, HookEventArgs e)
+    {
+        ReleaseIfEngaged();
+    }
 
     private void ReleaseIfEngaged()
     {
@@ -335,7 +391,7 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService, IHostedService, 
     {
         try
         {
-            await _hook.RunAsync(GlobalHookType.Keyboard, useBackgroundThread: true).ConfigureAwait(false);
+            await _hook.RunAsync(GlobalHookType.Keyboard, true).ConfigureAwait(false);
         }
         catch (HookException exception)
         {
@@ -411,12 +467,12 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService, IHostedService, 
         // Warning and above only, filtered here rather than trusting the source's own minimum level.
         // libuiohook logs per event at debug, so a chattier source handed to this constructor would
         // otherwise turn the log file into a keylog — that is a guarantee worth making structural.
-        if (e.LogEntry.Level is SharpHook.Data.LogLevel.Debug or SharpHook.Data.LogLevel.Info)
+        if (e.LogEntry.Level is LogLevel.Debug or LogLevel.Info)
         {
             return;
         }
 
-        var level = e.LogEntry.Level == SharpHook.Data.LogLevel.Error
+        var level = e.LogEntry.Level == LogLevel.Error
             ? Microsoft.Extensions.Logging.LogLevel.Error
             : Microsoft.Extensions.Logging.LogLevel.Warning;
 
