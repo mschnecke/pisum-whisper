@@ -135,10 +135,11 @@ public sealed class GeminiProviderPoolTests
     }
 
     [TestMethod]
-    public async Task WhenEveryEntryFailsTheSameWay_TheCategorySurvives()
+    public async Task WhenTheOnlyEntryIsRejected_TheCategorySurvives()
     {
-        // A lone misconfigured key must still read as an authentication failure rather than being
-        // flattened into a generic one, which is the whole point of categorising at the throw site.
+        // The reference flattens this into "All providers failed: …", whose first substring test in
+        // categorize_error is contains("provider") — so every cloud failure there is titled
+        // "Configuration Error". A lone mistyped key must say so instead.
         var pool = Pool(
             Store(Entry("a")),
             null,
@@ -148,6 +149,20 @@ public sealed class GeminiProviderPoolTests
             () => pool.TranscribeAsync(Audio, "Transcribe.", CancellationToken.None));
 
         failure.Category.ShouldBe(ErrorCategory.Authentication);
+    }
+
+    [TestMethod]
+    public async Task WhenEveryEntryIsRateLimited_TheCategorySurvives()
+    {
+        var pool = Pool(
+            Store(Entry("a"), Entry("b"), Entry("c")),
+            null,
+            id => throw new TranscriptionException($"{id} is throttled", ErrorCategory.RateLimit));
+
+        var failure = await Should.ThrowAsync<TranscriptionException>(
+            () => pool.TranscribeAsync(Audio, "Transcribe.", CancellationToken.None));
+
+        failure.Category.ShouldBe(ErrorCategory.RateLimit);
     }
 
     [TestMethod]
