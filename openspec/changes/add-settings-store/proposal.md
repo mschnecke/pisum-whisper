@@ -19,9 +19,10 @@ one place that owns loading, defaulting, validating and persisting it.
 - Add preset operations: upsert by id, delete with built-ins refused, and setting the active preset.
 - Write settings atomically, so an interrupted save cannot produce the corrupt file that then blocks
   the next startup. This is the one deliberate deviation from the reference in this change.
-- Copy both built-in preset prompts (`de-transcribe`, `en-transcribe`) verbatim. These German prompt
-  strings *are* the product's cleanup behaviour — they instruct Gemini to turn dictation into fluent
-  written prose and strip filler words.
+- Ship two built-in presets (`de-transcribe`, `en-transcribe`) whose prompts are owned by this
+  repository rather than copied from the reference. They *are* the product's cleanup behaviour — they
+  instruct Gemini to turn German dictation into fluent written prose and strip filler words — and
+  they diverge from the reference's `config/presets.rs` by intent.
 
 Settings shape is the reference's minus `transcriptionMode`, `whisperConfig` and `providerType`
 (Gemini is now the only provider type). The full shape is enumerated in the *Settings schema*

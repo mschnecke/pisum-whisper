@@ -4,7 +4,7 @@
 - [x] 1.2 Add `Preset` (id, name, systemPrompt, isBuiltin) and `ProviderConfig` (id, apiKey, model — nullable, enabled — defaulting true). Mark `Preset.id`, `.name`, `.systemPrompt` and `ProviderConfig.id`, `.apiKey` as required members. Verify: unit test round-trips each through JSON unchanged.
 - [x] 1.3 Add `LoggingConfig` (logLevel `info`, logMaxFileSizeMb 1, logRetentionDays 7). Verify: covered by the defaults test in 1.1.
 - [x] 1.4 Add a source-generated `JsonSerializerContext` with camelCase naming. Verify: unit test asserts serialized output contains `startWithSystem` and not `StartWithSystem`.
-- [x] 1.5 Copy both built-in preset prompts verbatim from the reference's `config/presets.rs` into `BuiltinPresets`. Verify: unit test asserts ids `de-transcribe` and `en-transcribe` exist, are marked built-in, and have non-empty prompts.
+- [x] 1.5 Define both built-in preset prompts in `BuiltinPresets`, owned by this repository rather than copied from the reference's `config/presets.rs`. Verify: unit test asserts ids `de-transcribe` and `en-transcribe` exist, are marked built-in, and have non-empty prompts.
 
 - [x] 1.6 Add `AudioFormat` (`opus`, `wav`) and `RecordingMode` (`holdToRecord`, `toggle`) as enums serialized by a single camelCase `JsonStringEnumConverter`. Verify: unit test asserts the four values serialize to exactly those strings.
 - [x] 1.7 Confirm the three fields dropped from the reference are absent. Verify: unit test serializes defaults and asserts the output contains no `transcriptionMode`, `whisperConfig` or `providerType`.

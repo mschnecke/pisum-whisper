@@ -1,9 +1,10 @@
 namespace Pisum.Whisper.Core.Settings;
 
 /// <summary>
-/// The presets shipped with the application. The prompts are copied verbatim from the reference
-/// implementation: they are not boilerplate but the product's cleanup behaviour, instructing the
-/// model to turn dictation into fluent written prose and strip filler words. Paraphrasing one
+/// The presets shipped with the application. The prompts are owned here: this file is their source
+/// of truth, not the reference implementation's <c>config/presets.rs</c>, from which they
+/// deliberately diverge. They are not boilerplate but the product's cleanup behaviour, instructing
+/// the model to turn dictation into fluent written prose and strip filler words, so changing one
 /// changes what the product does.
 /// </summary>
 public static class BuiltinPresets

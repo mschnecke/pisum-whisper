@@ -102,9 +102,14 @@ public sealed class AppSettingsTests
     [TestMethod]
     public void NonAsciiText_IsWrittenAsItselfRatherThanEscaped()
     {
-        // The file is advertised as hand-editable, and the built-in prompts are German. The default
-        // encoder would write every umlaut as a ü escape, which nobody can edit by hand.
-        var json = Serialize(new AppSettings());
+        // The file is advertised as hand-editable and users write German prompts and preset names
+        // into it. The default encoder would escape every umlaut, which nobody can edit by hand.
+        // The built-in prompts are English, so this pins the encoder on user-authored text.
+        var settings = new AppSettings();
+        settings.Presets.Add(
+            new Preset { Id = "de", Name = "Flüssig", SystemPrompt = "Schreibe flüssige Sätze." });
+
+        var json = Serialize(settings);
 
         json.ShouldContain("flüssige");
         json.ShouldNotContain("u00fc", Case.Insensitive);

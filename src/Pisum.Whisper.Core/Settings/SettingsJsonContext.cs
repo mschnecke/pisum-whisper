@@ -16,8 +16,8 @@ public sealed partial class SettingsJsonContext : JsonSerializerContext
     /// <summary>
     /// The context of the settings file is read and written through. It is <see cref="Default"/> plus
     /// a relaxed encoder, which the source-generation attribute has no way to express: the default
-    /// encoder escapes every non-ASCII character, which would write the German built-in prompts as
-    /// a wall of <c>ü</c> and undo the hand-editability camelCase is there to preserve. What
+    /// encoder escapes every non-ASCII character, which would write the German a user types into the
+    /// file as a wall of <c>ü</c> and undo the hand-editability camelCase is there to preserve. What
     /// the relaxed encoder relaxes is escaping meant for HTML, and a settings file is not HTML.
     /// </summary>
     /// <remarks>

@@ -39,8 +39,9 @@ shapes.
 already have one; there is no reason to churn the format.
 
 **Non-ASCII is written as itself, not escaped.** `System.Text.Json`'s default encoder escapes every
-character outside ASCII, which writes the German built-in prompts as a wall of `ü` and makes the
-file unreadable exactly where a user is most likely to want to edit it. Serializing with
+character outside ASCII, which writes German text as a wall of `ü` and makes the file unreadable
+exactly where a user is most likely to want to edit it. The built-in prompts are English, but the
+product transcribes German dictation and users name presets and write prompts in it. Serializing with
 `JavaScriptEncoder.UnsafeRelaxedJsonEscaping` restores the reference's output. What that encoder
 relaxes is escaping intended for HTML contexts — `<`, `>`, `&`, `'`, `+` — and a settings file is not
 one; nothing reads it into a page. Its name warrants the check, not avoidance. This is the mechanism
@@ -62,9 +63,12 @@ back.
 edit; a user missing a newly added built-in gains it. This is why merge is by id rather than by
 replacing the built-in set wholesale.
 
-**Copy both built-in preset prompts verbatim.** These long German strings are not boilerplate — they
-*are* the product's cleanup behaviour, instructing Gemini to turn dictation into fluent written prose
-and strip filler words. Paraphrasing them changes what the product does.
+**The built-in preset prompts are owned here, not copied from the reference.** They began as a
+verbatim copy of the reference's German strings and have since been rewritten as English
+instructions; this repository is now their source of truth, they diverge from `config/presets.rs` by
+intent, and they are not to be re-synced from it. They remain the one part of the schema that is not
+boilerplate — they *are* the product's cleanup behaviour, instructing Gemini to turn dictation into
+fluent written prose and strip filler words — so changing one changes what the product does.
 
 **`SettingsStore` is a singleton with a change event, not a static.** The reference uses a global
 `RwLock<AppSettings>`; the equivalent here is a DI singleton, which is testable and disposes cleanly.
