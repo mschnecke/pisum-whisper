@@ -24,25 +24,38 @@ public sealed class MiniAudioCapture : IAudioCapture
 
     public void Start()
     {
-        var engine = new MiniAudioEngine();
-        engine.UpdateAudioDevicesInfo();
-
-        if (engine.CaptureDevices.Length == 0)
+        if (_engine is not null)
         {
-            throw new AudioException("No input device found");
+            throw new InvalidOperationException("Capture is already started.");
         }
 
-        var deviceInfo = engine.CaptureDevices.First(d => d.IsDefault);
-        var format = new SFAudioFormat { SampleRate = SampleRate, Channels = 1, Format = SampleFormat.F32 };
-        var device = engine.InitializeCaptureDevice(deviceInfo, format, new MiniAudioDeviceConfig());
-        var channel = Channel.CreateUnbounded<float[]>();
+        var engine = new MiniAudioEngine();
+        try
+        {
+            engine.UpdateAudioDevicesInfo();
 
-        device.OnAudioProcessed += (samples, _) => channel.Writer.TryWrite(samples.ToArray());
-        device.Start();
+            if (engine.CaptureDevices.Length == 0)
+            {
+                throw new AudioException("No input device found");
+            }
 
-        _engine = engine;
-        _device = device;
-        _channel = channel;
+            var deviceInfo = engine.CaptureDevices.First(d => d.IsDefault);
+            var format = new SFAudioFormat { SampleRate = SampleRate, Channels = 1, Format = SampleFormat.F32 };
+            var device = engine.InitializeCaptureDevice(deviceInfo, format, new MiniAudioDeviceConfig());
+            var channel = Channel.CreateUnbounded<float[]>();
+
+            device.OnAudioProcessed += (samples, _) => channel.Writer.TryWrite(samples.ToArray());
+            device.Start();
+
+            _engine = engine;
+            _device = device;
+            _channel = channel;
+        }
+        catch
+        {
+            engine.Dispose();
+            throw;
+        }
     }
 
     public async Task<float[]> StopAsync()
