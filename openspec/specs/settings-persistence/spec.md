@@ -35,7 +35,7 @@ all of them.
 | `hotkey` | `{ modifiers: string[], key: string }` | `Ctrl`+`Shift`+`Space`, or `Cmd`+`Shift`+`Space` on macOS |
 | `audioFormat` | `"opus"` \| `"wav"` | `"opus"` |
 | `presets` | `Preset[]` | the built-in presets |
-| `activePresetId` | string | `"de-transcribe"` |
+| `activePresetId` | string | `"en-transcribe"` |
 | `providers` | `ProviderConfig[]` | empty |
 | `recordingMode` | `"holdToRecord"` \| `"toggle"` | `"holdToRecord"` |
 | `maxRecordingDurationSecs` | integer | `600` |
@@ -101,7 +101,7 @@ re-persisting the settings when it does not.
 
 #### Scenario: The active preset id refers to nothing
 - **WHEN** settings are loaded and `activePresetId` matches no preset
-- **THEN** the first built-in preset becomes active
+- **THEN** the default built-in preset becomes active
 - **AND** the corrected settings are written back to disk
 
 #### Scenario: The active preset is deleted

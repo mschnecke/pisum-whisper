@@ -1,9 +1,8 @@
+namespace Pisum.Whisper.Core.Tests.Settings;
+
 using System.Text.Json;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Pisum.Whisper.Core.Settings;
 using Shouldly;
-
-namespace Pisum.Whisper.Core.Tests.Settings;
 
 /// <summary>
 /// The settings shape is fixed by this change because five later changes read it. These tests pin
@@ -12,8 +11,10 @@ namespace Pisum.Whisper.Core.Tests.Settings;
 [TestClass]
 public sealed class AppSettingsTests
 {
-    private static string Serialize(AppSettings settings) =>
-        JsonSerializer.Serialize(settings, SettingsJsonContext.OnDisk.AppSettings);
+    private static string Serialize(AppSettings settings)
+    {
+        return JsonSerializer.Serialize(settings, SettingsJsonContext.OnDisk.AppSettings);
+    }
 
     [TestMethod]
     public void Defaults_MatchTheSchemaTable()
@@ -26,7 +27,7 @@ public sealed class AppSettingsTests
         settings.Hotkey.Key.ShouldBe("Space");
         settings.AudioFormat.ShouldBe(AudioFormat.Opus);
         settings.Presets.Select(p => p.Id).ShouldBe(["de-transcribe", "en-transcribe"]);
-        settings.ActivePresetId.ShouldBe("de-transcribe");
+        settings.ActivePresetId.ShouldBe("en-transcribe");
         settings.Providers.ShouldBeEmpty();
         settings.RecordingMode.ShouldBe(RecordingMode.HoldToRecord);
         settings.MaxRecordingDurationSecs.ShouldBe(600);
@@ -92,6 +93,7 @@ public sealed class AppSettingsTests
         var json = Serialize(new AppSettings());
 
         json.ShouldContain("\"startWithSystem\"");
+
         // Case-sensitively: Shouldly compares case-insensitively unless told otherwise.
         json.ShouldNotContain("\"StartWithSystem\"", Case.Sensitive);
         json.ShouldContain("\"maxRecordingDurationSecs\"");
@@ -107,12 +109,12 @@ public sealed class AppSettingsTests
         // The built-in prompts are English, so this pins the encoder on user-authored text.
         var settings = new AppSettings();
         settings.Presets.Add(
-            new Preset { Id = "de", Name = "Flüssig", SystemPrompt = "Schreibe flüssige Sätze." });
+            new Preset {Id = "de", Name = "Flüssig", SystemPrompt = "Schreibe flüssige Sätze."});
 
         var json = Serialize(settings);
 
         json.ShouldContain("flüssige");
-        json.ShouldNotContain("u00fc", Case.Insensitive);
+        json.ShouldNotContain("u00fc");
     }
 
     [TestMethod]
@@ -137,11 +139,11 @@ public sealed class AppSettingsTests
     [TestMethod]
     public void Enums_SerializeToTheDocumentedStrings()
     {
-        Serialize(new AppSettings { AudioFormat = AudioFormat.Opus }).ShouldContain("\"audioFormat\": \"opus\"");
-        Serialize(new AppSettings { AudioFormat = AudioFormat.Wav }).ShouldContain("\"audioFormat\": \"wav\"");
-        Serialize(new AppSettings { RecordingMode = RecordingMode.HoldToRecord })
+        Serialize(new AppSettings {AudioFormat = AudioFormat.Opus}).ShouldContain("\"audioFormat\": \"opus\"");
+        Serialize(new AppSettings {AudioFormat = AudioFormat.Wav}).ShouldContain("\"audioFormat\": \"wav\"");
+        Serialize(new AppSettings {RecordingMode = RecordingMode.HoldToRecord})
             .ShouldContain("\"recordingMode\": \"holdToRecord\"");
-        Serialize(new AppSettings { RecordingMode = RecordingMode.Toggle })
+        Serialize(new AppSettings {RecordingMode = RecordingMode.Toggle})
             .ShouldContain("\"recordingMode\": \"toggle\"");
     }
 

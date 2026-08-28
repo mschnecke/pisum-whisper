@@ -14,15 +14,15 @@ The application SHALL write structured log output to a file under
 
 ### Requirement: Logs are bounded by size
 The application SHALL roll the log file when it exceeds the configured maximum size, retaining at
-most ten rolled files.
+most ten log files in total, the active file included.
 
 #### Scenario: The log file exceeds the size limit
 - **WHEN** the active log file grows past `logMaxFileSizeMb`
 - **THEN** it is rolled and subsequent output goes to a new file
 
-#### Scenario: More than ten rolled files exist
-- **WHEN** rolling would produce an eleventh retained file
-- **THEN** the oldest rolled file is removed
+#### Scenario: More than ten log files exist
+- **WHEN** rolling would produce an eleventh file
+- **THEN** the oldest file is removed
 
 ### Requirement: Logs are bounded by age
 The application SHALL delete log files older than the configured retention period at startup.
@@ -45,7 +45,7 @@ reproducing a problem can raise verbosity mid-session.
 - **THEN** debug output appears in the log file without restarting the application
 
 #### Scenario: The user lowers the log level
-- **WHEN** `logLevel` is changed from `debug` to `warning`
+- **WHEN** `logLevel` is changed from `debug` to `warn`
 - **THEN** informational and debug output stops appearing without restarting the application
 
 ### Requirement: The log location is discoverable

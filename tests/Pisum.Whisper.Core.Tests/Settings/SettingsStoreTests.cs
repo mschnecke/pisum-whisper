@@ -1,17 +1,17 @@
+namespace Pisum.Whisper.Core.Tests.Settings;
+
 using System.Text.Json;
 using FakeItEasy;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Pisum.Whisper.Core.Settings;
 using Shouldly;
-
-namespace Pisum.Whisper.Core.Tests.Settings;
 
 [TestClass]
 public sealed class SettingsStoreTests
 {
     private string _directory = string.Empty;
+
     private string _path = string.Empty;
 
     [TestInitialize]
@@ -23,12 +23,20 @@ public sealed class SettingsStoreTests
     }
 
     [TestCleanup]
-    public void RemoveTemporaryHome() => Directory.Delete(_directory, recursive: true);
+    public void RemoveTemporaryHome()
+    {
+        Directory.Delete(_directory, true);
+    }
 
-    private SettingsStore NewStore(ILogger<SettingsStore>? logger = null) =>
-        new(logger ?? NullLogger<SettingsStore>.Instance, _path);
+    private SettingsStore NewStore(ILogger<SettingsStore>? logger = null)
+    {
+        return new SettingsStore(logger ?? NullLogger<SettingsStore>.Instance, _path);
+    }
 
-    private void WriteFile(string json) => File.WriteAllText(_path, json);
+    private void WriteFile(string json)
+    {
+        File.WriteAllText(_path, json);
+    }
 
     [TestMethod]
     public void DefaultFilePath_IsTheDotFileInTheHomeDirectory()
@@ -81,7 +89,7 @@ public sealed class SettingsStoreTests
         store.IsFirstLaunch.ShouldBeTrue();
         File.Exists(_path).ShouldBeTrue();
         settings.ShouldBeSameAs(store.Current);
-        File.ReadAllText(_path).ShouldContain("\"activePresetId\": \"de-transcribe\"");
+        File.ReadAllText(_path).ShouldContain("\"activePresetId\": \"en-transcribe\"");
 
         // The flag reports this run, not the history of the file: a second store over the same file
         // sees an ordinary launch.
@@ -152,16 +160,16 @@ public sealed class SettingsStoreTests
 
         var settings = NewStore(logger).Load();
 
-        settings.ActivePresetId.ShouldBe("de-transcribe");
-        NewStore().Load().ActivePresetId.ShouldBe("de-transcribe");
-        File.ReadAllText(_path).ShouldContain("\"activePresetId\": \"de-transcribe\"");
+        settings.ActivePresetId.ShouldBe("en-transcribe");
+        NewStore().Load().ActivePresetId.ShouldBe("en-transcribe");
+        File.ReadAllText(_path).ShouldContain("\"activePresetId\": \"en-transcribe\"");
 
         // The repair is logged rather than silent, so a dangling id caused by a defect elsewhere
         // still leaves a trace.
         A.CallTo(logger)
             .Where(call => call.Method.Name == nameof(ILogger.Log)
-                && call.GetArgument<LogLevel>(0) == LogLevel.Warning
-                && call.Arguments[2]!.ToString()!.Contains("gone"))
+                           && call.GetArgument<LogLevel>(0) == LogLevel.Warning
+                           && call.Arguments[2]!.ToString()!.Contains("gone"))
             .MustHaveHappenedOnceExactly();
     }
 
@@ -174,7 +182,7 @@ public sealed class SettingsStoreTests
         AppSettings? notified = null;
         store.Changed += (_, settings) => notified = settings;
 
-        store.Save(new AppSettings { MaxRecordingDurationSecs = 42, StartWithSystem = false });
+        store.Save(new AppSettings {MaxRecordingDurationSecs = 42, StartWithSystem = false});
 
         notified.ShouldNotBeNull();
         notified.MaxRecordingDurationSecs.ShouldBe(42);
@@ -220,7 +228,7 @@ public sealed class SettingsStoreTests
         // Settings carrying a long custom preset, then settings without it: a write in place would
         // leave the tail of the longer document behind.
         var longer = new AppSettings();
-        longer.Presets.Add(new Preset { Id = "long", Name = "Long", SystemPrompt = new string('x', 4000) });
+        longer.Presets.Add(new Preset {Id = "long", Name = "Long", SystemPrompt = new string('x', 4000)});
         store.Save(longer);
         var longLength = new FileInfo(_path).Length;
 
@@ -241,7 +249,7 @@ public sealed class SettingsStoreTests
         // A stale temporary from an interrupted save must not block the next one.
         File.WriteAllText(_path + ".tmp", "leftover");
 
-        store.Save(new AppSettings { StartWithSystem = false });
+        store.Save(new AppSettings {StartWithSystem = false});
 
         // Only the target remains, so the new content reached it by a move rather than by being
         // written into it — a partially written document is never observable at the settings path.
