@@ -85,7 +85,9 @@ Targets Windows x64 and macOS Apple Silicon. Cloud-only and Gemini-only: **local
 is out of scope despite the repository name.** It is a re-creation of `W:\github-pisum-transcript`
 (Tauri 2 + Svelte 5), which is the behavioural specification — wire formats, the recording state
 machine and its timing constants, the settings schema and the error taxonomy all come from it. None
-of its code transfers; it is read and re-expressed.
+of its code transfers; it is read and re-expressed. The one deliberate divergence is the two
+built-in preset prompts: change 2 rewrote them and `BuiltinPresets.cs` owns them now, so do not
+re-sync them from the reference's `config/presets.rs`.
 
 ## Stack
 
@@ -103,10 +105,10 @@ The three risky dependencies — global key **release**, cross-platform capture,
 `openspec/config.yaml` sets `schema: spec-driven`. Change proposals live in `openspec/changes/`,
 completed ones move to `openspec/changes/archive/`, and capability specs land in `openspec/specs/`.
 `openspec/ROADMAP.md` sequences the work as **12 ordered changes**, each tracked by a GitHub issue
-labelled `change:NN`. Change 1 is archived and its `application-host` spec is synced, so read it
-from `openspec/specs/` like any other; the macOS verification it left unfinished is tracked
-separately by issue #15 rather than by an open change. Drive the
-workflow with the `/opsx:*` commands (`explore`, `propose`,
+labelled `change:NN`. Changes 1 and 2 are archived and their `application-host` and
+`settings-persistence` specs are synced, so read them from `openspec/specs/` like any other; the
+macOS verification change 1 left unfinished is tracked separately by issue #15 rather than by an
+open change. Drive the workflow with the `/opsx:*` commands (`explore`, `propose`,
 `apply`, `sync`, `archive`); the backing skills are in `.claude/skills/openspec-*`. Project context
 and per-artifact rules can be filled in at the bottom of `openspec/config.yaml` (all commented out
 today).

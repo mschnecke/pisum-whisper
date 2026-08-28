@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Pisum.Whisper.Core.Settings;
 
 namespace Pisum.Whisper.App;
 
@@ -13,6 +14,10 @@ internal static class Program
     {
         using var host = BuildHost(args);
         host.Start();
+
+        // Settings are read once, before the UI exists, so a corrupt file fails at startup naming
+        // the file rather than at first use of whatever happened to read it first.
+        LoadSettings(host.Services);
 
         try
         {
@@ -41,7 +46,22 @@ internal static class Program
         builder.Logging.SetMinimumLevel(LogLevel.Debug);
 #endif
 
+        // A singleton, because it is cache-authoritative: it reads the file once and every later
+        // read is served from memory.
+        builder.Services.AddSingleton<SettingsStore>();
+
         return builder.Build();
+    }
+
+    private static void LoadSettings(IServiceProvider services)
+    {
+        var store = services.GetRequiredService<SettingsStore>();
+        store.Load();
+
+        services.GetRequiredService<ILogger<SettingsStore>>().LogInformation(
+            "Settings loaded from {Path} (first launch: {IsFirstLaunch}).",
+            store.FilePath,
+            store.IsFirstLaunch);
     }
 
     private static AppBuilder BuildAvaloniaApp(IServiceProvider services) =>

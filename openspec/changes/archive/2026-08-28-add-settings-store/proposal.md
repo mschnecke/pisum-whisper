@@ -16,12 +16,18 @@ one place that owns loading, defaulting, validating and persisting it.
   - merge in any **missing built-in presets**, so a new built-in appears for existing users;
   - if `activePresetId` resolves to no preset, fall back to the first built-in **and re-persist**.
 - Detect first launch (settings file absent) and expose it, so the welcome flow can hang off it later.
-- Copy both built-in preset prompts (`de-transcribe`, `en-transcribe`) verbatim. These German prompt
-  strings *are* the product's cleanup behaviour — they instruct Gemini to turn dictation into fluent
-  written prose and strip filler words.
+- Add preset operations: upsert by id, delete with built-ins refused, and setting the active preset.
+- Write settings atomically, so an interrupted save cannot produce the corrupt file that then blocks
+  the next startup. This is the one deliberate deviation from the reference in this change.
+- Ship two built-in presets (`de-transcribe`, `en-transcribe`) whose prompts are owned by this
+  repository rather than copied from the reference. They *are* the product's cleanup behaviour — they
+  instruct Gemini to turn German dictation into fluent written prose and strip filler words — and
+  they diverge from the reference's `config/presets.rs` by intent.
 
 Settings shape is the reference's minus `transcriptionMode`, `whisperConfig` and `providerType`
-(Gemini is now the only provider type).
+(Gemini is now the only provider type). The full shape is enumerated in the *Settings schema*
+requirement rather than left as a pointer at the reference, because five later changes read it and
+the reference is not in this repository.
 
 Reference: `W:\github-pisum-transcript\src-tauri\src\config\{schema,manager,presets}.rs`.
 
@@ -44,3 +50,8 @@ land means touching all of them, so settle the shape here.
 - No settings UI — that is `add-settings-window`.
 - No encryption of API keys, and no move to the platform config directory. Both are deliberate
   parity choices with the reference, recorded so they are not mistaken for oversights.
+- No reading of the reference's `~/.pisum-transcript.json`. A differently named product gets its own
+  file; existing users of the reference start from defaults.
+- No reloading of the file when it changes on disk. The store reads it once and is authoritative
+  thereafter, so an edit made by hand while the application runs is lost at the next save. A file
+  watcher is the upgrade path and needs no API change.

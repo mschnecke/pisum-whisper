@@ -1,0 +1,155 @@
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Pisum.Whisper.Core.Settings;
+using Shouldly;
+
+namespace Pisum.Whisper.Core.Tests.Settings;
+
+/// <summary>The preset operations the settings window will drive, exercised against a real file.</summary>
+[TestClass]
+public sealed class SettingsStorePresetTests
+{
+    private string _directory = string.Empty;
+    private string _path = string.Empty;
+
+    [TestInitialize]
+    public void CreateTemporaryHome()
+    {
+        _directory = Path.Combine(Path.GetTempPath(), "pisum-whisper-tests", Guid.NewGuid().ToString("n"));
+        Directory.CreateDirectory(_directory);
+        _path = Path.Combine(_directory, ".pisum-whisper.json");
+    }
+
+    [TestCleanup]
+    public void RemoveTemporaryHome() => Directory.Delete(_directory, recursive: true);
+
+    private SettingsStore NewStore() => new(NullLogger<SettingsStore>.Instance, _path);
+
+    private SettingsStore LoadedStore()
+    {
+        var store = NewStore();
+        store.Load();
+        return store;
+    }
+
+    private static Preset Custom(string id, string name = "Custom", string prompt = "Say it plainly.") =>
+        new() { Id = id, Name = name, SystemPrompt = prompt };
+
+    [TestMethod]
+    public void SavePreset_WithAnUnknownId_AppendsIt()
+    {
+        var store = LoadedStore();
+
+        store.SavePreset(Custom("mine"));
+
+        store.Current.Presets.Select(p => p.Id).ShouldBe(["de-transcribe", "en-transcribe", "mine"]);
+        NewStore().Load().Presets.ShouldContain(p => p.Id == "mine" && p.Name == "Custom");
+    }
+
+    [TestMethod]
+    public void SavePreset_WithAKnownId_UpdatesTheNameAndPrompt()
+    {
+        var store = LoadedStore();
+        store.SavePreset(Custom("mine"));
+
+        store.SavePreset(Custom("mine", name: "Renamed", prompt: "Be terse."));
+
+        var preset = store.Current.Presets.Single(p => p.Id == "mine");
+        preset.Name.ShouldBe("Renamed");
+        preset.SystemPrompt.ShouldBe("Be terse.");
+        store.Current.Presets.Count(p => p.Id == "mine").ShouldBe(1);
+    }
+
+    [TestMethod]
+    public void SavePreset_OverABuiltin_KeepsItBuiltinAndTheEditSurvivesTheNextLoad()
+    {
+        var store = LoadedStore();
+
+        // isBuiltin is not the caller's to change, so passing false must not clear the flag.
+        store.SavePreset(new Preset
+        {
+            Id = "de-transcribe",
+            Name = "Diktat",
+            SystemPrompt = "My own wording.",
+            IsBuiltin = false,
+        });
+
+        var reloaded = NewStore().Load().Presets.Single(p => p.Id == "de-transcribe");
+        reloaded.IsBuiltin.ShouldBeTrue();
+        reloaded.Name.ShouldBe("Diktat");
+        reloaded.SystemPrompt.ShouldBe("My own wording.");
+    }
+
+    [TestMethod]
+    public void DeletePreset_RefusesABuiltinAndLeavesTheListUnchanged()
+    {
+        var store = LoadedStore();
+        var before = store.Current.Presets.Select(p => p.Id).ToList();
+
+        var exception = Should.Throw<SettingsException>(() => store.DeletePreset("de-transcribe"));
+
+        exception.Message.ShouldContain("de-transcribe");
+        store.Current.Presets.Select(p => p.Id).ShouldBe(before);
+        NewStore().Load().Presets.Select(p => p.Id).ShouldBe(before);
+    }
+
+    [TestMethod]
+    public void DeletePreset_RefusesAnUnknownId()
+    {
+        var store = LoadedStore();
+
+        Should.Throw<SettingsException>(() => store.DeletePreset("nothing"))
+            .Message.ShouldContain("nothing");
+    }
+
+    [TestMethod]
+    public void DeletePreset_MovesTheActivePresetToTheFirstRemainingOne()
+    {
+        var store = LoadedStore();
+        store.SavePreset(Custom("mine"));
+        store.SetActivePreset("mine");
+
+        store.DeletePreset("mine");
+
+        // The first remaining preset, which is not necessarily the first built-in that Load falls
+        // back to — the two rules differ on purpose.
+        store.Current.ActivePresetId.ShouldBe("de-transcribe");
+        NewStore().Load().ActivePresetId.ShouldBe("de-transcribe");
+    }
+
+    [TestMethod]
+    public void DeletePreset_LeavesTheActivePresetAloneWhenAnotherIsDeleted()
+    {
+        var store = LoadedStore();
+        store.SavePreset(Custom("mine"));
+        store.SetActivePreset("en-transcribe");
+
+        store.DeletePreset("mine");
+
+        store.Current.ActivePresetId.ShouldBe("en-transcribe");
+    }
+
+    [TestMethod]
+    public void SetActivePreset_PersistsAnExistingId()
+    {
+        var store = LoadedStore();
+
+        store.SetActivePreset("en-transcribe");
+
+        store.Current.ActivePresetId.ShouldBe("en-transcribe");
+        NewStore().Load().ActivePresetId.ShouldBe("en-transcribe");
+    }
+
+    [TestMethod]
+    public void SetActivePreset_RejectsAnUnknownIdAndKeepsThePreviousOne()
+    {
+        var store = LoadedStore();
+        store.SetActivePreset("en-transcribe");
+
+        Should.Throw<SettingsException>(() => store.SetActivePreset("nothing"))
+            .Message.ShouldContain("nothing");
+
+        store.Current.ActivePresetId.ShouldBe("en-transcribe");
+        NewStore().Load().ActivePresetId.ShouldBe("en-transcribe");
+    }
+}
