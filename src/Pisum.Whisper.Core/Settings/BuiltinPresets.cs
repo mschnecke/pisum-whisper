@@ -12,7 +12,7 @@ public static class BuiltinPresets
     /// <summary>
     /// The preset a fresh installation starts on, and the load-time repair falls back to.
     /// </summary>
-    public const string DefaultId = "de-transcribe";
+    public const string DefaultId = "en-transcribe";
 
     /// <summary>
     /// A fresh list of fresh presets. Every caller gets its own, because presets are mutable and
