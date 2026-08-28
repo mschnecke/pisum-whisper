@@ -129,9 +129,17 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService, IHostedService, 
             .WhenAny(_enabled.Task, _hookTask, Task.Delay(_startTimeout))
             .ConfigureAwait(false);
 
-        if (settled == _enabled.Task || settled == _hookTask)
+        if (settled == _enabled.Task)
         {
-            // Already reported: by OnHookEnabled on success, by RecordUnavailable on failure.
+            // OnHookEnabled only signals; the reporting it used to do runs here instead, where the
+            // hook thread has already been left behind.
+            ReportEnabled();
+            return;
+        }
+
+        if (settled == _hookTask)
+        {
+            // Already reported by RecordUnavailable.
             return;
         }
 
@@ -143,17 +151,29 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService, IHostedService, 
             + "process that launched this one. The application continues without a hotkey.",
             _startTimeout.TotalSeconds,
             _matcher.Chord);
+
+        // Outside StartAsync's lifetime on purpose: a start that timed out and then succeeded still
+        // reports itself, which is what makes the timeout a bound on waiting rather than a verdict
+        // on the hook. Scheduled rather than run inline, because _enabled completes its
+        // continuations asynchronously and so never on the hook thread.
+        _ = _enabled.Task.ContinueWith(
+            _ => ReportEnabled(),
+            CancellationToken.None,
+            TaskContinuationOptions.None,
+            TaskScheduler.Default);
     }
 
+    // Signal only. This runs on the hook thread, where nothing but matching belongs, so the state
+    // change and the log line it used to carry are left to ReportEnabled, off that thread.
     private void OnHookEnabled(object? sender, HookEventArgs e)
+    {
+        _enabled.TrySetResult();
+    }
+
+    private void ReportEnabled()
     {
         Availability = HotkeyAvailability.Available;
         _logger.LogInformation("Observing the hotkey {Binding}.", _matcher.Chord);
-
-        // Completed last, and outside StartAsync's lifetime: a start that timed out and then
-        // succeeded still reports itself, which is what makes the timeout a bound on waiting
-        // rather than a verdict on the hook.
-        _enabled.TrySetResult();
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
