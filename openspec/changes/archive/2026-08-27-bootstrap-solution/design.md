@@ -104,20 +104,23 @@ four have a recorded outcome, because later proposals are written against the st
 
 ## Platform verification
 
-This change lands Windows-verified and remains open. No Apple Silicon hardware is available, so every
-`osx-arm64` cell below is **deferred, not failed** — the distinction matters: a deferred row carries
-no evidence either way, whereas a failed row triggers its fallback immediately.
+This change landed Windows-verified with every `osx-arm64` cell deferred for lack of Apple Silicon
+hardware. Hardware became available (issue #15) and the spikes were re-run on an Apple M4 running
+macOS 26.6.2; results below replace the deferred cells. Two rows now carry a genuine **FAIL** — the
+distinction from *deferred* matters here because both trigger their documented fallback.
 
 | Spike | What must be demonstrated | win-x64 | osx-arm64 | Fallback if it fails |
 |---|---|---|---|---|
-| S1 | Global hook reports key press **and** release | **PASS** | deferred | Hand-written `WH_KEYBOARD_LL` / `CGEventTap` interop |
-| S1 | Hook co-exists with Avalonia's run loop | **PASS** | deferred — expectation recorded by task 1.9 | Threading redesign; highest severity in the project |
-| S1 | `EventSimulator` paste accepted by a foreign app | **PASS** | deferred | Clipboard-only output with a manual-paste message |
-| S2 | Capture opens at 48 kHz mono f32, resampling from the device's native rate | **PARTIAL** | deferred | `NAudio.Core`'s managed `WdlResampler` behind `IAudioCapture` |
-| S3 | Tray icon visible; image swappable at runtime | **PASS** | deferred | Platform-specific tray implementation in `Pisum.Whisper.Platform` |
-| S3 | Tooltip on `NSStatusItem`; template image support | n/a | deferred | Active preset name moves into the menu itself |
+| S1 | Global hook reports key press **and** release | **PASS** | **PASS** | Hand-written `WH_KEYBOARD_LL` / `CGEventTap` interop |
+| S1 | Hook co-exists with Avalonia's run loop | **PASS** | **PASS** | Threading redesign; highest severity in the project |
+| S1 | `EventSimulator` paste accepted by a foreign app | **PASS** | **FAIL** — see macOS spike results | Clipboard-only output with a manual-paste message |
+| S2 | Capture opens at 48 kHz mono f32, resampling from the device's native rate | **PARTIAL** | **PASS** | `NAudio.Core`'s managed `WdlResampler` behind `IAudioCapture` |
+| S3 | Tray icon visible; image swappable at runtime | **PASS** | **PASS** | Platform-specific tray implementation in `Pisum.Whisper.Platform` |
+| S3 | Tooltip on `NSStatusItem` | n/a | **PASS** | Active preset name moves into the menu itself |
+| S3 | Template image support (auto light/dark tinting) | n/a | unconfirmed — only tested under Light | Active preset name moves into the menu itself |
 | S4 | Encoded `.opus` decodes back to the same duration | **PASS** | covered by win-x64 — pure computation, no platform surface | Hand-rolled Ogg muxer, as originally planned |
-| S4 | Accessibility grant survives a rebuild under a stable signing identity
+| 3.3 | `MacOSPlatformOptions { ShowInDock = false }` suppresses the Dock icon | n/a | **PASS** | None needed |
+| 1.4 | Accessibility/Input Monitoring grant survives a rebuild under a stable signing identity | n/a | **FAIL** — see macOS spike results | Task 1.4: establish and use a stable development signing identity |
 
 ### Windows spike results
 
@@ -208,6 +211,65 @@ deferred rows gate `add-audio-pipeline` (S2), `add-global-hotkey` and `add-text-
 deferred, the fused change has become a real blocker and should be split at that point rather than
 left open indefinitely.
 
+### macOS spike results
+
+Run from `spikes/Pisum.Whisper.Spikes` on an Apple M4, macOS 26.6.2 — `combined`, `hook`, `paste`,
+`audio`, `tray`. `opus` was not re-run: S4 is pure computation with no platform surface, already
+covered by the win-x64 result.
+
+**First-run gotcha, not a code defect: Accessibility must be granted before anything runs.** The
+`combined` spike's first-ever run hung indefinitely after `hook running alongside Avalonia: true` with
+zero CPU and zero TCC log activity — not a permission dialog, a silent block. macOS never prompted;
+the grant had to be added by hand under System Settings → Privacy & Security → Accessibility, for
+**Rider** (the terminal's parent process), not for `dotnet` or the spike binary itself. Once granted,
+`combined` passed immediately. Document this as a precondition for whoever runs these next.
+
+**S1 — co-existence with Avalonia, PASS.** Once Accessibility was granted, `combined` matched the
+Windows result exactly in shape: 9 presses, 9 releases, 6 icon updates via `Dispatcher.UIThread.Post`,
+no contention. This resolves the project's highest-severity open question — see Open Questions below.
+
+**S1 — both key edges, PASS after a pacing fix.** The first `hook` run reported both edges (3 presses,
+3 releases, Space UP correctly carrying `LeftShift, LeftCtrl`) but the built-in verdict still read
+FAIL: Space **DOWN** carried `mask=SimulatedEvent` only, missing both modifiers, even though each
+modifier's own DOWN event showed the correct individual flag. Root cause: `EventSimulator` posting
+three `SimulateKeyPress` calls back-to-back outruns macOS folding the earlier keys into the modifier
+flags, so the last key's DOWN can arrive before the OS has caught up. Inserting a 30 ms delay after
+every `SimulateKeyPress`/`SimulateKeyRelease` call fixed it completely — Space DOWN then carried
+`LeftShift, LeftCtrl, SimulatedEvent` as expected. **`HookSpike.cs` was changed to pace its simulated
+edges by 30 ms; any other macOS code driving `EventSimulator` through a modifier combo should do the
+same.**
+
+**S1b — paste into a foreign application, FAIL.** Even with the pacing fix applied and Accessibility
+granted, the round-trip (token → clipboard → simulated Cmd+V into TextEdit → sentinel → simulated
+Cmd+A/Cmd+C → read back) never recovers the token; the read-back is always exactly the sentinel that
+was set moments before, meaning TextEdit's Select-All/Copy never fired at all — not merely that Paste
+failed. TextEdit was confirmed frontmost with no dialog present (visual check). One additional finding
+surfaced along the way: the very first run after each `dotnet build` shows the hook observing **zero**
+key events at all (not just a failed paste — total silence), while the second run of the same,
+unrebuilt binary reliably observes all 9. That points at task 1.4: an unsigned binary's TCC grant does
+not appear to survive a rebuild, and there is no visible re-prompt when it silently reverts — a
+`macOS spike results` finding in its own right (see the new 1.4 row in the matrix above). Root cause
+of the paste failure itself is unresolved; **adopt the documented fallback** (clipboard-only output
+with a manual-paste message) for macOS rather than depending on `EventSimulator` paste.
+
+**S2 — capture, PASS (upgrades the Windows PARTIAL).** The MacBook's default microphone natively
+supports 44100/48000/88200/96000 Hz, all mono — the first device seen in this project with a
+non-48 kHz native rate, closing task 1.5a. Both the 48 kHz target and a forced off-native 16 kHz
+request were honoured accurately (100.7% of expected samples each), unlike the Windows run's 93.9%
+resampled shortfall. `add-audio-pipeline` can rely on miniaudio's resampling on this evidence, though
+the Windows PARTIAL for the same rate stands as its own data point until re-measured there.
+
+**S3 — tray icon, PASS; template image support still open.** Icon shown, tooltip visible on hover,
+3-item native menu, 8 runtime image swaps — all confirmed by direct observation, matching the Windows
+result. What remains open: whether Avalonia's `TrayIcon` flags the `NSImage` as a template (so macOS
+auto-tints it for light/dark menu bars) was only exercised under `theme variant: Light`; no dark-mode
+comparison was run, so this is unconfirmed rather than resolved. `add-tray-icon` should re-run `tray`
+under both appearance modes before relying on template flagging.
+
+**3.3 — no Dock icon, PASS.** `combined` sets `MacOSPlatformOptions { ShowInDock = false }`; confirmed
+by direct observation that no Dock icon appears. (`tray` does not set this option and was not used for
+this check, since a Dock icon there would be expected, not informative.)
+
 ## Open Questions
 
 - **Is `Concentus.Oggfile` usable with Concentus 2.x, or is a hand-rolled Ogg muxer required?**
@@ -218,13 +280,16 @@ left open indefinitely.
   positions", and `add-audio-pipeline` should be re-scoped before it is designed.
 
 - **Does SharpHook's global hook require the main thread on macOS, and does that co-exist with
-  Avalonia's run loop?** **Unconfirmed — no hardware.** The highest-severity unknown in the project:
-  a conflict here is not a library swap but a threading redesign. Task 1.9 reduces it by
-  desk-research, and that research is done: SharpHook documents `CFRunLoopGetCurrent` as being
-  called on whichever thread runs the hook, and `RunAsync` as using a separate thread, so the
-  expectation is co-existence. The `combined` spike proves that composition works on Windows and is
-  the harness to run first on a Mac. Still unconfirmed on hardware; see Windows spike results above.
+  Avalonia's run loop?** **Resolved — confirmed on Apple M4 hardware (macOS 26.6.2).** The
+  highest-severity unknown in the project, closed: the desk-researched expectation (task 1.9) held —
+  SharpHook's hook runs on its own background thread with its own `CFRunLoop`, independent of
+  Avalonia's main-thread loop. `combined` passed with the same shape as Windows: 9 presses, 9
+  releases, 6 icon updates via `Dispatcher.UIThread.Post`, no contention. See macOS spike results
+  above. One precondition worth carrying forward: Accessibility must be granted to the process (or its
+  terminal parent) before this works at all, and macOS does not always prompt for it.
 
 - **Does Avalonia's `TrayIcon` expose NSImage template flagging, or must light and dark variants be
-  shipped and selected manually?** **Deferred — no hardware.** S3 answers it, and `add-tray-icon`
-  depends on the answer; that change should not be designed until then.
+  shipped and selected manually?** **Still open.** The icon renders, the tooltip shows, and runtime
+  swaps work, but that was only exercised under `theme variant: Light`; whether the icon is a true
+  template image that macOS auto-tints for dark menu bars was not tested. `add-tray-icon` should run
+  `tray` under both appearance modes before designing around an assumption either way.

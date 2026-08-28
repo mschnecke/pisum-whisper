@@ -40,10 +40,12 @@ internal static class HookSpike
         // events on the same path as physical ones, so this exercises the real code path; the
         // one thing it does not prove is the hardware scan-code route.
         Console.WriteLine("simulating Ctrl+Shift+Space down...");
-        foreach (var key in Combo) simulator.SimulateKeyPress(key);
+        // A tight loop can post the next key's DOWN before macOS has folded the previous key into
+        // the modifier flags, so the combo's last DOWN arrives without the earlier keys' mask set.
+        foreach (var key in Combo) { simulator.SimulateKeyPress(key); await Task.Delay(30); }
         await Task.Delay(150);
         Console.WriteLine("simulating Ctrl+Shift+Space up...");
-        foreach (var key in Combo.Reverse()) simulator.SimulateKeyRelease(key);
+        foreach (var key in Combo.Reverse()) { simulator.SimulateKeyRelease(key); await Task.Delay(30); }
         await Task.Delay(300);
 
         hook.Stop();
