@@ -6,7 +6,7 @@ using Pisum.Whisper.Core.Settings;
 using Serilog.Core;
 
 /// <summary>
-/// Keeps the log level in step with settings, so a user reproducing a problem can raise verbosity
+/// Keeps the log level in a step with settings, so a user reproducing a problem can raise verbosity
 /// mid-session — restarting to change the level destroys the state that caused the problem — and
 /// reports at shutdown what the asynchronous buffer dropped.
 /// </summary>

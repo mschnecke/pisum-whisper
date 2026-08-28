@@ -1,13 +1,13 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+namespace Pisum.Whisper.Core.Tests.Logging;
+
 using Pisum.Whisper.Core.Logging;
 using Shouldly;
-
-namespace Pisum.Whisper.Core.Tests.Logging;
 
 [TestClass]
 public sealed class LoggingConfigPeekTests
 {
     private string _directory = string.Empty;
+
     private string _path = string.Empty;
 
     [TestInitialize]
@@ -19,7 +19,10 @@ public sealed class LoggingConfigPeekTests
     }
 
     [TestCleanup]
-    public void RemoveTemporaryHome() => Directory.Delete(_directory, recursive: true);
+    public void RemoveTemporaryHome()
+    {
+        Directory.Delete(_directory, true);
+    }
 
     /// <summary>
     /// The peek runs before anything owns the settings file, so leaving it exactly as it was found —
@@ -47,7 +50,7 @@ public sealed class LoggingConfigPeekTests
         config.LogLevel.ShouldBe("info");
         config.LogMaxFileSizeMb.ShouldBe(1);
         config.LogRetentionDays.ShouldBe(7);
-        ShouldHaveLeftTheFileAlone(before: null);
+        ShouldHaveLeftTheFileAlone(null);
     }
 
     [TestMethod]

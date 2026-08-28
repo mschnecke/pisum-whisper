@@ -20,21 +20,6 @@ public static class FileLoggingServiceCollectionExtensions
     public static IServiceCollection AddFileLogging(this IServiceCollection services, out ILogger logger) =>
         services.AddFileLogging(FileLoggingOptions.Peek(), out logger);
 
-    /// <summary>
-    /// Builds the logger from <paramref name="options"/> and registers it through
-    /// <c>AddSerilog</c>, which replaces <c>ILoggerFactory</c> outright so none of the host's
-    /// default providers survive alongside Serilog.
-    /// </summary>
-    /// <param name="logger">
-    /// The logger just built. The caller gets it back so that a failure of <c>builder.Build()</c>
-    /// itself can be logged — which is the whole reason logging is configured before the container.
-    /// </param>
-    /// <remarks>
-    /// The order matters and is load-bearing: resolve the directory, create it, sweep it, then open
-    /// the sink. Serilog holds the active file with <see cref="FileShare.Read"/>, which excludes
-    /// delete, so a sweep placed after the sink silently fails against the one file most likely to
-    /// be expired — the one it is about to append to.
-    /// </remarks>
     public static IServiceCollection AddFileLogging(
         this IServiceCollection services,
         FileLoggingOptions options,

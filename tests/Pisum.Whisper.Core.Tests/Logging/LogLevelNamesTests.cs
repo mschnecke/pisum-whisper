@@ -1,9 +1,8 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+namespace Pisum.Whisper.Core.Tests.Logging;
+
 using Pisum.Whisper.Core.Logging;
 using Serilog.Events;
 using Shouldly;
-
-namespace Pisum.Whisper.Core.Tests.Logging;
 
 [TestClass]
 public sealed class LogLevelNamesTests

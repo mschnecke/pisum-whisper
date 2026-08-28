@@ -1,8 +1,7 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+namespace Pisum.Whisper.Core.Tests.Logging;
+
 using Pisum.Whisper.Core.Logging;
 using Shouldly;
-
-namespace Pisum.Whisper.Core.Tests.Logging;
 
 [TestClass]
 public sealed class LogDirectoryTests
@@ -17,7 +16,10 @@ public sealed class LogDirectoryTests
     }
 
     [TestCleanup]
-    public void RemoveTemporaryHome() => Directory.Delete(_home, recursive: true);
+    public void RemoveTemporaryHome()
+    {
+        Directory.Delete(_home, true);
+    }
 
     [TestMethod]
     public void DefaultPath_IsTheLogsFolderUnderTheApplicationDirectory()

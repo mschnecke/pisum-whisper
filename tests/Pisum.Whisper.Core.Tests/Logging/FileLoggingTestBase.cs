@@ -1,11 +1,10 @@
+namespace Pisum.Whisper.Core.Tests.Logging;
+
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Pisum.Whisper.Core.Logging;
 using Pisum.Whisper.Core.Settings;
-
-namespace Pisum.Whisper.Core.Tests.Logging;
 
 /// <summary>
 /// A temporary home directory and a host built the way the application builds one, so these tests
@@ -28,10 +27,15 @@ public abstract class FileLoggingTestBase
     }
 
     [TestCleanup]
-    public void RemoveTemporaryHome() => Directory.Delete(_home, recursive: true);
+    public void RemoveTemporaryHome()
+    {
+        Directory.Delete(_home, true);
+    }
 
-    protected string[] LogFiles() =>
-        Directory.Exists(Logs.Path) ? Directory.GetFiles(Logs.Path, LogDirectory.LogFileSearchPattern) : [];
+    protected string[] LogFiles()
+    {
+        return Directory.Exists(Logs.Path) ? Directory.GetFiles(Logs.Path, LogDirectory.LogFileSearchPattern) : [];
+    }
 
     /// <summary>
     /// The application registers the settings store alongside file logging, and the hosted service

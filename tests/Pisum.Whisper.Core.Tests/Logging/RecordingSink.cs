@@ -1,8 +1,8 @@
+namespace Pisum.Whisper.Core.Tests.Logging;
+
 using System.Diagnostics;
 using Serilog.Core;
 using Serilog.Events;
-
-namespace Pisum.Whisper.Core.Tests.Logging;
 
 /// <summary>
 /// A sink the tests put behind the application's own asynchronous wrapper, so what is exercised is
@@ -70,6 +70,8 @@ internal sealed class RecordingSink : ILogEventSink
         return condition();
     }
 
-    public bool WaitForMessageContaining(string fragment) =>
-        WaitUntil(() => Messages.Any(message => message.Contains(fragment, StringComparison.Ordinal)));
+    public bool WaitForMessageContaining(string fragment)
+    {
+        return WaitUntil(() => Messages.Any(message => message.Contains(fragment, StringComparison.Ordinal)));
+    }
 }

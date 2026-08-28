@@ -18,7 +18,7 @@ public sealed class DroppedLogEventMonitor : IAsyncLogEventSinkMonitor
 
     /// <summary>
     /// Deliberately empty. The inspector is kept after the sink lets it go, because the count is read
-    /// at shutdown and forgetting the inspector there would report zero for every run.
+    /// at shutdown and forgetting the inspector, there would report zero for every run.
     /// </summary>
     public void StopMonitoring(IAsyncLogEventSinkInspector inspector)
     {

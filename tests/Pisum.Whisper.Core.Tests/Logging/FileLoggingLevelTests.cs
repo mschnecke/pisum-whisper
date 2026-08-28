@@ -1,25 +1,28 @@
+namespace Pisum.Whisper.Core.Tests.Logging;
+
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Pisum.Whisper.Core.Logging;
 using Pisum.Whisper.Core.Settings;
 using Serilog.Core;
+using Serilog.Events;
 using Shouldly;
-
-namespace Pisum.Whisper.Core.Tests.Logging;
 
 [TestClass]
 public sealed class FileLoggingLevelTests : FileLoggingTestBase
 {
     private readonly RecordingSink _sink = new();
 
-    private FileLoggingOptions Options() => new()
+    private FileLoggingOptions Options()
     {
-        Directory = Logs,
-        Config = LoggingConfigPeek.Read(SettingsPath),
-        SinkOverride = write => write.Sink(_sink),
-    };
+        return new FileLoggingOptions
+        {
+            Directory = Logs,
+            Config = LoggingConfigPeek.Read(SettingsPath),
+            SinkOverride = write => write.Sink(_sink),
+        };
+    }
 
     private void WriteSettings(string logLevel)
     {
@@ -67,14 +70,14 @@ public sealed class FileLoggingLevelTests : FileLoggingTestBase
         store.Load();
         host.Start();
 
-        levelSwitch.MinimumLevel.ShouldBe(Serilog.Events.LogEventLevel.Information);
+        levelSwitch.MinimumLevel.ShouldBe(LogEventLevel.Information);
         logger.IsEnabled(LogLevel.Debug).ShouldBeFalse();
 
         var settings = store.Current;
         settings.LoggingConfig.LogLevel = "debug";
         store.Save(settings);
 
-        levelSwitch.MinimumLevel.ShouldBe(Serilog.Events.LogEventLevel.Debug);
+        levelSwitch.MinimumLevel.ShouldBe(LogEventLevel.Debug);
         logger.IsEnabled(LogLevel.Debug).ShouldBeTrue();
     }
 
@@ -137,6 +140,6 @@ public sealed class FileLoggingLevelTests : FileLoggingTestBase
         _sink.WaitForMessageContaining("chatty").ShouldBeTrue();
         host.Services.GetRequiredService<LoggingLevelSwitch>()
             .MinimumLevel
-            .ShouldBe(Serilog.Events.LogEventLevel.Information);
+            .ShouldBe(LogEventLevel.Information);
     }
 }

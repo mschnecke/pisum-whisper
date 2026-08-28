@@ -1,7 +1,6 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Shouldly;
-
 namespace Pisum.Whisper.Core.Tests;
+
+using Shouldly;
 
 /// <summary>
 /// Placeholder until Core has behaviour worth testing. Its job is to prove the test stack runs.
@@ -10,5 +9,8 @@ namespace Pisum.Whisper.Core.Tests;
 public sealed class TestHarnessTests
 {
     [TestMethod]
-    public void HarnessRuns() => true.ShouldBeTrue();
+    public void HarnessRuns()
+    {
+        true.ShouldBeTrue();
+    }
 }

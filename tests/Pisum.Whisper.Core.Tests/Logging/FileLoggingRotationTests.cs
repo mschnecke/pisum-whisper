@@ -1,11 +1,10 @@
+namespace Pisum.Whisper.Core.Tests.Logging;
+
 using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Pisum.Whisper.Core.Logging;
 using Pisum.Whisper.Core.Settings;
 using Shouldly;
-
-namespace Pisum.Whisper.Core.Tests.Logging;
 
 [TestClass]
 public sealed class FileLoggingRotationTests : FileLoggingTestBase
@@ -21,13 +20,13 @@ public sealed class FileLoggingRotationTests : FileLoggingTestBase
             logger.Information("Event {Index} padded out so that a kilobyte is a handful of lines.", index);
         }
 
-        ((IDisposable)logger).Dispose();
+        ((IDisposable) logger).Dispose();
     }
 
     [TestMethod]
     public void TheLogFileRollsWhenItPassesTheSizeLimit()
     {
-        WriteAndFlush(new FileLoggingOptions { Directory = Logs, FileSizeLimitBytes = 1024 }, events: 50);
+        WriteAndFlush(new FileLoggingOptions {Directory = Logs, FileSizeLimitBytes = 1024}, 50);
 
         LogFiles().Length.ShouldBeGreaterThan(1);
     }
@@ -37,7 +36,7 @@ public sealed class FileLoggingRotationTests : FileLoggingTestBase
     {
         // Serilog counts the active file within the limit, so ten on disk is nine rolled plus the one
         // being written.
-        WriteAndFlush(new FileLoggingOptions { Directory = Logs, FileSizeLimitBytes = 1024 }, events: 2000);
+        WriteAndFlush(new FileLoggingOptions {Directory = Logs, FileSizeLimitBytes = 1024}, 2000);
 
         LogFiles().Length.ShouldBe(10);
     }
@@ -55,9 +54,9 @@ public sealed class FileLoggingRotationTests : FileLoggingTestBase
             new FileLoggingOptions
             {
                 Directory = Logs,
-                Config = new LoggingConfig { LogRetentionDays = 7 },
+                Config = new LoggingConfig {LogRetentionDays = 7},
             },
-            events: 1);
+            1);
 
         var written = File.ReadAllText(Logs.LogFilePath);
         written.ShouldNotContain("STALE CONTENT FROM AN EARLIER RUN");
@@ -75,9 +74,9 @@ public sealed class FileLoggingRotationTests : FileLoggingTestBase
             new FileLoggingOptions
             {
                 Directory = Logs,
-                Config = new LoggingConfig { LogRetentionDays = 7 },
+                Config = new LoggingConfig {LogRetentionDays = 7},
             },
-            events: 1);
+            1);
 
         File.ReadAllText(Logs.LogFilePath).ShouldContain("RECENT CONTENT FROM AN EARLIER RUN");
     }
@@ -92,7 +91,7 @@ public sealed class FileLoggingRotationTests : FileLoggingTestBase
         var latencies = new double[events];
         var services = new ServiceCollection();
         services.AddFileLogging(
-            new FileLoggingOptions { Directory = Logs, FileSizeLimitBytes = 16 * 1024 },
+            new FileLoggingOptions {Directory = Logs, FileSizeLimitBytes = 16 * 1024},
             out var logger);
 
         for (var index = 0; index < events; index++)
@@ -102,11 +101,11 @@ public sealed class FileLoggingRotationTests : FileLoggingTestBase
             latencies[index] = Stopwatch.GetElapsedTime(start).TotalMicroseconds;
         }
 
-        ((IDisposable)logger).Dispose();
+        ((IDisposable) logger).Dispose();
 
         LogFiles().Length.ShouldBeGreaterThan(1, "the measured run has to span a roll");
         Array.Sort(latencies);
-        var p999 = latencies[(int)(events * 0.999)];
+        var p999 = latencies[(int) (events * 0.999)];
         p999.ShouldBeLessThan(500d, $"p99.9 was {p999:F1} us against about 1700 us for a synchronous sink");
     }
 }

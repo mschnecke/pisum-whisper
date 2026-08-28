@@ -1,15 +1,15 @@
+namespace Pisum.Whisper.Core.Tests.Settings;
+
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Pisum.Whisper.Core.Settings;
 using Shouldly;
-
-namespace Pisum.Whisper.Core.Tests.Settings;
 
 /// <summary>The preset operations the settings window will drive, exercised against a real file.</summary>
 [TestClass]
 public sealed class SettingsStorePresetTests
 {
     private string _directory = string.Empty;
+
     private string _path = string.Empty;
 
     [TestInitialize]
@@ -21,9 +21,15 @@ public sealed class SettingsStorePresetTests
     }
 
     [TestCleanup]
-    public void RemoveTemporaryHome() => Directory.Delete(_directory, recursive: true);
+    public void RemoveTemporaryHome()
+    {
+        Directory.Delete(_directory, true);
+    }
 
-    private SettingsStore NewStore() => new(NullLogger<SettingsStore>.Instance, _path);
+    private SettingsStore NewStore()
+    {
+        return new SettingsStore(NullLogger<SettingsStore>.Instance, _path);
+    }
 
     private SettingsStore LoadedStore()
     {
@@ -32,8 +38,10 @@ public sealed class SettingsStorePresetTests
         return store;
     }
 
-    private static Preset Custom(string id, string name = "Custom", string prompt = "Say it plainly.") =>
-        new() { Id = id, Name = name, SystemPrompt = prompt };
+    private static Preset Custom(string id, string name = "Custom", string prompt = "Say it plainly.")
+    {
+        return new Preset {Id = id, Name = name, SystemPrompt = prompt};
+    }
 
     [TestMethod]
     public void SavePreset_WithAnUnknownId_AppendsIt()
@@ -52,7 +60,7 @@ public sealed class SettingsStorePresetTests
         var store = LoadedStore();
         store.SavePreset(Custom("mine"));
 
-        store.SavePreset(Custom("mine", name: "Renamed", prompt: "Be terse."));
+        store.SavePreset(Custom("mine", "Renamed", "Be terse."));
 
         var preset = store.Current.Presets.Single(p => p.Id == "mine");
         preset.Name.ShouldBe("Renamed");

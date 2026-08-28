@@ -1,27 +1,30 @@
+namespace Pisum.Whisper.Core.Tests.Logging;
+
 using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Pisum.Whisper.Core.Logging;
 using Shouldly;
-
-namespace Pisum.Whisper.Core.Tests.Logging;
 
 [TestClass]
 public sealed class FileLoggingBufferTests : FileLoggingTestBase
 {
     private const int Events = 3000;
+
     private const int BufferSize = 100;
 
-    private readonly RecordingSink _sink = new() { Delay = TimeSpan.FromMilliseconds(1) };
+    private readonly RecordingSink _sink = new() {Delay = TimeSpan.FromMilliseconds(1)};
 
-    private FileLoggingOptions Options() => new()
+    private FileLoggingOptions Options()
     {
-        Directory = Logs,
-        AsyncBufferSize = BufferSize,
-        SinkOverride = write => write.Sink(_sink),
-    };
+        return new FileLoggingOptions
+        {
+            Directory = Logs,
+            AsyncBufferSize = BufferSize,
+            SinkOverride = write => write.Sink(_sink),
+        };
+    }
 
     [TestMethod]
     public void AFullBufferDropsEventsRatherThanHoldingTheCallingThread()
@@ -41,7 +44,7 @@ public sealed class FileLoggingBufferTests : FileLoggingTestBase
         elapsed.Stop();
 
         _sink.Delay = TimeSpan.Zero;
-        ((IDisposable)logger).Dispose();
+        ((IDisposable) logger).Dispose();
 
         elapsed.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(2));
         _sink.Count.ShouldBeLessThan(Events, "the buffer has to have overflowed for this to mean anything");
