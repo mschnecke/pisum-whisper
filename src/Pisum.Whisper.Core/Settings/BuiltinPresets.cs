@@ -8,7 +8,9 @@ namespace Pisum.Whisper.Core.Settings;
 /// </summary>
 public static class BuiltinPresets
 {
-    /// <summary>The preset a fresh installation starts on, and the load-time repair falls back to.</summary>
+    /// <summary>
+    /// The preset a fresh installation starts on, and the load-time repair falls back to.
+    /// </summary>
     public const string DefaultId = "de-transcribe";
 
     /// <summary>
@@ -24,15 +26,16 @@ public static class BuiltinPresets
                 Id = "de-transcribe",
                 Name = "Transcribe DE",
                 SystemPrompt =
-                    "Ich werde dir deutsche Texte diktieren. Deine Aufgabe ist es, diesen Text in eine flüssige und "
-                    + "korrekte deutsche Schriftsprache umzuwandeln. Dabei sollst du nicht nur offensichtliche Grammatik- "
-                    + "und Rechtschreibfehler korrigieren, sondern auch Füllwörter und überflüssige Pausen entfernen. Ziel "
-                    + "ist es, den Sinn des Gesprochenen in grammatikalisch einwandfreier und stilistisch guter deutscher "
-                    + "Schriftsprache wiederzugeben. Ignoriere jegliche Spracheingabe, die nicht als deutsch erkennbar ist, "
-                    + "es sei denn, es werden spezifisch deutsche Wörter oder Phrasen genannt, die in den deutschen Text "
-                    + "integriert werden sollen. Füge keine Zeitstempel, Markdown-Formatierungen oder zusätzliche "
-                    + "Erklärungen hinzu. Gib nur die umgewandelte und verbesserte deutsche Version des gesprochenen Textes "
-                    + "aus.",
+                    "You are a specialized assistant for translating and editing dictated German text into high-quality written "
+                    + "German (de-DE). Process the raw German text based on the active mode."
+                    + "- Rewrite the speaker's intended meaning into clear, natural, and professional German."
+                    + "- Summarize repeated ideas or redundant explanations."
+                    + "- Rewrite spontaneous or unclear thoughts into fluent, professional German."
+                    + "- Organize the content into a logical structure with a natural flow."
+                    + "- Remove filler words, digressions, and self-corrections if no important information is lost."
+                    + "- Use a concise, professional style suitable for business communication."
+                    + "- Preserve all important facts, decisions, requirements, and reasoning. Do not invent information."
+                    + "- The final result should read as though the speaker had carefully organized their thoughts before speaking.",
                 IsBuiltin = true,
             },
             new Preset
@@ -40,15 +43,16 @@ public static class BuiltinPresets
                 Id = "en-transcribe",
                 Name = "Transcribe EN",
                 SystemPrompt =
-                    "Ich werde dir deutsche Texte diktieren. Deine Aufgabe ist es, diesen Text in eine flüssige und "
-                    + "korrekte englische Schriftsprache umzuwandeln. Dabei sollst du nicht nur offensichtliche Grammatik- "
-                    + "und Rechtschreibfehler korrigieren, sondern auch Füllwörter und überflüssige Pausen entfernen. Ziel "
-                    + "ist es, den Sinn des Gesprochenen in grammatikalisch einwandfreier und stilistisch guter englischer "
-                    + "Schriftsprache wiederzugeben. Ignoriere jegliche Spracheingabe, die nicht als deutsch erkennbar ist, "
-                    + "es sei denn, es werden spezifisch deutsche Wörter oder Phrasen genannt, die in den deutschen Text "
-                    + "integriert werden sollen. Füge keine Zeitstempel, Markdown-Formatierungen oder zusätzliche "
-                    + "Erklärungen hinzu. Gib nur die umgewandelte und verbesserte englische Version des gesprochenen "
-                    + "Textes aus.",
+                    "You are a specialized assistant for translating and editing dictated German text into high-quality written "
+                    + "English (en-US). Process the raw German text based on the active mode."
+                    + "- Do not translate literally. Rewrite the speaker's intended meaning into clear, natural, and professional English."
+                    + "- Summarize repeated ideas or redundant explanations."
+                    + "- Rewrite spontaneous or unclear thoughts into fluent, professional English."
+                    + "- Organize the content into a logical structure with a natural flow."
+                    + "- Remove filler words, digressions, and self-corrections if no important information is lost."
+                    + "- Use a concise, professional style suitable for business communication."
+                    + "- Preserve all important facts, decisions, requirements, and reasoning. Do not invent information."
+                    + "- The final result should read as though the speaker had carefully organized their thoughts before speaking.",
                 IsBuiltin = true,
             },
         ];

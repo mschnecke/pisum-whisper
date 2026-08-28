@@ -4,10 +4,6 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-/// <summary>
-/// Source-generated serialization for the settings file. camelCase matches the reference's on-disk
-/// format, which keeps the file hand-editable in the shape the reference established.
-/// </summary>
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     Converters = [typeof(CamelCaseEnumConverter<AudioFormat>), typeof(CamelCaseEnumConverter<RecordingMode>)],
@@ -18,7 +14,7 @@ using System.Text.Json.Serialization;
 public sealed partial class SettingsJsonContext : JsonSerializerContext
 {
     /// <summary>
-    /// The context the settings file is read and written through. It is <see cref="Default"/> plus
+    /// The context of the settings file is read and written through. It is <see cref="Default"/> plus
     /// a relaxed encoder, which the source-generation attribute has no way to express: the default
     /// encoder escapes every non-ASCII character, which would write the German built-in prompts as
     /// a wall of <c>ü</c> and undo the hand-editability camelCase is there to preserve. What
@@ -26,7 +22,7 @@ public sealed partial class SettingsJsonContext : JsonSerializerContext
     /// </summary>
     /// <remarks>
     /// Built lazily because it reads <see cref="Default"/>, which the generator declares in the
-    /// same class and which is therefore not yet assigned while this class is being initialised.
+    /// same class and which is therefore not yet assigned while this class is being initialized.
     /// </remarks>
     public static SettingsJsonContext OnDisk => LazyOnDisk.Value;
 
@@ -52,7 +48,7 @@ public sealed partial class SettingsJsonContext : JsonSerializerContext
 /// <c>AudioFormat</c> is lowercase while <c>RecordingMode</c> is camelCase — but every
 /// <see cref="AudioFormat"/> name is a single word, so both render identically under camelCase.
 /// It is closed over each enum rather than used open because the non-generic converter cannot be
-/// statically analysed, which would rule out trimming and AOT later.
+/// statically analyzed, which would rule out trimming and AOT later.
 /// </summary>
 public sealed class CamelCaseEnumConverter<TEnum>()
     : JsonStringEnumConverter<TEnum>(JsonNamingPolicy.CamelCase)

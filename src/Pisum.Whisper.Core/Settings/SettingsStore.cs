@@ -68,13 +68,13 @@ public sealed class SettingsStore
         // a file that omits `presets` entirely come back with the built-ins present.
         foreach (var builtin in BuiltinPresets.Create())
         {
-            if (!settings.Presets.Any(preset => preset.Id == builtin.Id))
+            if (settings.Presets.All(preset => preset.Id != builtin.Id))
             {
                 settings.Presets.Add(builtin);
             }
         }
 
-        if (!settings.Presets.Any(preset => preset.Id == settings.ActivePresetId))
+        if (settings.Presets.All(preset => preset.Id != settings.ActivePresetId))
         {
             // Logged rather than repaired silently: a dangling id may be the symptom of a defect
             // elsewhere, and a silent fix would hide it.
@@ -137,7 +137,7 @@ public sealed class SettingsStore
         Current.Presets.Remove(preset);
 
         // Deliberately the first remaining preset, not the first built-in that Load falls back to:
-        // deleting the active preset should land on its neighbour, not jump back to the default.
+        // deleting the active preset should land on its neighbor, not jump back to the default.
         if (Current.ActivePresetId == id && Current.Presets.Count > 0)
         {
             Current.ActivePresetId = Current.Presets[0].Id;
@@ -150,7 +150,7 @@ public sealed class SettingsStore
     /// <exception cref="SettingsException">No preset has this id; the active preset is left alone.</exception>
     public void SetActivePreset(string id)
     {
-        if (!Current.Presets.Any(preset => preset.Id == id))
+        if (Current.Presets.All(preset => preset.Id != id))
         {
             throw new SettingsException($"No preset with id '{id}' exists.");
         }
@@ -186,7 +186,7 @@ public sealed class SettingsStore
 
     /// <summary>
     /// Writes via a temporary file in the same directory and moves it over the target. The reference
-    /// writes in place, so an interruption mid-write truncates the file and the next launch refuses
+    /// writes in place, so an interruption mid-writing truncates the file, and the next launch refuses
     /// to start on a file the application itself corrupted.
     /// </summary>
     private void Write(AppSettings settings)

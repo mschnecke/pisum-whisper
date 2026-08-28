@@ -1,9 +1,17 @@
 namespace Pisum.Whisper.Core.Settings;
 
-/// <summary>How the hotkey drives recording: held down for the duration, or pressed to toggle.</summary>
+/// <summary>
+/// Defines the modes for initiating and controlling the recording process.
+/// </summary>
 public enum RecordingMode
 {
+    /// <summary>
+    /// Indicates that recording is active only while the hotkey is being held down.
+    /// </summary>
     HoldToRecord,
 
+    /// <summary>
+    /// Indicates that recording is toggled on or off with a single press of the hotkey.
+    /// </summary>
     Toggle,
 }
