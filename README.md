@@ -10,10 +10,11 @@ local Whisper inference is out of scope.
 ## Status
 
 Under construction, and **not yet usable**. Work is sequenced as twelve ordered changes in
-[`openspec/ROADMAP.md`](openspec/ROADMAP.md); changes 1 and 2 of 12 have landed, which means the
-solution builds and starts as a tray-only process with a Quit menu, and reads its settings from
-`~/.pisum-whisper.json`, creating that file on first run and repairing it when it has gone stale.
-There is no hotkey, no recording, no transcription and no settings UI yet.
+[`openspec/ROADMAP.md`](openspec/ROADMAP.md); changes 1 to 3 of 12 have landed, which means the
+solution builds and starts as a tray-only process with a Quit menu, reads its settings from
+`~/.pisum-whisper.json`, creating that file on first run and repairing it when it has gone stale, and
+writes a rolling log to `~/.pisum-whisper/logs/`. There is no hotkey, no recording, no transcription
+and no settings UI yet.
 
 macOS is currently **unverified**: no Apple Silicon hardware has been available, so while the code
 cross-builds for `osx-arm64`, nothing on that platform has been run. See the *Platform verification*
@@ -52,6 +53,21 @@ built for a single RID):
 dotnet build src/Pisum.Whisper.App -r win-x64
 dotnet build src/Pisum.Whisper.App -r osx-arm64
 ```
+
+## Logs
+
+Diagnostics go to `~/.pisum-whisper/logs/pisum-whisper.log`. The file rolls at 1 MB, at most ten are
+kept, and any file older than seven days is deleted at startup. Three keys in `~/.pisum-whisper.json`
+control that:
+
+| Key | Default | |
+|---|---|---|
+| `logLevel` | `"info"` | one of `trace`, `debug`, `info`, `warn`, `error`; a change takes effect immediately, without a restart |
+| `logMaxFileSizeMb` | `1` | size at which the active file rolls |
+| `logRetentionDays` | `7` | age past which a file is swept at startup |
+
+A debug build also echoes to the terminal it was launched from; a release build writes to the file
+only.
 
 ## Permissions
 
