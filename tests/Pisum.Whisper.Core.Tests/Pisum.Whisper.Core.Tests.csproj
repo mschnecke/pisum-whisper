@@ -11,6 +11,7 @@
     <PackageReference Include="MSTest"/>
     <PackageReference Include="FakeItEasy"/>
     <PackageReference Include="Shouldly"/>
+    <PackageReference Include="SharpHook.Testing"/>
   </ItemGroup>
 
   <ItemGroup>

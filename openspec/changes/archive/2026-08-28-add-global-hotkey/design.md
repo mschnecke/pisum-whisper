@@ -25,7 +25,11 @@ macOS half is deferred on hardware. `HotkeyBinding` and `RecordingMode` already 
 
 Facts below marked *measured* were obtained on this win-x64 machine during design; facts marked
 *from the assembly* were read out of SharpHook 8.0.0's shipped metadata and XML documentation.
-Nothing about macOS is measured.
+
+This design was first written while every macOS question was deferred for lack of hardware. Issue #15
+has since run change 1's spikes on an Apple M4, and the results are folded in below rather than left
+as assumptions — two of them change decisions in this document. The macOS facts cited here come from
+that run, recorded in `openspec/changes/archive/2026-08-27-bootstrap-solution/design.md`.
 
 ## Goals / Non-Goals
 
@@ -101,7 +105,7 @@ exceed either budget, so the seam cannot be a synchronous event raised on the ho
 hook thread  (libuiohook callback — a hard OS-enforced budget)
   |
   |-- KeyPressed / KeyReleased
-  |-- match against the compiled chord      pure, allocation-free, no locks
+  |-- match against the compiled chord      a few comparisons under an uncontended lock
   |-- e.SuppressEvent = matched             must be decided HERE, synchronously
   +-- _edges.Writer.TryWrite(edge)          returns immediately
                    |
@@ -145,8 +149,25 @@ than superset: a binding of `F9` alone must not fire when the user presses Ctrl+
 application.
 
 The compiled form is `HotkeyChord`, an immutable record holding the group set and a
-`SharpHook.Data.KeyCode`. It is produced once when the binding is parsed and read on the hot path
-through a `Volatile.Read`, so matching allocates nothing and takes no lock.
+`SharpHook.Data.KeyCode`, produced once when the binding is parsed.
+
+The state machine over it is `HotkeyMatcher`, a separate type rather than logic inside
+`GlobalHotkeyService`. Splitting it is what makes every rule above testable without a keyboard, a
+hook or a platform: the matcher takes a key code, a mask and the simulated flag, and returns the edge
+to report and whether to withhold the event.
+
+It takes an uncontended lock rather than being lock-free, which is a correction to this design's
+first draft. A rebind mutates the same engaged state the hook thread reads, so the lock-free version
+would need the chord swap and the engaged flag to move together, and they cannot. Key events arrive
+milliseconds apart and a rebind is a user action, so the lock is never contended, and an uncontended
+`Monitor` acquisition is tens of nanoseconds against a budget of a second or more — five orders of
+magnitude of headroom. Being clever here would buy nothing and risk a real race.
+
+Suppression is tracked by *which key* was withheld rather than by a boolean. The main key's press
+and release must be withheld together, and the two are separated by the whole dictation — during
+which the binding may have been disengaged by a modifier release, or replaced by a rebind. A flag
+loses that, and the focused application then receives a key-up it never saw go down, which is worse
+than receiving both.
 
 **Rebinding swaps the compiled chord; it does not restart the hook.**
 The service subscribes to `SettingsStore.Changed`, re-parses `AppSettings.Hotkey`, and publishes the
@@ -277,8 +298,14 @@ this, change 8's only backstop is its ten-minute maximum-duration timer, which i
 is a ten-minute bug.
 
 **`ConflictDetector` ports the reference's table and its order-insensitive comparison, and warns
-only.** Modifiers are normalised through the same alias table as parsing, sorted, and compared as a
-set; the key is compared case-insensitively. Two fidelity notes carried across knowingly: the
+only.** Modifiers are normalised through the same alias table as parsing and compared as a group
+set, which makes the comparison order-insensitive by construction rather than by sorting both sides
+as the reference does. The key is resolved through `KeyCodeMap` and compared as a `KeyCode`, which is
+one deliberate improvement on the reference: it compares lowercased text, so a user who binds `Del`
+rather than `Delete` gets no warning. Resolving first costs nothing and closes that. A binding the
+vocabulary cannot resolve never conflicts, since it cannot equal a shortcut whose every part is
+known — this reproduces the reference's behaviour, where an unrecognised modifier survives
+normalisation as itself and therefore matches nothing. Two fidelity notes carried across knowingly: the
 reference lists `meta`+`tab` twice, once for Windows and once for macOS, which is harmless; and
 several entries — Ctrl+Alt+Del and Win+L in particular — describe combinations Windows handles in the
 kernel and never delivers to a low-level hook at all, so binding them fails silently rather than
@@ -315,10 +342,28 @@ in this change's runtime path consults it.
   fallback that degrades gracefully — the hotkey still works, it just also reaches the focused
   application.
 
-- **Everything about macOS in this design is reasoned, not measured.** Accessibility handling, tap
-  revocation, suppression, and the run-loop question change 1 left open all rest on documentation and
-  on change 1's desk research. → The `combined` spike remains the first thing to run on hardware, and
-  this change lands Windows-verified with an explicit deferred column, exactly as change 1 did.
+- **The macOS run-loop question is settled, and it settled in this design's favour.** Change 1's
+  desk research predicted co-existence; issue #15's Apple M4 run confirmed it — the `combined` spike
+  matched the Windows result in shape, 9 presses and 9 releases marshalled through
+  `Dispatcher.UIThread.Post` with no contention. That was the highest-severity open risk in the
+  project and it is closed. What remains unmeasured on macOS is narrower: suppression of the matched
+  chord, and whether `HookDisabled` fires on a lock.
+
+- **A missing Accessibility grant on macOS is silent, which invalidated this design's first
+  answer to it.** The decision above assumed `RunAsync` would throw `ErrorAxApiDisabled` and that
+  the default prompt would put the process into the Accessibility list. Issue #15 found neither:
+  macOS never prompted, nothing was thrown, and libuiohook blocked indefinitely at zero CPU with no
+  TCC activity at all. → `StartAsync` therefore races the hook against a five-second timeout as well
+  as against its own failure, and reports the timeout with the macOS precondition named. Without
+  that, a Mac with no grant would hang host startup for good — a worse failure than the reference's,
+  and in a process with no window to explain itself from. The `HookException` paths are kept: they
+  are what a *revoked* grant produces, and they are cheap.
+
+- **The grant is given to the launching process, not to this binary, and does not survive a
+  rebuild.** Issue #15 had to grant Accessibility to Rider — the terminal's parent — and found the
+  first run after each `dotnet build` observing zero key events before reverting to working on the
+  second. That is change 1's task 1.4 (a stable signing identity) rather than anything this change
+  can fix, but it is the first thing to suspect when the hotkey appears dead on a Mac.
 
 - **`Core` gains a native dependency.** SharpHook ships `runtimes/*/native/`, which change 1 already
   confirmed restores for `osx-arm64` from Windows. The architectural cost is that `Core` is no longer
@@ -331,20 +376,51 @@ Following change 1's convention: a deferred row carries no evidence either way a
 
 | What must be demonstrated | win-x64 | osx-arm64 |
 |---|---|---|
-| Chord matched on both edges with the correct modifier groups | via S1; re-verified by tests | deferred |
-| Suppressed chord does not reach a focused foreign application | to be verified | deferred |
-| A physically held chord produces exactly one `Pressed` | to be verified | deferred |
-| Hook survives a rebind without restarting | to be verified | deferred |
-| Missing Accessibility grant is non-fatal and reported | n/a | deferred |
-| `HookDisabled` fires on lock / sleep / user switch | to be verified | deferred |
+| Chord matched on both edges with the correct modifier groups | **PASS** — S1, plus unit tests over `TestProvider` | **PASS** — S1 on an Apple M4 (#15) |
+| Left/right modifiers equivalent; lock keys and mouse buttons ignored | **PASS** — unit tests | deferred |
+| Consumers never run on the hook thread | **PASS** — unit test times a two-second handler | **PASS** — `combined` co-existence (#15) |
+| Hook survives a rebind without restarting | **PASS** — unit test | deferred |
+| A denied Accessibility grant is non-fatal, and distinguished from a revoked one | **PASS** — unit tests over `RunResult`; the grant itself is n/a on Windows | **PARTIAL** — #15 found it silent, not thrown; covered by the start timeout, unverified on hardware |
+| No keystroke other than the binding reaches the log | **PASS** — unit test at `Verbose` over 50 keystrokes | deferred |
+| Application starts and logs the observed binding | **PASS** — `Observing the hotkey Ctrl+Shift+Space.` | deferred |
+| Suppressed chord does not reach a focused foreign application | **PASS** — physical keys, held over a text editor | deferred |
+| A physically held chord produces exactly one `Pressed` | **PASS** — physical keys, 7.9 s hold | deferred |
+| `HookDisabled` fires on lock / sleep / user switch | **not verified — deliberately**, see Open Questions | deferred |
+
+Both physical rows were verified by hand, because neither can be driven synthetically:
+`EventSimulator`-injected events are ignored by design — that is what keeps change 7's paste from
+being observed — and it does not auto-repeat.
+
+**Auto-repeat, measured.** A 7.9-second physical hold of Ctrl+Shift+Space produced exactly one
+`Pressed` and one `Released`, 7,892 ms apart. This closes the last thing S1 left open — change 1
+drove the hook with `EventSimulator`, so the hardware scan-code route was unproven — and it is also
+the only evidence that the channel and the dispatch loop deliver edges in the running application
+rather than only over `TestProvider`.
+
+**Suppression, verified.** The held chord inserted nothing into a focused text editor, and a plain
+Space still typed normally straight afterwards, so the pass cannot be explained by a dead hook.
+
+The `osx-arm64` column is no longer uniformly deferred. Issue #15 ran change 1's spikes on an Apple
+M4 (macOS 26.6.2) after this design was written, and the rows that column can now answer are answered
+above. What it cannot answer is what the spikes did not exercise: this change's own suppression
+behaviour and its handling of a lock. Those stay deferred, and honestly so — the spike proved the
+hook, not the matcher built on it.
 
 ## Open Questions
 
-- **Does `HookDisabled` actually fire on session lock, sleep and fast user switching?** The
-  synthesised-release mitigation assumes it does on at least one of those paths. If none of them
-  raises it, a stuck engagement survives until change 8's timer, and this component needs a second
-  mechanism — most plausibly treating a `Pressed` with no intervening `Released` beyond a threshold
-  as broken. Not designed for speculatively; it needs the measurement first.
+- **Does `HookDisabled` actually fire on session lock, sleep and fast user switching?**
+  **Deliberately left unverified.** The check requires locking a live session, and the decision was
+  that it does not earn that during this change. Recorded here so it is not mistaken for an
+  oversight: the synthesised-release mitigation is implemented and unit-tested against the three
+  paths it can reach — `HookDisabled`, `StopAsync` and `Dispose` — but whether the operating system
+  raises `HookDisabled` on a lock is an assumption, on both platforms.
+
+  What is at stake if the assumption is wrong: a binding held at the moment the session locks stays
+  engaged, and the recording it started runs until change 8's maximum-duration timer expires. That
+  timer is a bound, not a backstop. **Change 8 must therefore not treat the synthesised release as
+  covering session lock until this is measured**, and if it turns out none of those paths raises
+  `HookDisabled`, the fix is a second mechanism here — most plausibly treating a `Pressed` with no
+  intervening `Released` beyond a threshold as broken — rather than a workaround there.
 
 - **Should the capture entry point for change 10 suppress everything while capturing?** A recorder
   that does not suppress lets the user's candidate chord fire whatever it normally does in the

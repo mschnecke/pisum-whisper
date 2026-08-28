@@ -10,17 +10,23 @@ local Whisper inference is out of scope.
 ## Status
 
 Under construction, and **not yet usable**. Work is sequenced as twelve ordered changes in
-[`openspec/ROADMAP.md`](openspec/ROADMAP.md); changes 1 to 4 of 12 have landed, which means the
-solution builds and starts as a tray-only process with a Quit menu, reads its settings from
+[`openspec/ROADMAP.md`](openspec/ROADMAP.md); changes 1, 2, 3, 4 and 6 of 12 have landed, which means
+the solution builds and starts as a tray-only process with a Quit menu, reads its settings from
 `~/.pisum-whisper.json`, creating that file on first run and repairing it when it has gone stale,
-writes a rolling log to `~/.pisum-whisper/logs/`, and can capture microphone audio and encode it to
-Opus or WAV — though nothing yet triggers that pipeline from the app. There is no hotkey,
-transcription or settings UI yet.
+writes a rolling log to `~/.pisum-whisper/logs/`, can capture microphone audio and encode it to Opus
+or WAV, and observes the configured global hotkey — both edges of it, withheld from whatever
+application has focus, and re-bindable without a restart.
 
-macOS is currently **unverified**: no Apple Silicon hardware has been available, so while the code
-cross-builds for `osx-arm64`, nothing on that platform has been run. See the *Platform verification*
-matrix in [`design.md`](openspec/changes/archive/2026-08-27-bootstrap-solution/design.md), and
-[issue #15](https://github.com/mschnecke/pisum-whisper/issues/15), which tracks the work to close it.
+Nothing yet connects the hotkey to the audio pipeline: there is no recording, no transcription and
+no settings UI yet.
+
+macOS is **partly verified**. Change 1's spikes were re-run on an Apple M4 (macOS 26.6.2) under
+[issue #15](https://github.com/mschnecke/pisum-whisper/issues/15), now closed: the global hook, its
+co-existence with Avalonia's run loop, capture and the menu-bar icon all pass. Two cells came back
+**FAIL** — the synthetic paste is not accepted by a foreign application, and the Accessibility grant
+does not survive a rebuild of an unsigned binary — and each has a documented fallback. The app
+itself has still never been run end to end on macOS. See the *Platform verification* matrix in
+[`design.md`](openspec/changes/archive/2026-08-27-bootstrap-solution/design.md) for the detail.
 
 ## Prerequisites
 
@@ -76,13 +82,16 @@ only.
 
 - **Accessibility** — `System Settings → Privacy & Security → Accessibility`. Needed *twice over*:
   the global hotkey installs a `CGEventTap`, and pasting synthesises Cmd+V. Without it the app runs
-  but never sees the hotkey and never pastes.
+  but never sees the hotkey and never pastes. macOS does not always say so: an ungranted tap can
+  block silently rather than failing, so the app waits five seconds, logs that the hotkey is not
+  being observed and starts anyway. Grant it and **relaunch** — macOS does not reliably hand a new
+  grant to a process that is already running, so this costs one restart on first run.
 - **Microphone** — `System Settings → Privacy & Security → Microphone`, prompted on first recording.
 
 A caution for anyone developing on macOS: the Accessibility grant is bound to the binary's **code
-signature**, so an unsigned binary re-prompts on every rebuild. Establishing a stable development
-signing identity is tracked by [issue #15](https://github.com/mschnecke/pisum-whisper/issues/15)
-and is worth doing before iterating on the hotkey.
+signature**, so an unsigned binary re-prompts on every rebuild. Issue #15 confirmed this on
+hardware, and it is the matrix's row 1.4 `FAIL`. Establishing a stable development signing identity
+is the recorded fallback and is worth doing before iterating on the hotkey.
 
 **Windows** needs no grant for the hotkey or for pasting. Two limits are worth knowing: microphone
 access is governed by `Settings → Privacy & security → Microphone`, and a non-elevated process

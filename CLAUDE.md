@@ -58,9 +58,11 @@ There is no lint or format step configured. Warnings-as-errors is the whole qual
 
 ## Spikes
 
-`spikes/Pisum.Whisper.Spikes` is deliberately outside the solution and kept until the macOS
-verification tracked by issue #15 is done. That half is blocked on hardware, so the harness is kept
-to be **re-run rather than re-written**. Delete it when #15 closes.
+`spikes/Pisum.Whisper.Spikes` is deliberately outside the solution. It was kept until the macOS
+verification tracked by issue #15 was done, so that the harness could be **re-run rather than
+re-written**; #15 closed on 2026-08-28, which by the rule written here makes the harness deletable.
+It is still on disk — deleting it is a decision for whoever no longer wants the two macOS `FAIL`
+rows re-runnable, not an oversight.
 
 ```bash
 dotnet run --project spikes/Pisum.Whisper.Spikes -- hook       # global hook, both key edges
@@ -106,7 +108,10 @@ Serilog for file logging, Google Gemini for transcription. Every version is pinn
 `Directory.Packages.props`.
 
 The three risky dependencies — global key **release**, cross-platform capture, a macOS menu-bar icon
-— were spiked in change 1 and pass on Windows; the macOS half is unverified and blocked on hardware.
+— were spiked in change 1 and pass on Windows. Issue #15 re-ran them on an Apple M4 (macOS 26.6.2)
+and all three pass there too; what came back **FAIL** is the synthetic paste into a foreign app and
+the Accessibility grant surviving a rebuild. Both are in the *Platform verification* matrix in
+`openspec/changes/archive/2026-08-27-bootstrap-solution/design.md`, each with its fallback.
 
 ## Logging
 
@@ -120,29 +125,62 @@ swept by age; the console sink is `#if DEBUG` only.
 `Microsoft.Extensions.Logging` does not gate Serilog, and a minimum level put back would be a second
 gate in front of the switch that silently breaks the runtime level change.
 
-Three rules every later change is written against:
+Four rules every later change is written against:
 
 - **Never log transcript text or API key values.** Transcripts are the user's speech and the settings
   file holds API keys. Log lengths, categories and outcomes instead — the character count, not the
   characters.
+- **Never log a keystroke that is not the configured hotkey.** `Core/Hotkeys/` observes every key on
+  the machine in order to match one combination, so a `Trace` statement dumping `e.Data.KeyCode` —
+  the obvious thing to write while debugging it — turns the log file into a keylog, one that change
+  10's "Open Log Folder" button then puts a click away. The binding, its edges, counts and outcomes
+  are loggable; nothing else about a key is, at any level.
 - **No `IsEnabled` guard on hot-path statements.** A suppressed call costs about 0.1 µs, which is less
   than the guard, so the trace statements in the audio path are written plain.
 - **Never use Serilog's static `Log`.** It is in scope project-wide because `Core` references Serilog,
   but the configured logger is always passed explicitly.
+
+## The global hotkey
+
+`Core/Hotkeys/` owns the one global keyboard hook this process is allowed to run — libuiohook keeps a
+single static callback, so a second concurrent hook corrupts its internal state. `AddGlobalHotkey`
+registers `GlobalHotkeyService` once and resolves it as the service, the contract and the hosted
+service; change 10's hotkey recorder reuses it through `CaptureAsync` rather than building its own.
+
+**Nothing but matching runs on the hook thread.** Windows removes a low-level hook that exceeds
+`LowLevelHooksTimeout` — 1000 ms by default — with no exception and no event, and macOS disables an
+event tap that stops responding. The handlers match, set `SuppressEvent` and write one enum to a
+channel; a dispatch loop raises the events, so a consumer that takes a second to open a microphone
+cannot cost the user their hotkey. Never add work to a hook handler, and never raise an event
+directly from one.
+
+**Startup is bounded, because a missing grant does not fail.** On macOS an absent Accessibility
+grant neither throws nor prompts: change 1's spike found libuiohook blocking for ever at zero CPU
+with the tap never installed. `StartAsync` therefore races the hook against a five second timeout
+and, on losing, records `HotkeyAvailability.Failed`, says so in the log and lets the process come up
+without a hotkey. A hook that enables *after* that timeout still reports itself, so the timeout
+bounds the waiting rather than settling the verdict. This is not a recovery path for a late grant:
+macOS does not reliably deliver one to a running process, so there is deliberately **no retry
+loop** and the user relaunches. Keep it that way — a start that blocks here has no window to explain
+itself from.
+
+Two consequences worth knowing before touching the matcher: `SharpHook.Data.EventMask`'s group values
+are unions of both sides (`Ctrl` is `LeftCtrl | RightCtrl`), so `HasFlag` demands both keys at once;
+and the mask also carries the lock keys and the mouse buttons. `ModifierGroups.FromEventMask` folds
+those away, and matching compares the folded groups for equality.
 
 ## Spec-driven workflow (OpenSpec)
 
 `openspec/config.yaml` sets `schema: spec-driven`. Change proposals live in `openspec/changes/`,
 completed ones move to `openspec/changes/archive/`, and capability specs land in `openspec/specs/`.
 `openspec/ROADMAP.md` sequences the work as **12 ordered changes**, each tracked by a GitHub issue
-labelled `change:NN`. Changes 1, 2, 3 and 4 are archived and their `application-host`,
-`settings-persistence`, `file-logging`, `audio-capture` and `audio-encoding` specs are synced, so
-read them from `openspec/specs/` like any other; the macOS verification change 1 left unfinished is
-tracked separately by issue #15 rather than by an open change. Drive the workflow with the
-`/opsx:*` commands (`explore`, `propose`, `apply`, `sync`, `archive`); the backing skills are in
-`.claude/skills/openspec-*`. Project context
-and per-artifact rules can be filled in at the bottom of `openspec/config.yaml` (all commented out
-today).
+labelled `change:NN`. Changes 1, 2, 3, 4 and 6 are archived and their `application-host`,
+`settings-persistence`, `file-logging`, `audio-capture`, `audio-encoding` and `global-hotkey` specs
+are synced, so read them from `openspec/specs/` like any other; the macOS verification change 1 left
+unfinished was tracked by issue #15 rather than by an open change, and closed on 2026-08-28. Drive
+the workflow with the `/opsx:*` commands (`explore`, `propose`, `apply`, `sync`, `archive`); the
+backing skills are in `.claude/skills/openspec-*`. Project context and per-artifact rules can be
+filled in at the bottom of `openspec/config.yaml` (all commented out today).
 
 ## Code Intelligence
 
