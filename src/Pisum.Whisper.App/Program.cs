@@ -7,6 +7,7 @@ using Pisum.Whisper.Core.Audio;
 using Pisum.Whisper.Core.Hotkeys;
 using Pisum.Whisper.Core.Logging;
 using Pisum.Whisper.Core.Settings;
+using Pisum.Whisper.Core.Transcription;
 
 namespace Pisum.Whisper.App;
 
@@ -57,6 +58,8 @@ internal static class Program
         builder.Services.AddSingleton<SettingsStore>();
 
         builder.Services.AddAudioPipeline();
+
+        builder.Services.AddGeminiTranscription();
 
         // One hook for the whole process; it starts with the host, before Avalonia's run loop, and
         // needs no UI of its own.

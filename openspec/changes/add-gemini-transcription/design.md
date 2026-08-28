@@ -198,15 +198,18 @@ member carries an explicit `[JsonPropertyName]` in camelCase and the inconsisten
 reproduced. Serialising with a `null` `system_instruction` omitted is what the connection test
 relies on, so the request DTO keeps `JsonIgnoreCondition.WhenWritingNull`.
 
-**Oversized recordings are rejected before the request is built.** Gemini caps a `generateContent`
-request carrying `inline_data` at roughly 20 MB total, and base64 inflates by 4/3. Guarding the raw
-encoded length at 15 MB keeps the encoded request under that ceiling with the JSON envelope and
-system prompt (a few KB) inside the rounding:
+**Oversized recordings are rejected before the request is built.** Gemini's documentation caps a
+`generateContent` request carrying `inline_data` at "20 MB total (including prompts and all files)",
+above which the Files API is required. Base64 inflates by 4/3, so the guard is on the raw encoded
+length at **14 MiB**, which becomes about 19.6 MB on the wire — under the cap even read as a decimal
+20,000,000, with roughly 400 KB left for the system prompt and JSON envelope. 15 MiB, the first
+figure this design carried, would not be: it base64-encodes to exactly 20,971,520 bytes, over the cap
+before the envelope is counted.
 
-| format | encoded rate | 15 MB is reached at |
+| format | encoded rate | 14 MiB is reached at |
 |---|---|---|
-| Opus @ 24 kbps | 3 KB/s | ~87 minutes |
-| WAV 16-bit mono 48 kHz | 96 KB/s | **~2 min 45 s** |
+| Opus @ 24 kbps | 3 KB/s | ~81 minutes |
+| WAV 16-bit mono 48 kHz | 96 KB/s | **~2 min 33 s** |
 
 `MaxRecordingDurationSecs` defaults to 600 s, so the WAV row is reachable in normal use — and change
 4's bidirectional fallback can select WAV without the user ever choosing it. The check is one
@@ -272,8 +275,7 @@ No test in this change touches the network or a real API key.
 
 - **[Risk]** The 20 MB inline ceiling is taken from Gemini's documentation rather than measured, and
   Google can change it. → **Mitigation:** it is one named constant with the derivation written next
-  to it; the spec scenario asserts the guard fires, not the specific number. Verify the current
-  documented limit before implementing (see Open Questions).
+  to it; the spec scenario asserts the guard fires, not the specific number.
 - **[Risk]** A WAV fallback silently makes a recording unsendable that would have been fine as Opus,
   and the user only learns at the end of a long dictation. → **Mitigation:** the rejection message
   names both the size and the format, so the cause is legible; change 8 owns whether to warn earlier.
@@ -291,6 +293,8 @@ No test in this change touches the network or a real API key.
 
 ## Open Questions
 
-- **Confirm Gemini's current inline-request ceiling** (assumed ~20 MB total, giving the 15 MB raw
-  guard) against the live API documentation before implementing the size check. Nothing else in the
-  design depends on the number; only the constant changes.
+_None outstanding._ The inline-request ceiling was confirmed against
+`https://ai.google.dev/gemini-api/docs/audio` during implementation — "Maximum request size is 20 MB
+total (including prompts and all files)", with the Files API required above it. That check moved the
+raw guard from 15 MiB to 14 MiB (see Decisions); the 15 MiB figure this design first carried would
+have exceeded the cap on its own.

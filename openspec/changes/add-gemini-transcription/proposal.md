@@ -22,7 +22,7 @@ more than one key.
     application those are ordinary words, so the predicate is corrected here.
   - Reject audio whose encoded size exceeds Gemini's inline-request ceiling before uploading it,
     naming the cause. WAV is the reachable case: at 48 kHz mono 16-bit it passes the ceiling at
-    roughly 2 min 45 s, well inside the 600 s default `MaxRecordingDurationSecs`, and change 4's
+    roughly 2 min 33 s, well inside the 600 s default `MaxRecordingDurationSecs`, and change 4's
     bidirectional fallback can select WAV without the user asking for it.
   - `TranscribeAsync` takes a `CancellationToken`, so change 8 can impose an overall deadline
     across retries and providers.
