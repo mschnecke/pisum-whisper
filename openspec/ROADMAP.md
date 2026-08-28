@@ -57,9 +57,11 @@ Everything from #8 onward is strictly sequential.
 
 ## Artifact status
 
-Changes **1-3** have their full artifact set (`proposal`, `specs`, `design`, `tasks`) and are ready
-for `/opsx:apply`. Changes **4-12** have `proposal.md` only; their `specs`, `design` and `tasks` are
-written when their turn comes.
+Changes **1** and **2** are implemented and archived under `openspec/changes/archive/`, with their
+`application-host` and `settings-persistence` specs synced into `openspec/specs/`. Change **3** has
+its full artifact set (`proposal`, `specs`, `design`, `tasks`) and is ready for `/opsx:apply`.
+Changes **4-12** have `proposal.md` only; their `specs`, `design` and `tasks` are written when their
+turn comes.
 
 This is deliberate. The four spikes in change 1 can invalidate design decisions downstream — if
 SharpHook cannot report key release, or miniaudio cannot resample, the affected designs change rather
@@ -75,9 +77,14 @@ Recorded so they are not repeatedly re-litigated, and not mistaken for oversight
 - **Fixed relative to the reference:** the user's prior clipboard contents are restored after
   pasting; captured audio is buffered in mono chunks rather than one unbounded list locked inside
   the audio callback.
+- **Diverged from the reference:** the two built-in preset prompts. They began as verbatim copies
+  of the reference's German strings and were rewritten as English instructions in change 2;
+  `BuiltinPresets.cs` is now their source of truth and they are deliberately not re-synced from
+  `config/presets.rs`.
 - **Out of scope:** local Whisper inference, OpenAI as a provider, input device selection,
   localization, auto-update.
 
 The reference repository is the behavioural specification — wire formats, the recording state machine
 and its timing constants, the settings schema, and the error taxonomy all come from it. It is not a
-.NET project, so nothing is copied; it is read and re-expressed.
+.NET project, so nothing is copied; it is read and re-expressed. The built-in preset prompts noted
+above are the one deliberate exception.
