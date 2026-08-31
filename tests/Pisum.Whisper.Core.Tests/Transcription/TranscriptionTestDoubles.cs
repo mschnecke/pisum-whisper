@@ -23,7 +23,7 @@ internal sealed class StubHttpMessageHandler : HttpMessageHandler
     /// <summary>Queues one response. The last queued response repeats once the queue runs dry.</summary>
     public StubHttpMessageHandler Respond(HttpStatusCode status, string body = "{}")
     {
-        _responses.Enqueue(() => new HttpResponseMessage(status) { Content = new StringContent(body) });
+        _responses.Enqueue(() => new HttpResponseMessage(status) {Content = new StringContent(body)});
         return this;
     }
 
@@ -33,9 +33,8 @@ internal sealed class StubHttpMessageHandler : HttpMessageHandler
         return this;
     }
 
-    protected override async Task<HttpResponseMessage> SendAsync(
-        HttpRequestMessage request,
-        CancellationToken cancellationToken)
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
+                                                                 CancellationToken cancellationToken)
     {
         var body = request.Content is null
             ? string.Empty
@@ -63,8 +62,10 @@ internal sealed class StubHttpMessageHandler : HttpMessageHandler
 /// <summary>Hands out clients over one handler, standing in for the container's factory.</summary>
 internal sealed class StubHttpClientFactory(HttpMessageHandler handler) : IHttpClientFactory
 {
-    public HttpClient CreateClient(string name) =>
-        new(handler, disposeHandler: false) { BaseAddress = GeminiHttpClient.BaseAddress };
+    public HttpClient CreateClient(string name)
+    {
+        return new HttpClient(handler, false) {BaseAddress = GeminiHttpClient.BaseAddress};
+    }
 }
 
 /// <summary>Captures rendered log messages so the privacy assertions can read them.</summary>
@@ -84,16 +85,21 @@ internal sealed class RecordingLogger : ILogger
     }
 
     public IDisposable? BeginScope<TState>(TState state)
-        where TState : notnull => null;
+        where TState : notnull
+    {
+        return null;
+    }
 
-    public bool IsEnabled(LogLevel logLevel) => true;
+    public bool IsEnabled(LogLevel logLevel)
+    {
+        return true;
+    }
 
-    public void Log<TState>(
-        LogLevel logLevel,
-        EventId eventId,
-        TState state,
-        Exception? exception,
-        Func<TState, Exception?, string> formatter)
+    public void Log<TState>(LogLevel logLevel,
+                            EventId eventId,
+                            TState state,
+                            Exception? exception,
+                            Func<TState, Exception?, string> formatter)
     {
         lock (_messages)
         {

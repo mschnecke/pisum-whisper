@@ -14,20 +14,20 @@ public sealed class GeminiKeyProbeTests
     private const string ApiKey = "AIza-not-a-real-key";
 
     private const string ModelsBody = """
-        {
-          "models": [
-            { "name": "models/gemini-2.5-flash-lite", "displayName": "Gemini 2.5 Flash-Lite",
-              "supportedGenerationMethods": [ "generateContent", "countTokens" ] },
-            { "name": "models/embedding-001", "displayName": "Embedding 001",
-              "supportedGenerationMethods": [ "embedContent" ] },
-            { "name": "models/gemini-2.5-pro", "supportedGenerationMethods": [ "generateContent" ] }
-          ]
-        }
-        """;
+                                      {
+                                        "models": [
+                                          { "name": "models/gemini-2.5-flash-lite", "displayName": "Gemini 2.5 Flash-Lite",
+                                            "supportedGenerationMethods": [ "generateContent", "countTokens" ] },
+                                          { "name": "models/embedding-001", "displayName": "Embedding 001",
+                                            "supportedGenerationMethods": [ "embedContent" ] },
+                                          { "name": "models/gemini-2.5-pro", "supportedGenerationMethods": [ "generateContent" ] }
+                                        ]
+                                      }
+                                      """;
 
     private const string OkBody = """
-        { "candidates": [ { "content": { "parts": [ { "text": "OK" } ] } } ] }
-        """;
+                                  { "candidates": [ { "content": { "parts": [ { "text": "OK" } ] } } ] }
+                                  """;
 
     // ---- Task 6.2: listing models ----
 
@@ -71,8 +71,9 @@ public sealed class GeminiKeyProbeTests
         var handler = new StubHttpMessageHandler()
             .Respond(HttpStatusCode.Unauthorized, "API key not valid");
 
-        var failure = await Should.ThrowAsync<TranscriptionException>(
-            () => Probe(handler).ListModelsAsync(ApiKey, CancellationToken.None));
+        var failure =
+            await Should.ThrowAsync<TranscriptionException>(() =>
+                Probe(handler).ListModelsAsync(ApiKey, CancellationToken.None));
 
         failure.Category.ShouldBe(ErrorCategory.Authentication);
         handler.SendCount.ShouldBe(1);
@@ -85,7 +86,7 @@ public sealed class GeminiKeyProbeTests
     {
         var handler = new StubHttpMessageHandler().Respond(HttpStatusCode.OK, OkBody);
 
-        var result = await Probe(handler).TestConnectionAsync(ApiKey, model: null, CancellationToken.None);
+        var result = await Probe(handler).TestConnectionAsync(ApiKey, null, CancellationToken.None);
 
         result.Succeeded.ShouldBeTrue();
         result.Category.ShouldBeNull();
@@ -96,7 +97,7 @@ public sealed class GeminiKeyProbeTests
     {
         var handler = new StubHttpMessageHandler().Respond(HttpStatusCode.OK, OkBody);
 
-        await Probe(handler).TestConnectionAsync(ApiKey, model: null, CancellationToken.None);
+        await Probe(handler).TestConnectionAsync(ApiKey, null, CancellationToken.None);
 
         handler.Requests.Single().Body.ShouldNotContain("systemInstruction");
     }
@@ -118,7 +119,7 @@ public sealed class GeminiKeyProbeTests
         var handler = new StubHttpMessageHandler()
             .Respond(HttpStatusCode.Unauthorized, "API key not valid. Please pass a valid API key.");
 
-        var result = await Probe(handler).TestConnectionAsync(ApiKey, model: null, CancellationToken.None);
+        var result = await Probe(handler).TestConnectionAsync(ApiKey, null, CancellationToken.None);
 
         result.Succeeded.ShouldBeFalse();
         result.Category.ShouldBe(ErrorCategory.Authentication);
@@ -131,7 +132,7 @@ public sealed class GeminiKeyProbeTests
     {
         var handler = new StubHttpMessageHandler().Throws(new HttpRequestException("connection reset"));
 
-        var result = await Probe(handler).TestConnectionAsync(ApiKey, model: null, CancellationToken.None);
+        var result = await Probe(handler).TestConnectionAsync(ApiKey, null, CancellationToken.None);
 
         result.Succeeded.ShouldBeFalse();
         result.Category.ShouldBe(ErrorCategory.Network);
@@ -149,6 +150,8 @@ public sealed class GeminiKeyProbeTests
         GeminiKeyProbe.Scrub(failure, ApiKey).Message.ShouldBe("Gemini returned 400: key [key] is malformed");
     }
 
-    private static GeminiKeyProbe Probe(StubHttpMessageHandler handler) =>
-        new(new StubHttpClientFactory(handler), NullLogger<GeminiKeyProbe>.Instance);
+    private static GeminiKeyProbe Probe(StubHttpMessageHandler handler)
+    {
+        return new GeminiKeyProbe(new StubHttpClientFactory(handler), NullLogger<GeminiKeyProbe>.Instance);
+    }
 }

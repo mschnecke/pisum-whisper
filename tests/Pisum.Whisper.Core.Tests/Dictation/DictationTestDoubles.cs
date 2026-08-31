@@ -24,12 +24,20 @@ public sealed class FakeHotkeyService : IGlobalHotkeyService
     /// <summary>Whether both handlers are still attached, which is how the shutdown tests see the unsubscribe.</summary>
     public bool HasSubscribers => Pressed is not null && Released is not null;
 
-    public Task<HotkeyCapture> CaptureAsync(CancellationToken cancellationToken) =>
-        Task.FromResult(HotkeyCapture.Cancelled);
+    public Task<HotkeyCapture> CaptureAsync(CancellationToken cancellationToken)
+    {
+        return Task.FromResult(HotkeyCapture.Cancelled);
+    }
 
-    public void Press() => Pressed?.Invoke(this, EventArgs.Empty);
+    public void Press()
+    {
+        Pressed?.Invoke(this, EventArgs.Empty);
+    }
 
-    public void Release() => Released?.Invoke(this, EventArgs.Empty);
+    public void Release()
+    {
+        Released?.Invoke(this, EventArgs.Empty);
+    }
 }
 
 /// <summary>
@@ -188,10 +196,9 @@ public sealed class FakeTranscriptionProvider : ITranscriptionProvider
     /// <summary>Completes once the provider has been entered, so a test need not poll for it.</summary>
     public Task Entered => _entered.Task;
 
-    public async Task<string> TranscribeAsync(
-        EncodedAudio audio,
-        string systemPrompt,
-        CancellationToken cancellationToken)
+    public async Task<string> TranscribeAsync(EncodedAudio audio,
+                                              string systemPrompt,
+                                              CancellationToken cancellationToken)
     {
         Calls++;
         Audio = audio;
@@ -233,10 +240,15 @@ public sealed class FakeTextOutput : ITextOutput
     public Task Entered => _entered.Task;
 
     /// <summary>Holds the delivery open, standing in for the second the real one spends before its restore.</summary>
-    public void Block() =>
+    public void Block()
+    {
         _gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    }
 
-    public void Release() => _gate?.TrySetResult();
+    public void Release()
+    {
+        _gate?.TrySetResult();
+    }
 
     public async Task<TextOutputOutcome> DeliverAsync(string transcript, CancellationToken cancellationToken)
     {
@@ -271,10 +283,15 @@ public sealed class FakeClock
 {
     private long _ticks = Stopwatch.GetTimestamp();
 
-    public long Now() => Interlocked.Read(ref _ticks);
+    public long Now()
+    {
+        return Interlocked.Read(ref _ticks);
+    }
 
-    public void Advance(TimeSpan amount) =>
-        Interlocked.Add(ref _ticks, (long)(amount.TotalSeconds * Stopwatch.Frequency));
+    public void Advance(TimeSpan amount)
+    {
+        Interlocked.Add(ref _ticks, (long) (amount.TotalSeconds * Stopwatch.Frequency));
+    }
 }
 
 /// <summary>
@@ -294,5 +311,8 @@ public sealed class FakeDelay
     }
 
     /// <summary>Fires the watchdog.</summary>
-    public void Elapse() => _elapsed.TrySetResult();
+    public void Elapse()
+    {
+        _elapsed.TrySetResult();
+    }
 }

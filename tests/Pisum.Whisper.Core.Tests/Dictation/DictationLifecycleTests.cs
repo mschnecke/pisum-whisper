@@ -166,7 +166,7 @@ public sealed class DictationLifecycleTests : DictationTestBase
 [IntegrationTest]
 public sealed class DictationRegistrationTests : IDisposable
 {
-    private string _home = string.Empty;
+    private readonly string _home = string.Empty;
 
     public DictationRegistrationTests()
     {
@@ -184,7 +184,7 @@ public sealed class DictationRegistrationTests : IDisposable
     {
         // The application builds its container with ValidateOnBuild, so an unsatisfiable dependency
         // here is a startup failure rather than a null reference at the first hotkey press.
-        Should.NotThrow(() => BuildHost(validate: true).Dispose());
+        Should.NotThrow(() => BuildHost(true).Dispose());
     }
 
     /// <summary>

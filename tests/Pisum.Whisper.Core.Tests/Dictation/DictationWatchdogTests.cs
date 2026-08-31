@@ -76,7 +76,7 @@ public sealed class DictationWatchdogTests : DictationTestBase
     [Fact]
     public async Task ADiscardedBrushAlsoCancelsTheWatchdog()
     {
-        var orchestrator = Create(minimumDuration: TimeSpan.FromMilliseconds(50));
+        var orchestrator = Create(TimeSpan.FromMilliseconds(50));
 
         Dictate(TimeSpan.FromMilliseconds(20));
         await SettleAsync(orchestrator);
@@ -104,7 +104,7 @@ public sealed class DictationWatchdogTests : DictationTestBase
     [Fact]
     public async Task ADiscardedBrushAnnouncesRecordingThenIdleAndNeverTranscribing()
     {
-        var orchestrator = Create(minimumDuration: TimeSpan.FromMilliseconds(50));
+        var orchestrator = Create(TimeSpan.FromMilliseconds(50));
 
         Dictate(TimeSpan.FromMilliseconds(20));
         await SettleAsync(orchestrator);

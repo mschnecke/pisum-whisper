@@ -27,8 +27,10 @@ public sealed class ManualCaptureSmokeTest
 
         var directory = Path.Combine(Path.GetTempPath(), "pisum-whisper-manual-capture");
         Directory.CreateDirectory(directory);
-        await File.WriteAllBytesAsync(Path.Combine(directory, "capture.opus"), opusBytes, TestContext.Current.CancellationToken);
-        await File.WriteAllBytesAsync(Path.Combine(directory, "capture.wav"), wavBytes, TestContext.Current.CancellationToken);
+        await File.WriteAllBytesAsync(Path.Combine(directory, "capture.opus"), opusBytes,
+            TestContext.Current.CancellationToken);
+        await File.WriteAllBytesAsync(Path.Combine(directory, "capture.wav"), wavBytes,
+            TestContext.Current.CancellationToken);
 
         Console.WriteLine(
             $"Captured {samples.Length} samples. Wrote {directory}/capture.opus and capture.wav — play both back.");

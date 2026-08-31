@@ -106,8 +106,8 @@ public sealed class TextOutputSequenceTests : TextOutputTestBase
         Clipboard.WriteFailure = new InvalidOperationException("the clipboard could not be emptied");
         var output = Create();
 
-        var exception = await Should.ThrowAsync<TextOutputException>(
-            () => output.DeliverAsync(Transcript, CancellationToken.None));
+        var exception =
+            await Should.ThrowAsync<TextOutputException>(() => output.DeliverAsync(Transcript, CancellationToken.None));
 
         exception.Message.ShouldNotBeNullOrWhiteSpace();
         Posted.ShouldBeEmpty();

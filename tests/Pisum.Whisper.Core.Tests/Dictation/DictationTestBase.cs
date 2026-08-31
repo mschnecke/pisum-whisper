@@ -5,6 +5,8 @@ using Pisum.Whisper.Core.Dictation;
 using Pisum.Whisper.Core.Settings;
 using Pisum.Whisper.Core.Tests.Logging;
 using Serilog;
+using Serilog.Core;
+using Serilog.Events;
 using Serilog.Extensions.Logging;
 
 /// <summary>
@@ -22,11 +24,11 @@ public abstract class DictationTestBase : IDisposable
 
     private readonly Lock _statesGate = new();
 
-    private Serilog.Core.Logger? _serilog;
+    private readonly Logger? _serilog;
 
-    private SerilogLoggerFactory? _loggerFactory;
+    private readonly SerilogLoggerFactory? _loggerFactory;
 
-    private string _home = string.Empty;
+    private readonly string _home = string.Empty;
 
     private DictationOrchestrator? _orchestrator;
 
@@ -61,9 +63,12 @@ public abstract class DictationTestBase : IDisposable
     protected IReadOnlyList<string> LogMessages => _sink.Messages;
 
     /// <summary>Waits for a log line containing <paramref name="fragment"/>, so assertions do not race the pipeline.</summary>
-    protected bool WaitForLog(string fragment) => _sink.WaitForMessageContaining(fragment);
+    protected bool WaitForLog(string fragment)
+    {
+        return _sink.WaitForMessageContaining(fragment);
+    }
 
-    protected IReadOnlyList<Serilog.Events.LogEvent> LogEvents => _sink.Events;
+    protected IReadOnlyList<LogEvent> LogEvents => _sink.Events;
 
     protected DictationTestBase()
     {
@@ -93,10 +98,9 @@ public abstract class DictationTestBase : IDisposable
     /// fake clock can step either side of; the budget defaults to something no test reaches by
     /// accident.
     /// </summary>
-    protected DictationOrchestrator Create(
-        TimeSpan? minimumDuration = null,
-        TimeSpan? debounceWindow = null,
-        TimeSpan? transcriptionBudget = null)
+    protected DictationOrchestrator Create(TimeSpan? minimumDuration = null,
+                                           TimeSpan? debounceWindow = null,
+                                           TimeSpan? transcriptionBudget = null)
     {
         var orchestrator = new DictationOrchestrator(
             _loggerFactory!.CreateLogger<DictationOrchestrator>(),

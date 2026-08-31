@@ -1,6 +1,5 @@
 namespace Pisum.Whisper.Core.Tests.Hotkeys;
 
-using Pisum.Whisper.Core.Hotkeys;
 using SharpHook.Data;
 using Shouldly;
 
@@ -95,7 +94,7 @@ public sealed class GlobalHotkeyLoggingTests : GlobalHotkeyServiceTestBase
         {
             foreach (var name in Enum.GetNames<KeyCode>())
             {
-                message.ShouldNotContain(name, Case.Insensitive);
+                message.ShouldNotContain(name);
             }
         }
     }
@@ -119,8 +118,8 @@ public sealed class GlobalHotkeyLoggingTests : GlobalHotkeyServiceTestBase
         // The binding is named as a binding, never as the key codes it was matched from.
         foreach (var message in LogMessages)
         {
-            message.ShouldNotContain("VcSpace", Case.Insensitive);
-            message.ShouldNotContain("KeyCode", Case.Insensitive);
+            message.ShouldNotContain("VcSpace");
+            message.ShouldNotContain("KeyCode");
         }
     }
 
@@ -131,7 +130,7 @@ public sealed class GlobalHotkeyLoggingTests : GlobalHotkeyServiceTestBase
         var before = LogMessages.Count;
 
         Press(KeyCode.VcLeftControl, EventMask.LeftCtrl);
-        Press(KeyCode.VcLeftShift, CtrlShift);
+        Press(KeyCode.VcLeftShift);
         Release(KeyCode.VcLeftShift, EventMask.LeftCtrl);
         Release(KeyCode.VcLeftControl, EventMask.None);
 

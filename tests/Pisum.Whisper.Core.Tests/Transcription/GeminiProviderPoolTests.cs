@@ -1,7 +1,6 @@
 namespace Pisum.Whisper.Core.Tests.Transcription;
 
 using FakeItEasy;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Pisum.Whisper.Core.Audio;
 using Pisum.Whisper.Core.Settings;
@@ -17,7 +16,7 @@ public sealed class GeminiProviderPoolTests : IDisposable
 {
     private static readonly EncodedAudio Audio = new([1, 2, 3], EncodedAudio.OpusMimeType, AudioFormat.Opus);
 
-    private string _home = string.Empty;
+    private readonly string _home = string.Empty;
 
     public GeminiProviderPoolTests()
     {
@@ -37,8 +36,8 @@ public sealed class GeminiProviderPoolTests : IDisposable
     {
         var pool = Pool(Store());
 
-        var failure = await Should.ThrowAsync<TranscriptionException>(
-            () => pool.TranscribeAsync(Audio, "Transcribe.", CancellationToken.None));
+        var failure = await Should.ThrowAsync<TranscriptionException>(() =>
+            pool.TranscribeAsync(Audio, "Transcribe.", CancellationToken.None));
 
         failure.Category.ShouldBe(ErrorCategory.Configuration);
         failure.Message.ShouldBe(GeminiProviderPool.NoProvidersMessage);
@@ -47,10 +46,10 @@ public sealed class GeminiProviderPoolTests : IDisposable
     [Fact]
     public async Task WithOnlyDisabledProviders_RaisesConfiguration()
     {
-        var pool = Pool(Store(Entry("a", enabled: false), Entry("b", enabled: false)));
+        var pool = Pool(Store(Entry("a", false), Entry("b", false)));
 
-        var failure = await Should.ThrowAsync<TranscriptionException>(
-            () => pool.TranscribeAsync(Audio, "Transcribe.", CancellationToken.None));
+        var failure = await Should.ThrowAsync<TranscriptionException>(() =>
+            pool.TranscribeAsync(Audio, "Transcribe.", CancellationToken.None));
 
         failure.Category.ShouldBe(ErrorCategory.Configuration);
     }
@@ -59,7 +58,7 @@ public sealed class GeminiProviderPoolTests : IDisposable
     public async Task ADisabledEntry_IsNeverSelected()
     {
         var tried = new List<string>();
-        var pool = Pool(Store(Entry("off", enabled: false), Entry("on")), tried, _ => "text");
+        var pool = Pool(Store(Entry("off", false), Entry("on")), tried, _ => "text");
 
         await pool.TranscribeAsync(Audio, "Transcribe.", CancellationToken.None);
         await pool.TranscribeAsync(Audio, "Transcribe.", CancellationToken.None);
@@ -87,7 +86,7 @@ public sealed class GeminiProviderPoolTests : IDisposable
     {
         var tried = new List<string>();
         var pool = Pool(
-            Store(Entry("a"), Entry("b"), Entry("c")), tried, _ => "text", initialCursor: int.MaxValue - 1);
+            Store(Entry("a"), Entry("b"), Entry("c")), tried, _ => "text", int.MaxValue - 1);
 
         // The second call wraps the cursor to int.MinValue; an unsigned modulo is what keeps this
         // from throwing.
@@ -124,8 +123,8 @@ public sealed class GeminiProviderPoolTests : IDisposable
             null,
             id => throw new TranscriptionException($"{id} is broken", ErrorCategory.Network));
 
-        var failure = await Should.ThrowAsync<TranscriptionException>(
-            () => pool.TranscribeAsync(Audio, "Transcribe.", CancellationToken.None));
+        var failure = await Should.ThrowAsync<TranscriptionException>(() =>
+            pool.TranscribeAsync(Audio, "Transcribe.", CancellationToken.None));
 
         failure.Message.ShouldStartWith("All providers failed:");
         failure.Message.ShouldContain("a: a is broken");
@@ -143,8 +142,8 @@ public sealed class GeminiProviderPoolTests : IDisposable
             null,
             _ => throw new TranscriptionException("key rejected", ErrorCategory.Authentication));
 
-        var failure = await Should.ThrowAsync<TranscriptionException>(
-            () => pool.TranscribeAsync(Audio, "Transcribe.", CancellationToken.None));
+        var failure = await Should.ThrowAsync<TranscriptionException>(() =>
+            pool.TranscribeAsync(Audio, "Transcribe.", CancellationToken.None));
 
         failure.Category.ShouldBe(ErrorCategory.Authentication);
     }
@@ -157,8 +156,8 @@ public sealed class GeminiProviderPoolTests : IDisposable
             null,
             id => throw new TranscriptionException($"{id} is throttled", ErrorCategory.RateLimit));
 
-        var failure = await Should.ThrowAsync<TranscriptionException>(
-            () => pool.TranscribeAsync(Audio, "Transcribe.", CancellationToken.None));
+        var failure = await Should.ThrowAsync<TranscriptionException>(() =>
+            pool.TranscribeAsync(Audio, "Transcribe.", CancellationToken.None));
 
         failure.Category.ShouldBe(ErrorCategory.RateLimit);
     }
@@ -173,8 +172,8 @@ public sealed class GeminiProviderPoolTests : IDisposable
                 $"{id} is broken",
                 id == "a" ? ErrorCategory.Authentication : ErrorCategory.Network));
 
-        var failure = await Should.ThrowAsync<TranscriptionException>(
-            () => pool.TranscribeAsync(Audio, "Transcribe.", CancellationToken.None));
+        var failure = await Should.ThrowAsync<TranscriptionException>(() =>
+            pool.TranscribeAsync(Audio, "Transcribe.", CancellationToken.None));
 
         failure.Category.ShouldBe(ErrorCategory.Transcription);
     }
@@ -194,8 +193,8 @@ public sealed class GeminiProviderPoolTests : IDisposable
                 throw new TranscriptionException("failed", ErrorCategory.Network);
             });
 
-        await Should.ThrowAsync<OperationCanceledException>(
-            () => pool.TranscribeAsync(Audio, "Transcribe.", cancellation.Token));
+        await Should.ThrowAsync<OperationCanceledException>(() =>
+            pool.TranscribeAsync(Audio, "Transcribe.", cancellation.Token));
 
         tried.Count.ShouldBe(1);
     }
@@ -217,8 +216,10 @@ public sealed class GeminiProviderPoolTests : IDisposable
         tried.ShouldBe(["a", "b"]);
     }
 
-    private static ProviderConfig Entry(string id, bool enabled = true) =>
-        new() { Id = id, ApiKey = $"key-for-{id}", Enabled = enabled };
+    private static ProviderConfig Entry(string id, bool enabled = true)
+    {
+        return new ProviderConfig {Id = id, ApiKey = $"key-for-{id}", Enabled = enabled};
+    }
 
     private SettingsStore Store(params ProviderConfig[] entries)
     {
@@ -234,12 +235,12 @@ public sealed class GeminiProviderPoolTests : IDisposable
     /// A pool whose per-entry provider is a fake driven by <paramref name="answer"/> — the entry id
     /// in, either the transcript or a thrown failure out — recording each id it was asked for.
     /// </summary>
-    private static GeminiProviderPool Pool(
-        SettingsStore store,
-        List<string>? tried = null,
-        Func<string, string>? answer = null,
-        int initialCursor = -1) =>
-        new(
+    private static GeminiProviderPool Pool(SettingsStore store,
+                                           List<string>? tried = null,
+                                           Func<string, string>? answer = null,
+                                           int initialCursor = -1)
+    {
+        return new GeminiProviderPool(
             store,
             NullLogger<GeminiProviderPool>.Instance,
             entry =>
@@ -256,4 +257,5 @@ public sealed class GeminiProviderPoolTests : IDisposable
                 return provider;
             },
             initialCursor);
+    }
 }

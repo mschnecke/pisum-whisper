@@ -1,8 +1,12 @@
 namespace Pisum.Whisper.Core.Tests.Hotkeys;
 
+using System.Diagnostics;
+using Microsoft.Extensions.Logging.Abstractions;
 using Pisum.Whisper.Core.Hotkeys;
 using Pisum.Whisper.Core.Settings;
 using SharpHook.Data;
+using SharpHook.Logging;
+using SharpHook.Testing;
 using Shouldly;
 
 [IntegrationTest]
@@ -55,7 +59,7 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
         await StartAsync();
 
         Press(KeyCode.VcLeftControl, EventMask.LeftCtrl);
-        Press(KeyCode.VcLeftShift, CtrlShift);
+        Press(KeyCode.VcLeftShift);
         Press(KeyCode.VcSpace);
         Release(KeyCode.VcLeftShift, EventMask.LeftCtrl);
         Release(KeyCode.VcLeftControl, EventMask.None);
@@ -81,7 +85,8 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
         await StartAsync();
 
         var pressCost = Post(EventType.KeyPressed, KeyCode.VcSpace, CtrlShift);
-        handlerEntered.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken).ShouldBeTrue("the press should have reached the consumer");
+        handlerEntered.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken)
+            .ShouldBeTrue("the press should have reached the consumer");
 
         var releaseCost = Post(EventType.KeyReleased, KeyCode.VcSpace, CtrlShift);
 
@@ -248,13 +253,13 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
         // failed nor prompted, it blocked at zero CPU with the tap never installed. Waiting only on
         // HookEnabled would hang host startup for good, and this process has no window to say so.
         using var service = new GlobalHotkeyService(
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<GlobalHotkeyService>.Instance,
+            NullLogger<GlobalHotkeyService>.Instance,
             Settings,
             new RecordingLogSource(),
             new BlockingHookProvider(),
             TimeSpan.FromMilliseconds(300));
 
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var stopwatch = Stopwatch.StartNew();
         await service.StartAsync(CancellationToken.None);
         stopwatch.Stop();
 
@@ -318,9 +323,9 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
     [Fact]
     public async Task UnparseableBinding_FallsBackToTheDefault()
     {
-        WriteSettings(new AppSettings { Hotkey = Binding("Nonsense", "Ctrl") });
+        WriteSettings(new AppSettings {Hotkey = Binding("Nonsense", "Ctrl")});
 
-        var settings = new SettingsStore(Microsoft.Extensions.Logging.Abstractions.NullLogger<SettingsStore>.Instance, SettingsPath);
+        var settings = new SettingsStore(NullLogger<SettingsStore>.Instance, SettingsPath);
         settings.Load();
         settings.Current.Hotkey = Binding("Nonsense", "Ctrl");
         Settings.Save(settings.Current);
@@ -334,17 +339,17 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
     [Fact]
     public void UnparseableBinding_LeavesTheSettingsFileAlone()
     {
-        WriteSettings(new AppSettings { Hotkey = Binding("Hyper", "Ctrl") });
+        WriteSettings(new AppSettings {Hotkey = Binding("Hyper", "Ctrl")});
         var before = File.ReadAllBytes(SettingsPath);
 
-        var settings = new SettingsStore(Microsoft.Extensions.Logging.Abstractions.NullLogger<SettingsStore>.Instance, SettingsPath);
+        var settings = new SettingsStore(NullLogger<SettingsStore>.Instance, SettingsPath);
         settings.Load();
 
         using var service = new GlobalHotkeyService(
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<GlobalHotkeyService>.Instance,
+            NullLogger<GlobalHotkeyService>.Instance,
             settings,
-            new SharpHook.Logging.EmptyLogSource(),
-            new SharpHook.Testing.TestProvider(SharpHook.Testing.TestThreadingMode.Simple));
+            new EmptyLogSource(),
+            new TestProvider());
 
         service.Chord.ShouldBe(HotkeyChord.Default);
         File.ReadAllBytes(SettingsPath).ShouldBe(before, "SettingsStore owns every write to the file");

@@ -22,13 +22,13 @@ public sealed class TextOutputRegistrationTests
     [Fact]
     public void TheRegistrationSatisfiesContainerValidation()
     {
-        Should.NotThrow(() => BuildHost(withNativeHalf: true).Dispose());
+        Should.NotThrow(() => BuildHost(true).Dispose());
     }
 
     [Fact]
     public void TheDeliveryResolves()
     {
-        using var host = BuildHost(withNativeHalf: true);
+        using var host = BuildHost(true);
 
         host.Services.GetRequiredService<ITextOutput>().ShouldBeOfType<TextOutput>();
     }
@@ -36,7 +36,7 @@ public sealed class TextOutputRegistrationTests
     [Fact]
     public void TheEventSimulatorResolvesAsASingleton()
     {
-        using var host = BuildHost(withNativeHalf: true);
+        using var host = BuildHost(true);
 
         var first = host.Services.GetRequiredService<IEventSimulator>();
 
@@ -48,7 +48,7 @@ public sealed class TextOutputRegistrationTests
     {
         // Which is the whole reason the two halves are registered separately: this is a startup
         // failure that names the missing service, not a null reference at the first paste.
-        var exception = Should.Throw<AggregateException>(() => BuildHost(withNativeHalf: false).Dispose());
+        var exception = Should.Throw<AggregateException>(() => BuildHost(false).Dispose());
 
         exception.ToString().ShouldContain(nameof(ISystemClipboard));
     }

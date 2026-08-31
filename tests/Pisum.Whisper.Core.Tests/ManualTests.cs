@@ -10,6 +10,5 @@ namespace Pisum.Whisper.Core.Tests;
 internal static class ManualTests
 {
     /// <summary>Set <c>PISUM_WHISPER_RUN_MANUAL</c> to anything non-empty to opt in.</summary>
-    public static bool Enabled =>
-        Environment.GetEnvironmentVariable("PISUM_WHISPER_RUN_MANUAL") is not (null or "");
+    public static bool Enabled => Environment.GetEnvironmentVariable("PISUM_WHISPER_RUN_MANUAL") is not (null or "");
 }

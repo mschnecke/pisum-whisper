@@ -6,7 +6,7 @@ using Shouldly;
 [IntegrationTest]
 public sealed class LogDirectoryTests : IDisposable
 {
-    private string _home = string.Empty;
+    private readonly string _home = string.Empty;
 
     public LogDirectoryTests()
     {

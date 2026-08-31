@@ -17,13 +17,13 @@ public sealed class HookProviderProbeTests
     [Fact]
     public async Task PostedEvent_KeepsItsMaskAndIsNotFlaggedAsSimulated()
     {
-        var provider = new TestProvider(TestThreadingMode.Simple);
+        var provider = new TestProvider();
         using var hook = new SimpleGlobalHook(provider);
 
         KeyboardHookEventArgs? observed = null;
         hook.KeyPressed += (_, e) => observed = e;
 
-        var running = hook.RunAsync(GlobalHookType.Keyboard, useBackgroundThread: true);
+        var running = hook.RunAsync(GlobalHookType.Keyboard, true);
         while (!hook.IsRunning)
         {
             await Task.Delay(5, TestContext.Current.CancellationToken);
@@ -33,7 +33,7 @@ public sealed class HookProviderProbeTests
         {
             Type = EventType.KeyPressed,
             Mask = EventMask.LeftCtrl | EventMask.LeftShift,
-            Keyboard = new KeyboardEventData { KeyCode = KeyCode.VcSpace },
+            Keyboard = new KeyboardEventData {KeyCode = KeyCode.VcSpace},
         };
 
         provider.PostEvent(ref posted).ShouldBe(UioHookResult.Success);
@@ -50,12 +50,12 @@ public sealed class HookProviderProbeTests
     [Fact]
     public async Task SuppressedEvent_IsRecordedByTheProvider()
     {
-        var provider = new TestProvider(TestThreadingMode.Simple);
+        var provider = new TestProvider();
         using var hook = new SimpleGlobalHook(provider);
 
         hook.KeyPressed += (_, e) => e.SuppressEvent = true;
 
-        var running = hook.RunAsync(GlobalHookType.Keyboard, useBackgroundThread: true);
+        var running = hook.RunAsync(GlobalHookType.Keyboard, true);
         while (!hook.IsRunning)
         {
             await Task.Delay(5, TestContext.Current.CancellationToken);
@@ -64,7 +64,7 @@ public sealed class HookProviderProbeTests
         var posted = new UioHookEvent
         {
             Type = EventType.KeyPressed,
-            Keyboard = new KeyboardEventData { KeyCode = KeyCode.VcSpace },
+            Keyboard = new KeyboardEventData {KeyCode = KeyCode.VcSpace},
         };
 
         provider.PostEvent(ref posted);

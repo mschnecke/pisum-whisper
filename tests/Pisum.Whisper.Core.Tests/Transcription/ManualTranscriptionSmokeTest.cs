@@ -24,11 +24,8 @@ public sealed class ManualTranscriptionSmokeTest
     private const string KeyVariable = "PISUM_WHISPER_GEMINI_KEY";
 
     [Fact(
-
         Skip = "Requires a real Gemini API key; run manually",
-
         SkipUnless = nameof(ManualTests.Enabled),
-
         SkipType = typeof(ManualTests))]
     public async Task ARealRoundTrip_Completes()
     {
@@ -51,7 +48,7 @@ public sealed class ManualTranscriptionSmokeTest
 
             var store = container.GetRequiredService<SettingsStore>();
             store.Load();
-            store.Current.Providers.Add(new ProviderConfig { Id = "manual", ApiKey = apiKey! });
+            store.Current.Providers.Add(new ProviderConfig {Id = "manual", ApiKey = apiKey!});
 
             // A second of 440 Hz at the capture pipeline's rate, encoded by the real encoder — so
             // this exercises change 4's output rather than a hand-built byte array.
@@ -65,7 +62,8 @@ public sealed class ManualTranscriptionSmokeTest
                 .Encode(samples, 48_000, AudioFormat.Opus);
 
             var transcript = await container.GetRequiredService<ITranscriptionProvider>()
-                .TranscribeAsync(encoded, "Transcribe the audio. Output only the transcription.", CancellationToken.None);
+                .TranscribeAsync(encoded, "Transcribe the audio. Output only the transcription.",
+                    CancellationToken.None);
 
             transcript.ShouldNotBeNull();
             Console.WriteLine($"Gemini returned {transcript.Length} characters.");

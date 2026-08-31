@@ -14,19 +14,19 @@ public sealed class HotkeyMatcherTests
     private const EventMask CtrlShift = EventMask.LeftCtrl | EventMask.LeftShift;
 
     private static HotkeyMatcher Matcher(HotkeyModifiers modifiers = HotkeyModifiers.Ctrl | HotkeyModifiers.Shift,
-        KeyCode key = KeyCode.VcSpace)
+                                         KeyCode key = KeyCode.VcSpace)
     {
         return new HotkeyMatcher(new HotkeyChord(modifiers, key));
     }
 
     private static MatchResult Press(HotkeyMatcher matcher, KeyCode key, EventMask mask = CtrlShift)
     {
-        return matcher.OnKeyPressed(key, mask, isSimulated: false);
+        return matcher.OnKeyPressed(key, mask, false);
     }
 
     private static MatchResult Release(HotkeyMatcher matcher, KeyCode key, EventMask mask = CtrlShift)
     {
-        return matcher.OnKeyReleased(key, mask, isSimulated: false);
+        return matcher.OnKeyReleased(key, mask, false);
     }
 
     // ---- Task 2.3: the match predicate is exact equality, not containment ----
@@ -205,7 +205,7 @@ public sealed class HotkeyMatcherTests
         var matcher = Matcher();
 
         Press(matcher, KeyCode.VcLeftControl, EventMask.LeftCtrl).Suppress.ShouldBeFalse();
-        Press(matcher, KeyCode.VcLeftShift, CtrlShift).Suppress.ShouldBeFalse();
+        Press(matcher, KeyCode.VcLeftShift).Suppress.ShouldBeFalse();
 
         Press(matcher, KeyCode.VcSpace);
         Release(matcher, KeyCode.VcLeftShift, EventMask.LeftCtrl).Suppress.ShouldBeFalse();
@@ -241,7 +241,7 @@ public sealed class HotkeyMatcherTests
     {
         var matcher = Matcher();
 
-        matcher.OnKeyPressed(KeyCode.VcSpace, CtrlShift, isSimulated: true).ShouldBe(MatchResult.Ignore);
+        matcher.OnKeyPressed(KeyCode.VcSpace, CtrlShift, true).ShouldBe(MatchResult.Ignore);
         matcher.IsEngaged.ShouldBeFalse();
     }
 
@@ -251,7 +251,7 @@ public sealed class HotkeyMatcherTests
         var matcher = Matcher();
         Press(matcher, KeyCode.VcSpace);
 
-        matcher.OnKeyReleased(KeyCode.VcSpace, CtrlShift, isSimulated: true).ShouldBe(MatchResult.Ignore);
+        matcher.OnKeyReleased(KeyCode.VcSpace, CtrlShift, true).ShouldBe(MatchResult.Ignore);
         matcher.IsEngaged.ShouldBeTrue();
     }
 

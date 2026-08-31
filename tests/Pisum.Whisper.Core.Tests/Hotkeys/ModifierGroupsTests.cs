@@ -40,7 +40,7 @@ public sealed class ModifierGroupsTests
     public void LockKeys_AreDiscarded()
     {
         var mask = EventMask.LeftCtrl | EventMask.LeftShift
-                   | EventMask.CapsLock | EventMask.NumLock | EventMask.ScrollLock;
+                                      | EventMask.CapsLock | EventMask.NumLock | EventMask.ScrollLock;
 
         ModifierGroups.FromEventMask(mask).ShouldBe(HotkeyModifiers.Ctrl | HotkeyModifiers.Shift);
     }
@@ -49,7 +49,7 @@ public sealed class ModifierGroupsTests
     public void MouseButtons_AreDiscarded()
     {
         var mask = EventMask.LeftCtrl | EventMask.LeftShift
-                   | EventMask.Button1 | EventMask.Button3 | EventMask.Button5;
+                                      | EventMask.Button1 | EventMask.Button3 | EventMask.Button5;
 
         ModifierGroups.FromEventMask(mask).ShouldBe(HotkeyModifiers.Ctrl | HotkeyModifiers.Shift);
     }

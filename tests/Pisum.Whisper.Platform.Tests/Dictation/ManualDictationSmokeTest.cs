@@ -2,8 +2,6 @@ namespace Pisum.Whisper.Platform.Tests.Dictation;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Pisum.Whisper.Core.Audio;
 using Pisum.Whisper.Core.Dictation;
 using Pisum.Whisper.Core.Hotkeys;
@@ -42,7 +40,7 @@ public sealed class ManualDictationSmokeTest
     public async Task SpeakingForFiveSecondsPutsTheWordsAtTheCursor()
     {
         using var host = BuildHost();
-        var hotkeys = (StubHotkeyService)host.Services.GetRequiredService<IGlobalHotkeyService>();
+        var hotkeys = (StubHotkeyService) host.Services.GetRequiredService<IGlobalHotkeyService>();
         var orchestrator = host.Services.GetRequiredService<DictationOrchestrator>();
 
         await host.StartAsync(TestContext.Current.CancellationToken);
@@ -108,11 +106,19 @@ public sealed class ManualDictationSmokeTest
 
         public HotkeyChord Chord => HotkeyChord.Default;
 
-        public Task<HotkeyCapture> CaptureAsync(CancellationToken cancellationToken) =>
-            Task.FromResult(HotkeyCapture.Cancelled);
+        public Task<HotkeyCapture> CaptureAsync(CancellationToken cancellationToken)
+        {
+            return Task.FromResult(HotkeyCapture.Cancelled);
+        }
 
-        public void Press() => Pressed?.Invoke(this, EventArgs.Empty);
+        public void Press()
+        {
+            Pressed?.Invoke(this, EventArgs.Empty);
+        }
 
-        public void Release() => Released?.Invoke(this, EventArgs.Empty);
+        public void Release()
+        {
+            Released?.Invoke(this, EventArgs.Empty);
+        }
     }
 }

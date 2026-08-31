@@ -14,7 +14,7 @@ public sealed class TextOutputKeystrokeTests : TextOutputTestBase
     [Fact]
     public async Task TheWindowsSelection_SendsCtrlV()
     {
-        await Create(macOs: false).DeliverAsync(Transcript, CancellationToken.None);
+        await Create(false).DeliverAsync(Transcript, CancellationToken.None);
 
         Posted.ShouldBe(
         [
@@ -28,7 +28,7 @@ public sealed class TextOutputKeystrokeTests : TextOutputTestBase
     [Fact]
     public async Task TheMacOsSelection_SendsCmdV()
     {
-        await Create(macOs: true).DeliverAsync(Transcript, CancellationToken.None);
+        await Create(true).DeliverAsync(Transcript, CancellationToken.None);
 
         Posted.ShouldBe(
         [
@@ -45,8 +45,8 @@ public sealed class TextOutputKeystrokeTests : TextOutputTestBase
         // The pacing is why this is not an implementation detail: change 1's spike found that edges
         // posted back to back outrun macOS folding earlier keys into the modifier flags, so Cmd+V
         // arrives as a bare "v" and the paste silently becomes a typo in the user's document.
-        var windows = await TimeDeliveryAsync(macOs: false);
-        var mac = await TimeDeliveryAsync(macOs: true);
+        var windows = await TimeDeliveryAsync(false);
+        var mac = await TimeDeliveryAsync(true);
 
         mac.ShouldBeGreaterThan(TimeSpan.FromMilliseconds(100));
         windows.ShouldBeLessThan(TimeSpan.FromMilliseconds(100));

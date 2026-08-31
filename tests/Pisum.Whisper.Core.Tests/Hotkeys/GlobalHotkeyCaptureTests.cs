@@ -19,8 +19,8 @@ public sealed class GlobalHotkeyCaptureTests : GlobalHotkeyServiceTestBase
         var capture = Service.CaptureAsync(CancellationToken.None);
 
         Press(KeyCode.VcLeftControl, EventMask.LeftCtrl);
-        Press(KeyCode.VcLeftShift, CtrlShift);
-        Press(KeyCode.VcF9, CtrlShift);
+        Press(KeyCode.VcLeftShift);
+        Press(KeyCode.VcF9);
 
         var result = await capture;
 

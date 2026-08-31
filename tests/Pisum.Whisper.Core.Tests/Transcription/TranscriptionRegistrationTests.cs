@@ -13,7 +13,7 @@ using Shouldly;
 [IntegrationTest]
 public sealed class TranscriptionRegistrationTests : IDisposable
 {
-    private string _home = string.Empty;
+    private readonly string _home = string.Empty;
 
     public TranscriptionRegistrationTests()
     {
@@ -31,7 +31,7 @@ public sealed class TranscriptionRegistrationTests : IDisposable
     {
         // The application builds its container with ValidateOnBuild, so an unsatisfiable dependency
         // here is a startup failure rather than a null reference at first use.
-        Should.NotThrow(() => BuildHost(validate: true).Dispose());
+        Should.NotThrow(() => BuildHost(true).Dispose());
     }
 
     [Fact]

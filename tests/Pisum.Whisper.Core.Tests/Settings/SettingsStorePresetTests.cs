@@ -8,9 +8,9 @@ using Shouldly;
 [IntegrationTest]
 public sealed class SettingsStorePresetTests : IDisposable
 {
-    private string _directory = string.Empty;
+    private readonly string _directory = string.Empty;
 
-    private string _path = string.Empty;
+    private readonly string _path = string.Empty;
 
     public SettingsStorePresetTests()
     {

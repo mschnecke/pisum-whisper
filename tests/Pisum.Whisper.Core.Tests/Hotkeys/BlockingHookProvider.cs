@@ -18,11 +18,20 @@ public sealed class BlockingHookProvider : IGlobalHookProvider
     {
     }
 
-    public UioHookResult Run() => Block();
+    public UioHookResult Run()
+    {
+        return Block();
+    }
 
-    public UioHookResult RunKeyboard() => Block();
+    public UioHookResult RunKeyboard()
+    {
+        return Block();
+    }
 
-    public UioHookResult RunMouse() => Block();
+    public UioHookResult RunMouse()
+    {
+        return Block();
+    }
 
     public UioHookResult Stop()
     {

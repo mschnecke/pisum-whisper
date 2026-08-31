@@ -101,8 +101,7 @@ public sealed class TextOutputRestoreTests : TextOutputTestBase
 
         var output = Create();
 
-        await Should.ThrowAsync<OperationCanceledException>(
-            () => output.DeliverAsync(Transcript, cancellation.Token));
+        await Should.ThrowAsync<OperationCanceledException>(() => output.DeliverAsync(Transcript, cancellation.Token));
 
         Clipboard.Text.ShouldBe(Copied);
         Clipboard.Writes.ShouldBeEmpty();
@@ -139,7 +138,8 @@ public sealed class TextOutputRestoreTests : TextOutputTestBase
         Clipboard.WriteFailure = null;
 
         // Without the finally this would deadlock rather than fail.
-        var outcome = await output.DeliverAsync(Transcript, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        var outcome = await output.DeliverAsync(Transcript, CancellationToken.None)
+            .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         outcome.ShouldBe(TextOutputOutcome.Pasted);
     }

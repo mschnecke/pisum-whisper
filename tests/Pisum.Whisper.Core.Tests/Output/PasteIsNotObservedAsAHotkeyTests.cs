@@ -30,13 +30,13 @@ public sealed class PasteIsNotObservedAsAHotkeyTests : IDisposable
 
     private readonly List<HotkeyEdge> _edges = [];
 
-    private string _home = string.Empty;
+    private readonly string _home = string.Empty;
 
-    private TestProvider _provider = null!;
+    private readonly TestProvider _provider = null!;
 
-    private GlobalHotkeyService _hotkeys = null!;
+    private readonly GlobalHotkeyService _hotkeys = null!;
 
-    private IEventSimulator _simulator = null!;
+    private readonly IEventSimulator _simulator = null!;
 
     public PasteIsNotObservedAsAHotkeyTests()
     {
@@ -44,13 +44,13 @@ public sealed class PasteIsNotObservedAsAHotkeyTests : IDisposable
         Directory.CreateDirectory(_home);
 
         var settingsPath = Path.Combine(_home, ".pisum-whisper.json");
-        var settings = new AppSettings { Hotkey = new HotkeyBinding { Modifiers = ["Ctrl"], Key = "V" } };
+        var settings = new AppSettings {Hotkey = new HotkeyBinding {Modifiers = ["Ctrl"], Key = "V"}};
         File.WriteAllText(settingsPath, JsonSerializer.Serialize(settings, SettingsJsonContext.OnDisk.AppSettings));
 
         var store = new SettingsStore(NullLogger<SettingsStore>.Instance, settingsPath);
         store.Load();
 
-        _provider = new TestProvider(TestThreadingMode.Simple);
+        _provider = new TestProvider();
         _hotkeys = new GlobalHotkeyService(NullLogger<GlobalHotkeyService>.Instance, store, _logSource, _provider);
         _hotkeys.Pressed += (_, _) => Record(HotkeyEdge.Pressed);
         _hotkeys.Released += (_, _) => Record(HotkeyEdge.Released);
@@ -60,7 +60,7 @@ public sealed class PasteIsNotObservedAsAHotkeyTests : IDisposable
 
     public void Dispose()
     {
-        (_simulator as IDisposable)?.Dispose();
+        _simulator?.Dispose();
         _hotkeys.Dispose();
         Directory.Delete(_home, true);
     }
@@ -101,7 +101,7 @@ public sealed class PasteIsNotObservedAsAHotkeyTests : IDisposable
             new FakeClipboard(),
             new FakePasteProbe(),
             _simulator,
-            macOs: false,
+            false,
             TimeSpan.Zero,
             TimeSpan.Zero);
     }
@@ -112,7 +112,7 @@ public sealed class PasteIsNotObservedAsAHotkeyTests : IDisposable
         {
             Type = type,
             Mask = mask,
-            Keyboard = new KeyboardEventData { KeyCode = key },
+            Keyboard = new KeyboardEventData {KeyCode = key},
         };
 
         _provider.PostEvent(ref uioHookEvent);

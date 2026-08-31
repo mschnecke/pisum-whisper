@@ -17,7 +17,7 @@ using Shouldly;
 [IntegrationTest]
 public sealed class GlobalHotkeyRegistrationTests : IDisposable
 {
-    private string _home = string.Empty;
+    private readonly string _home = string.Empty;
 
     public GlobalHotkeyRegistrationTests()
     {
@@ -50,7 +50,7 @@ public sealed class GlobalHotkeyRegistrationTests : IDisposable
     {
         // The application builds its container with ValidateOnBuild, so an unsatisfiable dependency
         // here is a startup failure rather than a null reference at first use.
-        Should.NotThrow(() => BuildHost(validate: true).Dispose());
+        Should.NotThrow(() => BuildHost(true).Dispose());
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public sealed class GlobalHotkeyRegistrationTests : IDisposable
         // The real registration resolves the native provider and a native log source. Both are
         // replaced here so a unit test does not install a machine-wide hook.
         builder.Services.AddSingleton<ILogSource>(_ => new EmptyLogSource());
-        builder.Services.AddSingleton<IGlobalHookProvider>(_ => new TestProvider(TestThreadingMode.Simple));
+        builder.Services.AddSingleton<IGlobalHookProvider>(_ => new TestProvider());
         builder.Services.AddSingleton(provider => new GlobalHotkeyService(
             NullLogger<GlobalHotkeyService>.Instance,
             provider.GetRequiredService<SettingsStore>(),

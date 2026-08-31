@@ -13,7 +13,7 @@ public sealed class ConflictDetectorTests
 {
     private static HotkeyBinding Binding(string key, params string[] modifiers)
     {
-        return new HotkeyBinding { Modifiers = [.. modifiers], Key = key };
+        return new HotkeyBinding {Modifiers = [.. modifiers], Key = key};
     }
 
     [Fact]

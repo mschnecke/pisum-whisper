@@ -12,7 +12,7 @@ using Pisum.Whisper.Core.Settings;
 /// </summary>
 public abstract class FileLoggingTestBase : IDisposable
 {
-    private string _home = string.Empty;
+    private readonly string _home = string.Empty;
 
     protected LogDirectory Logs { get; private set; } = new();
 

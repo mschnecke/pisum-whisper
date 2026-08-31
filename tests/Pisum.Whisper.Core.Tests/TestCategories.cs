@@ -18,8 +18,10 @@ using Xunit.v3;
 [AttributeUsage(AttributeTargets.Class)]
 public abstract class TestCategoryAttribute(string category) : Attribute, ITraitAttribute
 {
-    public IReadOnlyCollection<KeyValuePair<string, string>> GetTraits() =>
-        [new KeyValuePair<string, string>(Traits.Category, category)];
+    public IReadOnlyCollection<KeyValuePair<string, string>> GetTraits()
+    {
+        return [new KeyValuePair<string, string>(Traits.Category, category)];
+    }
 }
 
 /// <summary>In-memory objects and fakes only — no filesystem, no container, no network.</summary>

@@ -57,7 +57,7 @@ public sealed class DictationGuardTests : DictationTestBase
     [Fact]
     public async Task ABrushOfTheHotkeyIsDiscardedInSilence()
     {
-        var orchestrator = Create(minimumDuration: TimeSpan.FromMilliseconds(50));
+        var orchestrator = Create(TimeSpan.FromMilliseconds(50));
 
         Dictate(TimeSpan.FromMilliseconds(20));
         await SettleAsync(orchestrator);
@@ -75,7 +75,7 @@ public sealed class DictationGuardTests : DictationTestBase
     [Fact]
     public async Task APressOverTheMinimumIsTranscribed()
     {
-        var orchestrator = Create(minimumDuration: TimeSpan.FromMilliseconds(50));
+        var orchestrator = Create(TimeSpan.FromMilliseconds(50));
 
         Dictate(TimeSpan.FromMilliseconds(80));
         await SettleAsync(orchestrator);
@@ -90,7 +90,7 @@ public sealed class DictationGuardTests : DictationTestBase
     [Fact]
     public async Task APressWhileADiscardedRecordingIsStillClosingDoesNotReopenTheDevice()
     {
-        var orchestrator = Create(minimumDuration: TimeSpan.FromMilliseconds(50));
+        var orchestrator = Create(TimeSpan.FromMilliseconds(50));
         Capture.BlockStop();
 
         Dictate(TimeSpan.FromMilliseconds(20));
@@ -109,7 +109,7 @@ public sealed class DictationGuardTests : DictationTestBase
     [Fact]
     public async Task AnEmptyCaptureOverTheMinimumIsReportedAsARecordingError()
     {
-        var orchestrator = Create(minimumDuration: TimeSpan.FromMilliseconds(50));
+        var orchestrator = Create(TimeSpan.FromMilliseconds(50));
         Capture.Samples = [];
 
         Dictate(TimeSpan.FromSeconds(3));
@@ -123,7 +123,7 @@ public sealed class DictationGuardTests : DictationTestBase
     [Fact]
     public async Task AnEmptyCaptureUnderTheMinimumIsStillJustABrush()
     {
-        var orchestrator = Create(minimumDuration: TimeSpan.FromMilliseconds(50));
+        var orchestrator = Create(TimeSpan.FromMilliseconds(50));
         Capture.Samples = [];
 
         Dictate(TimeSpan.FromMilliseconds(20));

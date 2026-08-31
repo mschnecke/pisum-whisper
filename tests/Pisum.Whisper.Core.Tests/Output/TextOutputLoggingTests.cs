@@ -66,15 +66,15 @@ public sealed class TextOutputLoggingTests : TextOutputTestBase
     {
         foreach (var logEvent in LogEvents)
         {
-            logEvent.RenderMessage().ShouldNotContain(Transcript, Case.Insensitive);
-            logEvent.RenderMessage().ShouldNotContain(Password, Case.Insensitive);
+            logEvent.RenderMessage().ShouldNotContain(Transcript);
+            logEvent.RenderMessage().ShouldNotContain(Password);
 
             // Past the rendered message as well: a property that is not in the template renders
             // nowhere and would still reach a structured sink.
             foreach (var property in logEvent.Properties.Values)
             {
-                property.ToString().ShouldNotContain(Transcript, Case.Insensitive);
-                property.ToString().ShouldNotContain(Password, Case.Insensitive);
+                property.ToString().ShouldNotContain(Transcript);
+                property.ToString().ShouldNotContain(Password);
             }
         }
     }
