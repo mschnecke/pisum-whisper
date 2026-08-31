@@ -15,7 +15,7 @@ using Shouldly;
 /// <summary>
 /// Task 5.1 — what shutting down does to each state.
 /// </summary>
-[IntegrationTest]
+[Trait(Traits.Category, Traits.Categories.Integration)]
 public sealed class DictationLifecycleTests : DictationTestBase
 {
     [Fact]
@@ -163,7 +163,7 @@ public sealed class DictationLifecycleTests : DictationTestBase
 /// <summary>
 /// Task 5.2 — the registration itself, exercised rather than reconstructed.
 /// </summary>
-[IntegrationTest]
+[Trait(Traits.Category, Traits.Categories.Integration)]
 public sealed class DictationRegistrationTests : IDisposable
 {
     private readonly string _home = string.Empty;

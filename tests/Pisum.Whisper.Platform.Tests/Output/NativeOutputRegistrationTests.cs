@@ -10,7 +10,7 @@ using Shouldly;
 /// and that both halves resolve. Constructing them touches no clipboard and posts no input, so this
 /// runs anywhere the suite runs.
 /// </summary>
-[IntegrationTest]
+[Trait(Traits.Category, Traits.Categories.Integration)]
 public sealed class NativeOutputRegistrationTests
 {
     [Fact]

@@ -10,7 +10,7 @@ using Shouldly;
 /// Tasks 4.2-4.8 — the single-key client, exercised against a scripted handler. Nothing here reaches
 /// the network or needs an API key.
 /// </summary>
-[UnitTest]
+[Trait(Traits.Category, Traits.Categories.Unit)]
 public sealed class GeminiProviderTests
 {
     private const string ApiKey = "AIza-not-a-real-key";

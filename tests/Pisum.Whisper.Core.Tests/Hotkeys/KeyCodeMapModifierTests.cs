@@ -8,7 +8,7 @@ using Shouldly;
 /// the command key matter in practice: the settings file defaults to <c>Cmd</c> on macOS and
 /// <c>Ctrl</c> elsewhere, and a file carried between the two must still load.
 /// </summary>
-[UnitTest]
+[Trait(Traits.Category, Traits.Categories.Unit)]
 public sealed class KeyCodeMapModifierTests
 {
     private static HotkeyModifiers Parse(string name)

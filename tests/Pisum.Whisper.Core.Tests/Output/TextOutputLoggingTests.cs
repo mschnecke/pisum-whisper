@@ -12,7 +12,7 @@ using Shouldly;
 /// thing to find there. Change 10 puts an "Open Log Folder" button a click away, so these assertions
 /// are load-bearing rather than decorative.
 /// </remarks>
-[UnitTest]
+[Trait(Traits.Category, Traits.Categories.Unit)]
 public sealed class TextOutputLoggingTests : TextOutputTestBase
 {
     private const string Password = "correct-horse-battery-staple";

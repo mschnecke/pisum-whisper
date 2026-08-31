@@ -7,7 +7,7 @@ using Shouldly;
 /// Tasks 2.1, 2.5, 2.6, 2.7 and 2.9 — the dispatch-thread rule, the two duration rules, the two
 /// concurrency guards, and the atomic claim that keeps three callers from ending one recording.
 /// </summary>
-[IntegrationTest]
+[Trait(Traits.Category, Traits.Categories.Integration)]
 public sealed class DictationGuardTests : DictationTestBase
 {
     // ---- Task 2.1: nothing but a state transition on the dispatch thread ----

@@ -10,7 +10,7 @@ using Shouldly;
 /// <summary>
 /// Task 7.1 — the registration itself, exercised rather than reconstructed.
 /// </summary>
-[IntegrationTest]
+[Trait(Traits.Category, Traits.Categories.Integration)]
 public sealed class TranscriptionRegistrationTests : IDisposable
 {
     private readonly string _home = string.Empty;

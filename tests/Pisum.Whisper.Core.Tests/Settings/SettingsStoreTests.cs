@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Pisum.Whisper.Core.Settings;
 using Shouldly;
 
-[IntegrationTest]
+[Trait(Traits.Category, Traits.Categories.Integration)]
 public sealed class SettingsStoreTests : IDisposable
 {
     private readonly string _directory = string.Empty;

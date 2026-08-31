@@ -9,7 +9,7 @@ using Serilog.Core;
 using Serilog.Events;
 using Shouldly;
 
-[IntegrationTest]
+[Trait(Traits.Category, Traits.Categories.Integration)]
 public sealed class FileLoggingLevelTests : FileLoggingTestBase
 {
     private readonly RecordingSink _sink = new();

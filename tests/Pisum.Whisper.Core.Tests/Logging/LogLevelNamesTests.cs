@@ -4,7 +4,7 @@ using Pisum.Whisper.Core.Logging;
 using Serilog.Events;
 using Shouldly;
 
-[UnitTest]
+[Trait(Traits.Category, Traits.Categories.Unit)]
 public sealed class LogLevelNamesTests
 {
     [Theory]

@@ -8,7 +8,7 @@ using Pisum.Whisper.Core.Audio;
 /// is no microphone in CI. Run manually on both Windows and macOS before this change ships, and play
 /// both written files back to confirm they sound right.
 /// </summary>
-[ManualTest]
+[Trait(Traits.Category, Traits.Categories.Manual)]
 public sealed class ManualCaptureSmokeTest
 {
     [Fact(

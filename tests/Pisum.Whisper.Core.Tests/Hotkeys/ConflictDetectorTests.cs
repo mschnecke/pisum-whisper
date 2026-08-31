@@ -8,7 +8,7 @@ using Shouldly;
 /// The conflict table is warn-only, so these tests are about what it reports, never about what it
 /// prevents. The default binding reporting no conflict is the one that would be noticed in practice.
 /// </summary>
-[UnitTest]
+[Trait(Traits.Category, Traits.Categories.Unit)]
 public sealed class ConflictDetectorTests
 {
     private static HotkeyBinding Binding(string key, params string[] modifiers)

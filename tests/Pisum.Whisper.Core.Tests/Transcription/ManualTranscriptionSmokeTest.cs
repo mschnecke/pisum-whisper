@@ -18,7 +18,7 @@ using Shouldly;
 /// so it costs a token or two and asserts only that the round trip completes — what a model returns
 /// for a tone is not something to assert on.
 /// </remarks>
-[ManualTest]
+[Trait(Traits.Category, Traits.Categories.Manual)]
 public sealed class ManualTranscriptionSmokeTest
 {
     private const string KeyVariable = "PISUM_WHISPER_GEMINI_KEY";

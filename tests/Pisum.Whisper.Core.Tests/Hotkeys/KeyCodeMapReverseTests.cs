@@ -9,7 +9,7 @@ using Shouldly;
 /// it produces must parse to the key it came from. A key with no name must say so rather than
 /// return a spelling nothing else understands.
 /// </summary>
-[UnitTest]
+[Trait(Traits.Category, Traits.Categories.Unit)]
 public sealed class KeyCodeMapReverseTests
 {
     [Fact]

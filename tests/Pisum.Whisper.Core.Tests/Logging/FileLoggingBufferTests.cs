@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 using Pisum.Whisper.Core.Logging;
 using Shouldly;
 
-[IntegrationTest]
+[Trait(Traits.Category, Traits.Categories.Integration)]
 public sealed class FileLoggingBufferTests : FileLoggingTestBase
 {
     private const int Events = 3000;

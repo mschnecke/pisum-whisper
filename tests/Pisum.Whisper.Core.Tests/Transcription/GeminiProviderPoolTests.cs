@@ -11,7 +11,7 @@ using Shouldly;
 /// Tasks 5.1-5.4 — selection, fallback and aggregation. Every test here substitutes the per-entry
 /// construction, so no HTTP handler is involved.
 /// </summary>
-[IntegrationTest]
+[Trait(Traits.Category, Traits.Categories.Integration)]
 public sealed class GeminiProviderPoolTests : IDisposable
 {
     private static readonly EncodedAudio Audio = new([1, 2, 3], EncodedAudio.OpusMimeType, AudioFormat.Opus);

@@ -9,7 +9,7 @@ using SharpHook.Logging;
 using SharpHook.Testing;
 using Shouldly;
 
-[IntegrationTest]
+[Trait(Traits.Category, Traits.Categories.Integration)]
 public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
 {
     // ---- Task 3.1: the binding is observed through a real hook over a fake provider ----

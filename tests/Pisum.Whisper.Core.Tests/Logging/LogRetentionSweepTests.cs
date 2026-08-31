@@ -3,7 +3,7 @@ namespace Pisum.Whisper.Core.Tests.Logging;
 using Pisum.Whisper.Core.Logging;
 using Shouldly;
 
-[IntegrationTest]
+[Trait(Traits.Category, Traits.Categories.Integration)]
 public sealed class LogRetentionSweepTests : IDisposable
 {
     private readonly string _directory = string.Empty;

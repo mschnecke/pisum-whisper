@@ -11,7 +11,7 @@ using Shouldly;
 /// Tasks 4.1, 4.2 and 4.3 — the failure vocabulary. The title comes from what failed, never from
 /// matching the text of a message.
 /// </summary>
-[UnitTest]
+[Trait(Traits.Category, Traits.Categories.Unit)]
 public sealed class DictationFailureTests
 {
     [Theory]
@@ -109,7 +109,7 @@ public sealed class DictationFailureTests
 /// Task 4.2's other half, which lives in the orchestrator rather than in the mapping: quitting
 /// produces the same exception as an expired budget and must say nothing at all.
 /// </summary>
-[IntegrationTest]
+[Trait(Traits.Category, Traits.Categories.Integration)]
 public sealed class DictationShutdownSilenceTests : DictationTestBase
 {
     [Fact]

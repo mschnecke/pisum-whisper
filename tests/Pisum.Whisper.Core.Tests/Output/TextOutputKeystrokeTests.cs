@@ -8,7 +8,7 @@ using Shouldly;
 /// Task 2.2 — the shape of the paste keystroke on each platform, asserted from either host through
 /// the internal constructor's platform selection.
 /// </summary>
-[UnitTest]
+[Trait(Traits.Category, Traits.Categories.Unit)]
 public sealed class TextOutputKeystrokeTests : TextOutputTestBase
 {
     [Fact]

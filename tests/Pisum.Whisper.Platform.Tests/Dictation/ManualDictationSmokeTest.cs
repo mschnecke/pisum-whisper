@@ -30,7 +30,7 @@ using Shouldly;
 /// five seconds after it starts.
 /// </para>
 /// </remarks>
-[ManualTest]
+[Trait(Traits.Category, Traits.Categories.Manual)]
 public sealed class ManualDictationSmokeTest
 {
     [Fact(

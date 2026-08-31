@@ -17,7 +17,7 @@ using Shouldly;
 /// Task 3.2's retry is exercised by running it while a second process holds the clipboard, for
 /// example a PowerShell loop calling <c>Set-Clipboard</c>.
 /// </remarks>
-[ManualTest]
+[Trait(Traits.Category, Traits.Categories.Manual)]
 public sealed class ManualClipboardRoundTrip
 {
     [Fact(
