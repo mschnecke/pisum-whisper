@@ -60,8 +60,10 @@ Everything from #8 onward is strictly sequential.
 Changes **1-7** are implemented and archived under `openspec/changes/archive/`, with their
 `application-host`, `settings-persistence`, `file-logging`, `audio-capture`, `audio-encoding`,
 `global-hotkey`, `gemini-transcription` and `text-output` specs synced into `openspec/specs/`.
-Changes **8-12** have `proposal.md` only; their `specs`, `design` and `tasks` are written when their
-turn comes.
+Change **8** has all four artifacts and is implemented; it is not archived yet, because three
+verification tasks need hardware — a microphone and a configured key for the end-to-end run and the
+budget measurement, and an Apple Silicon host for the macOS half. Changes **9-12** have
+`proposal.md` only; their `specs`, `design` and `tasks` are written when their turn comes.
 
 This is deliberate. The four spikes in change 1 can invalidate design decisions downstream — if
 SharpHook cannot report key release, or miniaudio cannot resample, the affected designs change rather
