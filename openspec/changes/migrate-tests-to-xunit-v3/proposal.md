@@ -1,56 +1,54 @@
 ## Why
 
-The two test projects run on MSTest 4 over VSTest, which is the one part of the stack that was
-picked by default rather than chosen. xUnit.net v3 is where the .NET test ecosystem has landed: it
-is Microsoft.Testing.Platform-native, so the test assembly becomes a self-executing binary instead
-of something hosted by `vstest.console`, and it brings first-party analysers the existing
-warnings-as-errors gate can enforce. Now it is one mechanical pass over 372 tests; after changes 9
-through 12 it is the same pass over a much larger suite.
+Avalonia ships first-party headless test integration for **xUnit and NUnit only** — there is no
+`Avalonia.Headless.MSTest` and never has been. Change 10 is the settings window, so the question is
+not whether to leave MSTest but when: before change 10, or hand-roll the plumbing
+`Avalonia.Headless.XUnit` packages as `[AvaloniaFact]`. That makes this a roadmap dependency, not
+housekeeping, and it is why the version is pinned to what Avalonia is built against (design.md D1).
 
-There is no behavioural reference here: `W:\github-pisum-transcript` is a Rust project and
-specifies nothing about the .NET test harness.
+Change 9's tray icon needs no test-framework decision, so now is the smaller pass. No behavioural
+reference exists: `W:\github-pisum-transcript` is Rust and is silent on the test harness.
 
 ## What Changes
 
-- Replace the `MSTest` and `Microsoft.NET.Test.Sdk` package references in both test projects with a
-  single `xunit.v3` reference. Version pinned in `Directory.Packages.props` like every other package.
-- Opt `dotnet test` into Microsoft.Testing.Platform through `global.json`.
-  **BREAKING for developer workflow**: `dotnet test --filter <expr>` is VSTest syntax and stops
-  working; MTP takes `--filter-query` / `--filter-uid`. Archived tasks that quote the old syntax are
-  historical records and are not rewritten.
-- Rewrite the MSTest attributes across 53 classes: `[TestClass]` deleted, `[TestMethod]` to `[Fact]`
-  or `[Theory]`, `[DataRow]` to `[InlineData]`, `[TestInitialize]` to a constructor, `[TestCleanup]`
-  to `IDisposable.Dispose`, `[Ignore]` to `Skip`.
+- Replace `MSTest` and `Microsoft.NET.Test.Sdk` in both test projects with one `xunit.v3` 3.2.2
+  reference. 3.2.2, not the current 4.0.0, because it is what `Avalonia.Headless.XUnit` 12.1.1 is
+  built against; the mismatch resolves silently and would surface at change 10.
+- Opt `dotnet test` into Microsoft.Testing.Platform through `global.json`. **BREAKING for developer
+  workflow**: `dotnet test --filter <expr>` is VSTest syntax and stops working. Archived tasks
+  quoting it are historical records, not rewritten.
+- Rewrite the MSTest attributes across 53 classes and 350 test methods — `[TestClass]` deleted,
+  lifecycle methods becoming a constructor and `Dispose`; design.md D3 carries the full mapping.
 - Adopt xUnit's parallel-by-collection default rather than opting back out to MSTest's sequential
-  execution.
-- Fix the code that xUnit's analysers flag — blocking waits on tasks and cancellation-less delays —
-  rather than suppressing the diagnostics, so warnings-as-errors keeps its meaning.
-- Update `README.md` and `openspec/config.yaml`, both of which name MSTest.
+  execution (design.md D6 audits what that touches).
+- Fix the code xUnit's analysers flag — blocking task waits, cancellation-less delays — rather than
+  suppressing the diagnostics, so warnings-as-errors keeps its meaning.
+- Update `README.md`, `openspec/config.yaml` and `CLAUDE.md`, which name MSTest or its CLI.
 
 ## Non-goals
 
 - No changes to `src/`. Not one production file is touched.
-- No new tests, no deleted tests, no changed assertions. Shouldly stays; FakeItEasy stays;
-  `SharpHook.Testing` stays.
+- No new tests, no deleted tests, no changed assertions. Shouldly, FakeItEasy and `SharpHook.Testing`
+  all stay.
 - No CI wiring. That is change 12's job.
-- No move to xUnit fixtures (`IClassFixture`, `IAsyncLifetime`): a constructor and `Dispose`
-  reproduce today's per-test lifecycle exactly.
+- No xUnit fixtures (`IClassFixture`, `IAsyncLifetime`): a constructor and `Dispose` reproduce
+  today's per-test lifecycle exactly.
+- **No Avalonia headless tests.** This change only makes them possible; writing them is change 10's
+  work. It adds no `Avalonia.Headless.XUnit` reference, only proof one would resolve and run.
 
 ## Capabilities
 
 ### New Capabilities
 
-None. This is tooling: it changes how the tests run, not what the application does.
-`.openspec.yaml` sets `skip_specs: true`.
+None — tooling. It changes how tests run, not what the app does; `.openspec.yaml` sets
+`skip_specs: true`.
 
 ### Modified Capabilities
 
-None. No requirement in any of the eight synced specs changes; every one of their tests must pass
-unchanged in meaning after the migration.
+None. No requirement in the eight synced specs changes; their tests must pass unchanged in meaning.
 
 ## Impact
 
-- `Directory.Packages.props`, `global.json`, both test `.csproj` files.
-- 64 test source files; 350 test methods across both test projects.
-- `README.md`, `openspec/config.yaml`, `CLAUDE.md`.
+- `Directory.Packages.props`, `global.json`, both test `.csproj` files, 61 test source files.
+- `README.md`, `openspec/config.yaml`, `CLAUDE.md`, `openspec/ROADMAP.md`.
 - Rider's test runner, which must discover MTP tests.

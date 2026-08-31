@@ -46,28 +46,45 @@ warnings-as-errors is, per `CLAUDE.md`, "the whole quality gate today".
 
 ## Decisions
 
-### D1 — One package: `xunit.v3` 4.0.0
+### D1 — One package: `xunit.v3` **3.2.2**, the version Avalonia is built against
 
-`Directory.Packages.props` gains `<PackageVersion Include="xunit.v3" Version="4.0.0" />` and loses
+`Directory.Packages.props` gains `<PackageVersion Include="xunit.v3" Version="3.2.2" />` and loses
 `MSTest` and `Microsoft.NET.Test.Sdk`. `SharpHook.Testing`, `FakeItEasy` and `Shouldly` are untouched.
 
 The single reference is sufficient because of what it pulls (verified against the published nuspecs):
 
 ```
-xunit.v3 4.0.0
-└── xunit.v3.mtp-v2 4.0.0
-    ├── xunit.v3.core.mtp-v2 4.0.0     the framework + the in-process MTP runner
-    ├── xunit.v3.assert 4.0.0          unused here; Shouldly stays
-    └── xunit.analyzers 2.0.0          see D7
+xunit.v3 3.2.2
+└── xunit.v3.mtp-v1 3.2.2
+    ├── xunit.v3.core.mtp-v1 3.2.2
+    │   ├── xunit.v3.extensibility.core  [3.2.2]   the framework; AssemblyVersion 3.2.2.0
+    │   ├── xunit.v3.runner.inproc.console [3.2.2] the in-process MTP runner
+    │   └── Microsoft.Testing.Platform 1.9.1       (+ .MSBuild, .Telemetry, TrxReport.Abstractions)
+    ├── xunit.v3.assert 3.2.2          unused here; Shouldly stays
+    └── xunit.analyzers 1.27.0         see D7
 ```
 
-`buildTransitive/xunit.v3.core.mtp-v2.targets` raises a hard MSBuild error unless `OutputType` is
+`buildTransitive/xunit.v3.core.mtp-v1.targets` raises a hard MSBuild error unless `OutputType` is
 `Exe` — already true of both projects, so no property changes.
 
-Version 4.0.0 is the current stable of the xUnit.net **v3** line (the package version numbering runs
-independently of the "v3" in the package id) and was published 2026-08-15. Taking it rather than
-3.2.2 matches how the rest of this repository is pinned: .NET 10, Avalonia 12.1.1, MSTest 4.3.3 and
-`Microsoft.NET.Test.Sdk` 18.9.0 are all current-stable.
+**The version is chosen by `Avalonia.Headless.XUnit`, not by preference.** Change 10 is the settings
+window, and Avalonia ships first-party headless test integration for xUnit and NUnit only — there is
+no `Avalonia.Headless.MSTest` and there never has been. `Avalonia.Headless.XUnit` 12.1.1, which
+matches this repository's Avalonia pin, has a `net10.0` dependency group naming
+`xunit.v3.extensibility.core` **3.2.2**, and its `[AvaloniaFact]` / `[AvaloniaTheory]` hook xUnit's
+*extensibility* surface — custom test framework and test-case discovery, the fastest-moving API in
+the library.
+
+Taking `xunit.v3` 4.0.0 instead would not fail to restore, which is what makes it dangerous:
+`xunit.v3.core.mtp-v2` 4.0.0 pins `xunit.v3.extensibility.core` to exactly `[4.0.0]`, and 4.0.0 also
+satisfies Avalonia's `>= 3.2.2` range, so NuGet resolves it silently with no conflict and no warning.
+But the assembly version does move across the major — `xunit.v3.core.dll` is `3.2.2.0` in the 3.2.2
+package and `4.0.0.0` in the 4.0.0 package — so `Avalonia.Headless.XUnit` would be running against a
+major it was not compiled for, and the failure would surface at change 10 rather than here.
+
+The cost of the pin is recorded rather than hidden: 3.2.2 sits on `xunit.v3.mtp-v1` and therefore
+**Microsoft.Testing.Platform 1.9.1**, where MSTest 4.3.3 already resolves Microsoft.Testing.Platform
+2.3.3 today. This change therefore moves the platform version *backwards*. See D2 and Risks.
 
 ### D2 — Microsoft.Testing.Platform, opted into through `global.json`
 
@@ -85,6 +102,14 @@ So `global.json` gains a sibling to the existing `sdk` block:
 This is a repository-wide switch, not a per-project one, and it is the reason
 `Microsoft.NET.Test.Sdk` can be dropped rather than merely unused: with the MTP command, the test
 assembly is executed directly through its own apphost and nothing hosts it.
+
+**One thing here is unverified and must not be assumed.** D1's pin puts the test projects on
+Microsoft.Testing.Platform **1.9.1**, while the SDK's MTP-mode `dotnet test` and the repository's
+current MSTest are both on the 2.x line. Whether the .NET 10 SDK's MTP command drives a 1.9.x test
+app has not been checked, and it is the first thing task 2.3 has to establish — before 61 files are
+rewritten against it. If it does not, the options are the VSTest bridge from Rejected alternatives
+(which is indifferent to the MTP version) or `xunit.v3` 4.0.0 with the Avalonia question deferred to
+change 10; that is a decision to bring back rather than to make silently.
 
 The consequence to plan for is the CLI surface. `dotnet test Pisum.Whisper.slnx` is unchanged, but
 `dotnet test --filter <expr>` is VSTest syntax and stops working. Running a single manual test —
@@ -109,7 +134,7 @@ rediscover.
 
 `TestDisplayName` is the v3 replacement for MSTest's `DisplayName`; it is declared on
 `Xunit.DataAttribute`, which `Xunit.InlineDataAttribute` derives from (confirmed present in
-`xunit.v3.core.dll` 4.0.0 alongside `Skip` and `SkipUnless`). The four rows that use it are the
+`xunit.v3.core.dll` 3.2.2 alongside `Skip` and `SkipUnless`). The four rows that use it are the
 Gemini wire-format cases in `Transcription/GeminiWireTests.cs` — `"no candidate"`, `"no part"`,
 `"no text"`, `"nothing at all"` — whose whole point is that the row is legible in the runner output,
 so they must not silently become `InlineData` without it.
@@ -169,8 +194,10 @@ contention; if it ever does not, it is the single line to revisit, not the paral
 
 ### D7 — Fix what `xunit.analyzers` flags; suppress nothing
 
-`xunit.analyzers` 2.0.0 arrives with the framework and its diagnostics are warnings, which
-`TreatWarningsAsErrors` turns into build failures. Three sites block on a task (xUnit1031):
+`xunit.analyzers` 1.27.0 arrives with the framework and its diagnostics are warnings, which
+`TreatWarningsAsErrors` turns into build failures. Both rules this section turns on are present in
+that version, checked rather than assumed: `DoNotUseBlockingTaskOperations` (xUnit1031) and
+`UseCancellationToken` (xUnit1051). Three sites block on a task (xUnit1031):
 
 - `Logging/FileLoggingBufferTests.cs:79` and `Logging/FileLoggingRegistrationTests.cs:97` —
   `host.StopAsync(…).GetAwaiter().GetResult()`, both inside synchronous test methods that become
@@ -192,7 +219,7 @@ reports; the rule is that each one is fixed or scope-suppressed with a written r
 MSTest supplied its namespace through an implicit global using, which is why no test file names it.
 Adding a two-line `GlobalUsings.cs` to each test project preserves that property exactly and keeps
 the 61-file diff to attribute renames. xUnit v3 does **not** add implicit usings of its own
-(confirmed: `xunit.v3.core.mtp-v2.props` and `.targets` define none), so this file is required, not a
+(confirmed: `xunit.v3.core.mtp-v1.props` and `.targets` define no `Using` items), so this file is required, not a
 convenience. It is also consistent with the repository, which already runs on
 `ImplicitUsings=enable`.
 
@@ -214,10 +241,13 @@ do fall out of it:
 
 ### Rejected alternatives
 
-- **`xunit.v3` 3.2.2** — more soak time, but every other package here is pinned to current stable.
+- **`xunit.v3` 4.0.0** — current stable, and it would match how every other package here is pinned.
+  Rejected because it is not the version `Avalonia.Headless.XUnit` 12.1.1 is compiled against, and
+  the mismatch resolves silently rather than failing at restore (D1).
 - **The VSTest bridge (`xunit.runner.visualstudio` + `Microsoft.NET.Test.Sdk`)** — keeps `--filter`
-  working, at the cost of three package references where one does and of staying on the platform
-  xUnit v3 is moving off.
+  working and is indifferent to the MTP version, at the cost of three package references where one
+  does and of staying on the platform xUnit v3 is moving off. Still the standing fallback for both
+  the Rider risk and the MTP 1.9.1 risk below.
 - **`[assembly: CollectionBehavior(DisableTestParallelization = true)]`** — would reproduce MSTest's
   sequential execution, but D6 found nothing for it to protect.
 - **`<NoWarn>$(NoWarn);xUnit1031;xUnit1051</NoWarn>`** — cheaper than D7, and it would put a standing
@@ -244,9 +274,19 @@ do fall out of it:
 - **The parallelism audit missed something** → The symptom is a test that passes alone and fails in
   the suite, and it will not necessarily fail on the first run. Mitigated by running the migrated
   suite repeatedly rather than once, and by D6 having named the one line that would need revisiting.
-- **`xunit.v3` 4.0.0 is two weeks old** → A regression in a fresh major lands on this project first.
-  Accepted: the fallback is pinning 3.2.2 in `Directory.Packages.props`, a one-line change, since
-  nothing in D3–D8 uses 4.0-only API except `TestDisplayName`, which 3.x also has.
+- **The pin moves Microsoft.Testing.Platform backwards, 2.3.3 to 1.9.1** → MSTest 4.3.3 resolves MTP
+  2.3.3 today; `xunit.v3` 3.2.2 resolves 1.9.1. Whether the .NET 10 SDK's MTP-mode `dotnet test`
+  drives a 1.9.x app is unverified, and it gates everything after it. Task 2.3 establishes this
+  before any test file is rewritten; the fallbacks are the VSTest bridge or 4.0.0 with the Avalonia
+  question deferred (D2).
+- **The Avalonia incompatibility is predicted, not observed** → Nobody has run `[AvaloniaFact]`
+  against `xunit.v3` 4.0.0; D1 reasons from an assembly-version delta plus extensibility coupling.
+  The pin is the cheap insurance either way, but the claim should be settled rather than inherited:
+  task 5.5 resolves `Avalonia.Headless.XUnit` against the pinned version and runs one throwaway
+  headless test, which is what change 10 would otherwise discover the hard way.
+- **Avalonia moves to xunit.v3 4.x before change 10** → Then the pin is the stale one. Cheap to
+  revisit: re-read `Avalonia.Headless.XUnit`'s dependency group when change 10 opens, and bump both
+  together if it has moved.
 
 ## Migration Plan
 
