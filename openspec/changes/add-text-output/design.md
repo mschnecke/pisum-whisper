@@ -380,10 +380,43 @@ formats and macOS' `org.nspasteboard.ConcealedType` convention have the effect t
 are checked by hand — copy a dictation, then look in Win+V and in a clipboard manager — as a task of
 this change.
 
-**Is 1000 ms right?** It is reasoned rather than measured. Worth one afternoon of pasting into a
-cold Chrome tab, an Office document and a terminal on both platforms, and adjusting once with
-evidence rather than tuning it repeatedly.
+**Is 1000 ms right?** *Answered for Windows, see Verification results:* a cold Edge window and
+Notepad both read the clipboard within 50 ms, so the constant is kept with a twentyfold margin. An
+Office document, a terminal, and everything on macOS are still unmeasured.
 
 **Does S1b pass on macOS once the app is signed?** Task 1.4 owns the signing identity; until it is
 done, the macOS half of this change cannot be verified end to end and the `ClipboardOnly` outcome is
 what a macOS user will get. This change does not close that row of the platform verification matrix.
+
+## Verification results
+
+Run on 2026-08-31 on win-x64 (Windows 11 Pro 10.0.26200) through a throwaway harness in the
+scratchpad that drives the real `WindowsClipboard`, `WindowsPasteProbe`, `TextOutput` and
+`EventSimulator` against real windows. **No macOS run has happened**, so every osx-arm64 row below is
+still open and tasks 3.5, 3.6 and 5.4 remain unticked.
+
+| # | What was checked | Result |
+|---|---|---|
+| 3.2 | `OpenClipboard` retried while a second process hammers `Set-Clipboard` | **PASS** — 206 write+read pairs against the contending process, 0 failures |
+| 5.3 | Full delivery into Notepad, normal window | **PASS** — outcome `Pasted`, transcript at the cursor, the known clipboard text back afterwards, `DeliverAsync` 1097 ms end to end |
+| 3.7 | `WindowsPasteProbe` against a normal foreground window | **PASS** — Notepad answers `true` |
+| 5.5 | Shortest delay after which overwriting the clipboard no longer corrupts the paste | Notepad **≤50 ms**, cold Edge window (address bar) **≤50 ms** — 2/2 trials at the smallest delay tried |
+
+**1000 ms stands, and is now a measured margin rather than a guess.** The two targets available here
+read the clipboard within 50 ms, so the constant carries roughly a twentyfold margin. The asymmetry
+that chose it is unchanged — being early makes the target paste the user's previous clipboard
+contents into their document — so the evidence does not demand an adjustment. An Office document and
+a terminal were not measured: neither is installed on this machine, and a terminal has no
+select-all/copy read-back that this harness can use.
+
+**Three checks could not be performed here, and none of them is a failure.**
+
+- *The negative branch of `IPasteProbe` on Windows (part of 3.7, and the elevated half of 5.3).* The
+  interactive session on this machine is elevated, so there is no higher-integrity window for
+  `OpenProcess` to be denied by: Task Manager in the foreground correctly answers `true`, because
+  from an elevated process it genuinely is reachable. The branch needs a non-elevated run against an
+  elevated window.
+- *Clipboard history exclusion (3.3).* `HKCU\Software\Microsoft\Clipboard\EnableClipboardHistory` is
+  not set on this machine, so Win+V retains nothing from any application and the check would pass
+  vacuously. It needs a machine with clipboard history switched on.
+- *Everything macOS (3.5, 3.6, 5.4).* No Apple Silicon host was available to this run.

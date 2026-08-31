@@ -125,11 +125,15 @@ swept by age; the console sink is `#if DEBUG` only.
 `Microsoft.Extensions.Logging` does not gate Serilog, and a minimum level put back would be a second
 gate in front of the switch that silently breaks the runtime level change.
 
-Four rules every later change is written against:
+Five rules every later change is written against:
 
 - **Never log transcript text or API key values.** Transcripts are the user's speech and the settings
   file holds API keys. Log lengths, categories and outcomes instead — the character count, not the
   characters.
+- **Never log clipboard contents.** `Core/Output/` reads what the user had copied before it writes a
+  transcript over it, and a password manager's clipboard is the obvious thing to find there — so
+  those contents are not logged at any level, not even by length. What `TextOutput` may write down
+  is the transcript's character count, the paste result, and which guard stood a restore down.
 - **Never log a keystroke that is not the configured hotkey.** `Core/Hotkeys/` observes every key on
   the machine in order to match one combination, so a `Trace` statement dumping `e.Data.KeyCode` —
   the obvious thing to write while debugging it — turns the log file into a keylog, one that change
@@ -168,6 +172,32 @@ Two consequences worth knowing before touching the matcher: `SharpHook.Data.Even
 are unions of both sides (`Ctrl` is `LeftCtrl | RightCtrl`), so `HasFlag` demands both keys at once;
 and the mask also carries the lock keys and the mouse buttons. `ModifierGroups.FromEventMask` folds
 those away, and matching compares the folded groups for equality.
+
+## Text output
+
+`Core/Output/` owns the whole delivery — read the clipboard's previous text, write the transcript,
+paste, restore — behind one `ITextOutput.DeliverAsync`. The steps are invariants about each other
+("never restore after a failed paste", "only restore what is still ours"), not a sequence a caller
+may order, so they do not split into thinner services for change 8 to sequence.
+
+**The clipboard is native code in `Pisum.Whisper.Platform`, and that is deliberate.** Avalonia cannot
+supply one to this process: in 12.1 `Avalonia.Application` has no `Clipboard` property, `TopLevel.Clipboard`
+is the only public route to an `IClipboard`, the concrete `Avalonia.Input.Platform.Clipboard` is not
+exported — and this is a tray-only process that creates no `TopLevel` at all. So `ISystemClipboard`
+and `IPasteProbe` are declared in `Core` and implemented over Win32 and `NSPasteboard` in
+`Platform/Output/`, which is the first and so far only code in that project. Do not replace it with
+an Avalonia clipboard; there isn't one to reach. Win32 is also the better owner regardless:
+`SetClipboardData` hands the data to the system, so a transcript left on the clipboard for a manual
+paste survives this process exiting, where Avalonia's OLE path would not.
+
+`AddTextOutput` (Core) and `AddNativeOutput` (Platform) are registered separately on purpose — with
+`ValidateOnBuild` on, omitting the native half is a startup failure naming `ISystemClipboard` rather
+than a null reference at the first paste.
+
+Two things not to undo: the paste keystroke is paced 30 ms per edge **on macOS only** (edges posted
+back to back outrun the OS folding earlier keys into the modifier flags, and Cmd+V arrives as a bare
+"v"), and `TextOutput` must never be called from a hook handler — it sleeps for over a second, which
+is exactly what gets a low-level hook removed.
 
 ## Spec-driven workflow (OpenSpec)
 

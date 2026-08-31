@@ -37,6 +37,21 @@ internal sealed class RecordingSink : ILogEventSink
         }
     }
 
+    /// <summary>
+    /// The events themselves, for assertions that have to reach past the rendered message into the
+    /// attached properties.
+    /// </summary>
+    public IReadOnlyList<LogEvent> Events
+    {
+        get
+        {
+            lock (_events)
+            {
+                return [.. _events];
+            }
+        }
+    }
+
     public void Emit(LogEvent logEvent)
     {
         if (Delay > TimeSpan.Zero)
