@@ -18,14 +18,13 @@ public sealed class GeminiKeyProbe(IHttpClientFactory httpClientFactory, ILogger
 {
     private const string ModelPrefix = "models/";
 
-    public async Task<IReadOnlyList<GeminiModel>> ListModelsAsync(
-        string apiKey,
-        CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<GeminiModel>> ListModelsAsync(string apiKey,
+                                                                  CancellationToken cancellationToken)
     {
         var (status, body) = await SendAsync(
-            HttpMethod.Get, "models", apiKey, payload: null, cancellationToken).ConfigureAwait(false);
+            HttpMethod.Get, "models", apiKey, null, cancellationToken).ConfigureAwait(false);
 
-        if ((int)status is < 200 or > 299)
+        if ((int) status is < 200 or > 299)
         {
             throw Scrub(GeminiProvider.FailureFor(status, body), apiKey);
         }
@@ -55,16 +54,15 @@ public sealed class GeminiKeyProbe(IHttpClientFactory httpClientFactory, ILogger
         return models;
     }
 
-    public async Task<KeyProbeResult> TestConnectionAsync(
-        string apiKey,
-        string? model,
-        CancellationToken cancellationToken)
+    public async Task<KeyProbeResult> TestConnectionAsync(string apiKey,
+                                                          string? model,
+                                                          CancellationToken cancellationToken)
     {
         var request = new GeminiRequest
         {
             // Deliberately no system instruction: this checks the key and model, not a preset.
-            Contents = [new GeminiContent { Parts = [new GeminiPart { Text = "Respond with only: OK" }] }],
-            GenerationConfig = new GeminiGenerationConfig { Temperature = 0.1f, MaxOutputTokens = 10 },
+            Contents = [new GeminiContent {Parts = [new GeminiPart {Text = "Respond with only: OK"}]}],
+            GenerationConfig = new GeminiGenerationConfig {Temperature = 0.1f, MaxOutputTokens = 10},
         };
 
         var effectiveModel = string.IsNullOrWhiteSpace(model) ? GeminiProvider.DefaultModel : model;
@@ -79,7 +77,7 @@ public sealed class GeminiKeyProbe(IHttpClientFactory httpClientFactory, ILogger
                 payload,
                 cancellationToken).ConfigureAwait(false);
 
-            if ((int)status is < 200 or > 299)
+            if ((int) status is < 200 or > 299)
             {
                 var failure = Scrub(GeminiProvider.FailureFor(status, body), apiKey);
                 logger.LogInformation("Gemini connection test failed with {Category}.", failure.Category);
@@ -110,18 +108,19 @@ public sealed class GeminiKeyProbe(IHttpClientFactory httpClientFactory, ILogger
     /// error bodies do not echo the key today, but this text is displayed verbatim and the settings
     /// file it came from holds credentials.
     /// </summary>
-    internal static TranscriptionException Scrub(TranscriptionException failure, string apiKey) =>
-        string.IsNullOrEmpty(apiKey) || !failure.Message.Contains(apiKey, StringComparison.Ordinal)
+    internal static TranscriptionException Scrub(TranscriptionException failure, string apiKey)
+    {
+        return string.IsNullOrEmpty(apiKey) || !failure.Message.Contains(apiKey, StringComparison.Ordinal)
             ? failure
             : new TranscriptionException(
                 failure.Message.Replace(apiKey, "[key]", StringComparison.Ordinal), failure.Category);
+    }
 
-    private async Task<(HttpStatusCode Status, string Body)> SendAsync(
-        HttpMethod method,
-        string relativeUri,
-        string apiKey,
-        string? payload,
-        CancellationToken cancellationToken)
+    private async Task<(HttpStatusCode Status, string Body)> SendAsync(HttpMethod method,
+                                                                       string relativeUri,
+                                                                       string apiKey,
+                                                                       string? payload,
+                                                                       CancellationToken cancellationToken)
     {
         var client = httpClientFactory.CreateClient(GeminiHttpClient.Name);
 

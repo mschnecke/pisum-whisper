@@ -12,12 +12,11 @@ using Shouldly;
 /// an "Open Log Folder" button a click away. The privacy assertions below are therefore load-bearing
 /// rather than decorative: the obvious debugging statement in this component is a keylog.
 /// </remarks>
-[TestClass]
 public sealed class GlobalHotkeyLoggingTests : GlobalHotkeyServiceTestBase
 {
     // ---- Task 3.9: libuiohook's own diagnostics reach the log, at warning and above ----
 
-    [TestMethod]
+    [Fact]
     public async Task LibUioHookWarnings_ReachTheLog()
     {
         await StartAsync();
@@ -27,7 +26,7 @@ public sealed class GlobalHotkeyLoggingTests : GlobalHotkeyServiceTestBase
         WaitForLogMessageContaining("hook thread is falling behind").ShouldBeTrue();
     }
 
-    [TestMethod]
+    [Fact]
     public async Task LibUioHookErrors_ReachTheLog()
     {
         await StartAsync();
@@ -37,7 +36,7 @@ public sealed class GlobalHotkeyLoggingTests : GlobalHotkeyServiceTestBase
         WaitForLogMessageContaining("failed to create event port").ShouldBeTrue();
     }
 
-    [TestMethod]
+    [Fact]
     public async Task LibUioHookDebugAndInfo_DoNotReachTheLog()
     {
         await StartAsync();
@@ -48,11 +47,11 @@ public sealed class GlobalHotkeyLoggingTests : GlobalHotkeyServiceTestBase
         LogSource.Raise(LogLevel.Debug, "key 0x20 pressed");
         LogSource.Raise(LogLevel.Info, "key 0x20 released");
 
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
         LogMessages.Count.ShouldBe(before);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task DisposingTheService_DisposesTheLogSource()
     {
         await StartAsync();
@@ -64,7 +63,7 @@ public sealed class GlobalHotkeyLoggingTests : GlobalHotkeyServiceTestBase
 
     // ---- Task 3.10: no keystroke is ever written down ----
 
-    [TestMethod]
+    [Fact]
     public async Task TypingIsNeverLogged_EvenAtTheMostVerboseLevel()
     {
         await StartAsync();
@@ -86,7 +85,7 @@ public sealed class GlobalHotkeyLoggingTests : GlobalHotkeyServiceTestBase
             Release(key, EventMask.None);
         }
 
-        await Task.Delay(150);
+        await Task.Delay(150, TestContext.Current.CancellationToken);
 
         LogMessages.Count.ShouldBe(before, "not one of those keystrokes belongs in a log file");
 
@@ -100,7 +99,7 @@ public sealed class GlobalHotkeyLoggingTests : GlobalHotkeyServiceTestBase
         }
     }
 
-    [TestMethod]
+    [Fact]
     public async Task TheBindingAndItsEdgesAreLogged_AndNothingElseIs()
     {
         await StartAsync();
@@ -124,7 +123,7 @@ public sealed class GlobalHotkeyLoggingTests : GlobalHotkeyServiceTestBase
         }
     }
 
-    [TestMethod]
+    [Fact]
     public async Task UnmatchedModifiersAreNotLogged()
     {
         await StartAsync();
@@ -135,7 +134,7 @@ public sealed class GlobalHotkeyLoggingTests : GlobalHotkeyServiceTestBase
         Release(KeyCode.VcLeftShift, EventMask.LeftCtrl);
         Release(KeyCode.VcLeftControl, EventMask.None);
 
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
         LogMessages.Count.ShouldBe(before);
     }
 }

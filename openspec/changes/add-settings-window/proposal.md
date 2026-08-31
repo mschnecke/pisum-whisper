@@ -43,6 +43,15 @@ Depends on `add-settings-store`, `add-file-logging`, `add-gemini-transcription`,
 and `add-tray-icon`. This is the largest UI change in the sequence and the last one before the app is
 usable by someone other than its author.
 
+**It also depends on `migrate-tests-to-xunit-v3`, which is not one of the numbered changes.** Avalonia
+ships first-party headless test integration for xUnit and NUnit only — there is no
+`Avalonia.Headless.MSTest` and there never has been — so testing this window meant leaving MSTest
+first. That migration is done, and it pinned `xunit.v3` to **3.2.2** because that is the version
+`Avalonia.Headless.XUnit` 12.1.1 is compiled against; taking 4.0.0 resolves silently against a major
+it was not built for. Add the `Avalonia.Headless.XUnit` reference here and write `[AvaloniaFact]`
+tests — the migration deliberately added neither. Re-read that package's dependency group when this
+change opens: if Avalonia has moved to xunit.v3 4.x, bump both together.
+
 ## Non-goals
 
 - No dark theme. The reference's settings window is light-only and this is not the change to fix that.

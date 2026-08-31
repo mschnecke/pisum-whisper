@@ -8,6 +8,7 @@ namespace Pisum.Whisper.Core.Logging;
 public sealed class LogDirectory
 {
     private const string ApplicationDirectoryName = ".pisum-whisper";
+
     private const string LogsDirectoryName = "logs";
 
     /// <summary>The base name Serilog rolls from: <c>pisum-whisper.log</c>, <c>pisum-whisper_001.log</c>, and so on.</summary>
@@ -22,17 +23,23 @@ public sealed class LogDirectory
     }
 
     /// <summary>Constructs over an explicit directory, which is how the tests avoid the real home directory.</summary>
-    public LogDirectory(string path) => Path = path;
+    public LogDirectory(string path)
+    {
+        Path = path;
+    }
 
     /// <summary>The absolute directory the log files live in, whether any of them exist yet.</summary>
     public string Path { get; }
 
     public string LogFilePath => System.IO.Path.Combine(Path, LogFileName);
 
-    public static string DefaultPath() => System.IO.Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-        ApplicationDirectoryName,
-        LogsDirectoryName);
+    public static string DefaultPath()
+    {
+        return System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ApplicationDirectoryName,
+            LogsDirectoryName);
+    }
 
     /// <summary>
     /// Creates the directory if it is absent. Returns <c>null</c> once it is usable and the reason it

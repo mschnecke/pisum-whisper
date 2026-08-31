@@ -14,25 +14,22 @@ using Shouldly;
 /// <summary>
 /// Task 4.1 — the registration itself, exercised rather than reconstructed.
 /// </summary>
-[TestClass]
-public sealed class GlobalHotkeyRegistrationTests
+public sealed class GlobalHotkeyRegistrationTests : IDisposable
 {
     private string _home = string.Empty;
 
-    [TestInitialize]
-    public void CreateTemporaryHome()
+    public GlobalHotkeyRegistrationTests()
     {
         _home = Path.Combine(Path.GetTempPath(), "pisum-whisper-tests", Guid.NewGuid().ToString("n"));
         Directory.CreateDirectory(_home);
     }
 
-    [TestCleanup]
-    public void RemoveTemporaryHome()
+    public void Dispose()
     {
         Directory.Delete(_home, true);
     }
 
-    [TestMethod]
+    [Fact]
     public void AllThreeRolesResolveToOneInstance()
     {
         using var host = BuildHost();
@@ -47,7 +44,7 @@ public sealed class GlobalHotkeyRegistrationTests
         hosted.ShouldBeSameAs(concrete);
     }
 
-    [TestMethod]
+    [Fact]
     public void TheRegistrationSatisfiesContainerValidation()
     {
         // The application builds its container with ValidateOnBuild, so an unsatisfiable dependency
@@ -55,7 +52,7 @@ public sealed class GlobalHotkeyRegistrationTests
         Should.NotThrow(() => BuildHost(validate: true).Dispose());
     }
 
-    [TestMethod]
+    [Fact]
     public void TheServiceIsResolvedBeforeTheHookStarts()
     {
         using var host = BuildHost();

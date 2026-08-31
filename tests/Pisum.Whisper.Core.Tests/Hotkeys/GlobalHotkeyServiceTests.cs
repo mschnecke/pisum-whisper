@@ -5,12 +5,11 @@ using Pisum.Whisper.Core.Settings;
 using SharpHook.Data;
 using Shouldly;
 
-[TestClass]
 public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
 {
     // ---- Task 3.1: the binding is observed through a real hook over a fake provider ----
 
-    [TestMethod]
+    [Fact]
     public async Task MatchingCombination_RaisesOnePressAndOneRelease()
     {
         await StartAsync();
@@ -22,7 +21,7 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
         Observed().ShouldBe([HotkeyEdge.Pressed, HotkeyEdge.Released]);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task NonMatchingKeys_RaiseNothing()
     {
         await StartAsync();
@@ -32,11 +31,11 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
         Press(KeyCode.VcSpace, EventMask.None);
         Release(KeyCode.VcSpace, EventMask.None);
 
-        await Task.Delay(150);
+        await Task.Delay(150, TestContext.Current.CancellationToken);
         Observed().ShouldBeEmpty();
     }
 
-    [TestMethod]
+    [Fact]
     public async Task MatchedKey_IsWithheldFromTheFocusedApplication()
     {
         await StartAsync();
@@ -49,7 +48,7 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
         Provider.SuppressedEvents.Count.ShouldBe(2);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task ModifierKeys_AreNotWithheld()
     {
         await StartAsync();
@@ -68,7 +67,7 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
 
     // ---- Task 3.2: the hook thread is never held by a consumer ----
 
-    [TestMethod]
+    [Fact]
     public async Task SlowConsumer_DoesNotHoldTheHookThread()
     {
         var handlerEntered = new ManualResetEventSlim();
@@ -81,7 +80,7 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
         await StartAsync();
 
         var pressCost = Post(EventType.KeyPressed, KeyCode.VcSpace, CtrlShift);
-        handlerEntered.Wait(TimeSpan.FromSeconds(5)).ShouldBeTrue("the press should have reached the consumer");
+        handlerEntered.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken).ShouldBeTrue("the press should have reached the consumer");
 
         var releaseCost = Post(EventType.KeyReleased, KeyCode.VcSpace, CtrlShift);
 
@@ -94,7 +93,7 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
         Observed().ShouldBe([HotkeyEdge.Pressed, HotkeyEdge.Released], "edges must stay in order");
     }
 
-    [TestMethod]
+    [Fact]
     public async Task ThrowingConsumer_DoesNotStopTheDispatchLoop()
     {
         Service.Pressed += (_, _) => throw new InvalidOperationException("consumer defect");
@@ -112,7 +111,7 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
 
     // ---- Task 3.3: lifecycle ----
 
-    [TestMethod]
+    [Fact]
     public async Task Start_RunsAKeyboardOnlyHook()
     {
         await StartAsync();
@@ -122,7 +121,7 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
         Service.Availability.ShouldBe(HotkeyAvailability.Available);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task Stop_StopsTheHookAndEndsTheDispatchLoop()
     {
         await StartAsync();
@@ -134,13 +133,13 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
         // StopAsync awaits the dispatch loop, so its completion is the assertion: a leaked loop
         // would have left StopAsync hanging until the test timed out.
         Press(KeyCode.VcSpace);
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
         Observed().ShouldBeEmpty();
     }
 
     // ---- Task 3.4: a release is always paid ----
 
-    [TestMethod]
+    [Fact]
     public async Task HookDisabledWhileHeld_SynthesisesARelease()
     {
         await StartAsync();
@@ -154,7 +153,7 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
         Observed().ShouldBe([HotkeyEdge.Pressed, HotkeyEdge.Released]);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task StopWhileHeld_SynthesisesARelease()
     {
         await StartAsync();
@@ -166,7 +165,7 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
         Observed().ShouldBe([HotkeyEdge.Pressed, HotkeyEdge.Released]);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task DisposeWhileHeld_SynthesisesExactlyOneRelease()
     {
         await StartAsync();
@@ -177,11 +176,11 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
         Service.Dispose();
 
         WaitForEdges(2).ShouldBeTrue();
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
         Observed().ShouldBe([HotkeyEdge.Pressed, HotkeyEdge.Released]);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task StopWhileIdle_OwesNothing()
     {
         await StartAsync();
@@ -193,7 +192,7 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
 
     // ---- Task 3.5: a denied permission is reported, not fatal ----
 
-    [TestMethod]
+    [Fact]
     public async Task AccessibilityNeverGranted_StartsAnywayAndReportsWhy()
     {
         Provider.RunResult = UioHookResult.ErrorAxApiDisabled;
@@ -204,7 +203,7 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
         WaitForLogMessageContaining("has not been granted").ShouldBeTrue();
     }
 
-    [TestMethod]
+    [Fact]
     public async Task AccessibilityWithdrawn_IsReportedDistinctlyFromNeverGranted()
     {
         Provider.RunResult = UioHookResult.ErrorAxApiRevoked;
@@ -218,7 +217,7 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
         LogMessages.ShouldNotContain(message => message.Contains("has not been granted", StringComparison.Ordinal));
     }
 
-    [TestMethod]
+    [Fact]
     public async Task OtherStartupFailure_IsReportedAsAFailureRatherThanAPermission()
     {
         Provider.RunResult = UioHookResult.ErrorSetWindowsHookEx;
@@ -229,7 +228,7 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
         WaitForLogMessageContaining("ErrorSetWindowsHookEx").ShouldBeTrue();
     }
 
-    [TestMethod]
+    [Fact]
     public async Task FailedStart_LeavesTheApplicationUsable()
     {
         Provider.RunResult = UioHookResult.ErrorAxApiDisabled;
@@ -241,7 +240,7 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
         Observed().ShouldBeEmpty();
     }
 
-    [TestMethod]
+    [Fact]
     public async Task HookThatNeverStarts_DoesNotHangStartup()
     {
         // Change 1's macOS spike, on an Apple M4 with no Accessibility grant: libuiohook neither
@@ -264,7 +263,7 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
 
     // ---- Task 3.6: rebinding without restarting the hook ----
 
-    [TestMethod]
+    [Fact]
     public async Task SavingANewBinding_SwitchesWhatIsObserved()
     {
         await StartAsync();
@@ -277,7 +276,7 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
 
         Press(KeyCode.VcSpace);
         Release(KeyCode.VcSpace);
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
         Observed().ShouldBeEmpty("the old binding must stop being observed");
 
         Press(KeyCode.VcF9, EventMask.LeftAlt);
@@ -286,7 +285,7 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
         Observed().ShouldBe([HotkeyEdge.Pressed, HotkeyEdge.Released]);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task Rebinding_DoesNotRestartTheHook()
     {
         await StartAsync();
@@ -298,7 +297,7 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
         Provider.IsRunning.ShouldBeTrue("the hook must keep running across a rebind");
     }
 
-    [TestMethod]
+    [Fact]
     public async Task RebindingWhileHeld_ReleasesTheOldBindingFirst()
     {
         await StartAsync();
@@ -315,7 +314,7 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
 
     // ---- Task 3.7: an unusable binding falls back rather than disabling the hotkey ----
 
-    [TestMethod]
+    [Fact]
     public async Task UnparseableBinding_FallsBackToTheDefault()
     {
         WriteSettings(new AppSettings { Hotkey = Binding("Nonsense", "Ctrl") });
@@ -331,7 +330,7 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
         await Task.CompletedTask;
     }
 
-    [TestMethod]
+    [Fact]
     public void UnparseableBinding_LeavesTheSettingsFileAlone()
     {
         WriteSettings(new AppSettings { Hotkey = Binding("Hyper", "Ctrl") });

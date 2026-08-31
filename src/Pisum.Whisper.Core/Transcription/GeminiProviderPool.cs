@@ -22,15 +22,16 @@ public sealed class GeminiProviderPool : ITranscriptionProvider
         "No AI providers configured. Please add a provider in Settings.";
 
     private readonly SettingsStore _settings;
+
     private readonly ILogger<GeminiProviderPool> _logger;
+
     private readonly Func<ProviderConfig, ITranscriptionProvider> _createProvider;
 
     private int _cursor;
 
-    public GeminiProviderPool(
-        SettingsStore settings,
-        IHttpClientFactory httpClientFactory,
-        ILoggerFactory loggerFactory)
+    public GeminiProviderPool(SettingsStore settings,
+                              IHttpClientFactory httpClientFactory,
+                              ILoggerFactory loggerFactory)
         : this(
             settings,
             loggerFactory.CreateLogger<GeminiProviderPool>(),
@@ -41,11 +42,10 @@ public sealed class GeminiProviderPool : ITranscriptionProvider
 
     /// <summary>Takes the per-entry construction as a delegate so the round-robin and fallback tests
     /// need no HTTP handler at all, following <see cref="AudioEncoder"/>'s precedent.</summary>
-    internal GeminiProviderPool(
-        SettingsStore settings,
-        ILogger<GeminiProviderPool> logger,
-        Func<ProviderConfig, ITranscriptionProvider> createProvider,
-        int initialCursor = -1)
+    internal GeminiProviderPool(SettingsStore settings,
+                                ILogger<GeminiProviderPool> logger,
+                                Func<ProviderConfig, ITranscriptionProvider> createProvider,
+                                int initialCursor = -1)
     {
         _settings = settings;
         _logger = logger;
@@ -53,10 +53,9 @@ public sealed class GeminiProviderPool : ITranscriptionProvider
         _cursor = initialCursor;
     }
 
-    public async Task<string> TranscribeAsync(
-        EncodedAudio audio,
-        string systemPrompt,
-        CancellationToken cancellationToken)
+    public async Task<string> TranscribeAsync(EncodedAudio audio,
+                                              string systemPrompt,
+                                              CancellationToken cancellationToken)
     {
         // Snapshotted once, so a settings save mid-transcription cannot change the entry set between
         // fallback attempts.
@@ -69,7 +68,7 @@ public sealed class GeminiProviderPool : ITranscriptionProvider
 
         // Cast through uint before the modulo: the cursor wraps to int.MinValue after about 2.1
         // billion dictations, and a negative index would throw rather than wrap.
-        var start = (int)((uint)Interlocked.Increment(ref _cursor) % (uint)entries.Count);
+        var start = (int) ((uint) Interlocked.Increment(ref _cursor) % (uint) entries.Count);
 
         var failures = new List<string>();
         var categories = new List<ErrorCategory>();

@@ -7,7 +7,6 @@ using Shouldly;
 /// Tasks 2.1, 2.5, 2.6, 2.7 and 2.9 — the dispatch-thread rule, the two duration rules, the two
 /// concurrency guards, and the atomic claim that keeps three callers from ending one recording.
 /// </summary>
-[TestClass]
 public sealed class DictationGuardTests : DictationTestBase
 {
     // ---- Task 2.1: nothing but a state transition on the dispatch thread ----
@@ -18,7 +17,7 @@ public sealed class DictationGuardTests : DictationTestBase
     /// would stop the very next edge being delivered — and in hold-to-record that edge is the
     /// release which ends the recording.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public async Task TheReleaseHandlerReturnsBeforeThePipelineFinishes()
     {
         var orchestrator = Create();
@@ -36,7 +35,7 @@ public sealed class DictationGuardTests : DictationTestBase
         Output.Calls.ShouldBe(1);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task AFurtherPressIsHandledWhileATranscriptionIsStillRunning()
     {
         var orchestrator = Create();
@@ -54,7 +53,7 @@ public sealed class DictationGuardTests : DictationTestBase
 
     // ---- Task 2.5: the 50 ms minimum ----
 
-    [TestMethod]
+    [Fact]
     public async Task ABrushOfTheHotkeyIsDiscardedInSilence()
     {
         var orchestrator = Create(minimumDuration: TimeSpan.FromMilliseconds(50));
@@ -72,7 +71,7 @@ public sealed class DictationGuardTests : DictationTestBase
         LogMessages.ShouldNotContain(message => message.Contains("Error", StringComparison.Ordinal));
     }
 
-    [TestMethod]
+    [Fact]
     public async Task APressOverTheMinimumIsTranscribed()
     {
         var orchestrator = Create(minimumDuration: TimeSpan.FromMilliseconds(50));
@@ -87,7 +86,7 @@ public sealed class DictationGuardTests : DictationTestBase
     /// The device is still closing when a discarded brush announces Idle, so the next press must not
     /// reopen it — <c>MiniAudioCapture.Start</c> throws on a second open.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public async Task APressWhileADiscardedRecordingIsStillClosingDoesNotReopenTheDevice()
     {
         var orchestrator = Create(minimumDuration: TimeSpan.FromMilliseconds(50));
@@ -106,7 +105,7 @@ public sealed class DictationGuardTests : DictationTestBase
 
     // ---- Task 2.6: an empty capture over the minimum is a fault ----
 
-    [TestMethod]
+    [Fact]
     public async Task AnEmptyCaptureOverTheMinimumIsReportedAsARecordingError()
     {
         var orchestrator = Create(minimumDuration: TimeSpan.FromMilliseconds(50));
@@ -120,7 +119,7 @@ public sealed class DictationGuardTests : DictationTestBase
         WaitForLog(DictationFailureTitles.RecordingError).ShouldBeTrue();
     }
 
-    [TestMethod]
+    [Fact]
     public async Task AnEmptyCaptureUnderTheMinimumIsStillJustABrush()
     {
         var orchestrator = Create(minimumDuration: TimeSpan.FromMilliseconds(50));
@@ -135,7 +134,7 @@ public sealed class DictationGuardTests : DictationTestBase
 
     // ---- Task 2.7: the two concurrency guards ----
 
-    [TestMethod]
+    [Fact]
     public async Task APressWhileRecordingIsIgnoredWithoutAWord()
     {
         var orchestrator = Create();
@@ -152,7 +151,7 @@ public sealed class DictationGuardTests : DictationTestBase
         await SettleAsync(orchestrator);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task APressWhileTranscribingStartsNothingAndSaysSo()
     {
         var orchestrator = Create();
@@ -168,7 +167,7 @@ public sealed class DictationGuardTests : DictationTestBase
         orchestrator.State.ShouldBe(DictationState.Transcribing);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task APressAfterADictationFinishesStartsANewRecording()
     {
         var orchestrator = Create();
@@ -188,7 +187,7 @@ public sealed class DictationGuardTests : DictationTestBase
 
     // ---- Task 2.9: the atomic claim ----
 
-    [TestMethod]
+    [Fact]
     public async Task TheWatchdogAndAReleaseTogetherStopTheRecordingOnce()
     {
         var orchestrator = Create();
@@ -207,7 +206,7 @@ public sealed class DictationGuardTests : DictationTestBase
         Output.Calls.ShouldBe(1);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task AReleaseAfterTheWatchdogHasClaimedIsANoOp()
     {
         var orchestrator = Create();

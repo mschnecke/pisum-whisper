@@ -11,15 +11,14 @@ using Shouldly;
 /// Tasks 4.1, 4.2 and 4.3 — the failure vocabulary. The title comes from what failed, never from
 /// matching the text of a message.
 /// </summary>
-[TestClass]
 public sealed class DictationFailureTests
 {
-    [TestMethod]
-    [DataRow(ErrorCategory.Configuration, "Configuration Error")]
-    [DataRow(ErrorCategory.Network, "Network Error")]
-    [DataRow(ErrorCategory.Authentication, "Authentication Error")]
-    [DataRow(ErrorCategory.RateLimit, "Rate Limit Error")]
-    [DataRow(ErrorCategory.Transcription, "Transcription Error")]
+    [Theory]
+    [InlineData(ErrorCategory.Configuration, "Configuration Error")]
+    [InlineData(ErrorCategory.Network, "Network Error")]
+    [InlineData(ErrorCategory.Authentication, "Authentication Error")]
+    [InlineData(ErrorCategory.RateLimit, "Rate Limit Error")]
+    [InlineData(ErrorCategory.Transcription, "Transcription Error")]
     public void EveryTranscriptionCategoryHasItsOwnTitle(ErrorCategory category, string expected)
     {
         var (title, message) = DictationFailure.Describe(
@@ -29,7 +28,7 @@ public sealed class DictationFailureTests
         message.ShouldBe("the provider said no");
     }
 
-    [TestMethod]
+    [Fact]
     public void AnAudioFailureIsARecordingError()
     {
         var (title, message) = DictationFailure.Describe(new AudioException("No input device found"));
@@ -38,7 +37,7 @@ public sealed class DictationFailureTests
         message.ShouldBe("No input device found");
     }
 
-    [TestMethod]
+    [Fact]
     public void AClipboardFailureIsAnOutputError()
     {
         var (title, message) = DictationFailure.Describe(new TextOutputException("the clipboard refused"));
@@ -51,7 +50,7 @@ public sealed class DictationFailureTests
     /// An exception nobody anticipated still produces something to show. The alternative is a
     /// dictation that fails with nothing said at all.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public void AnUnrecognisedFailureIsStillDescribed()
     {
         var (title, message) = DictationFailure.Describe(new BadImageFormatException("internal detail"));
@@ -65,7 +64,7 @@ public sealed class DictationFailureTests
 
     // ---- Task 4.2: the two cancellations ----
 
-    [TestMethod]
+    [Fact]
     public void AnExpiredBudgetIsATranscriptionError()
     {
         var (title, message) = DictationFailure.Describe(new OperationCanceledException());
@@ -78,7 +77,7 @@ public sealed class DictationFailureTests
     /// A settings failure has no arm of its own — it cannot reach the pipeline, because the store is
     /// read rather than loaded here — so it lands on the catch-all rather than being mis-titled.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public void AFailureFromAnotherCapabilityFallsToTheCatchAll()
     {
         var (title, _) = DictationFailure.Describe(new SettingsException("the file is unreadable"));
@@ -95,7 +94,7 @@ public sealed class DictationFailureTests
     /// M4 with the microphone accessible, so nobody has observed what a refused grant looks like.
     /// The branch is deliberately absent, and this test is what would fail if someone added it.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public void AMissingInputDeviceIsNotSpecialCased()
     {
         var (title, _) = DictationFailure.Describe(new AudioException("No input device found"));
@@ -109,10 +108,9 @@ public sealed class DictationFailureTests
 /// Task 4.2's other half, which lives in the orchestrator rather than in the mapping: quitting
 /// produces the same exception as an expired budget and must say nothing at all.
 /// </summary>
-[TestClass]
 public sealed class DictationShutdownSilenceTests : DictationTestBase
 {
-    [TestMethod]
+    [Fact]
     public async Task QuittingDuringATranscriptionDescribesNoFailure()
     {
         var orchestrator = Create();

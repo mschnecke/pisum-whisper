@@ -3,20 +3,17 @@ namespace Pisum.Whisper.Core.Tests.Logging;
 using Pisum.Whisper.Core.Logging;
 using Shouldly;
 
-[TestClass]
-public sealed class LogRetentionSweepTests
+public sealed class LogRetentionSweepTests : IDisposable
 {
     private string _directory = string.Empty;
 
-    [TestInitialize]
-    public void CreateTemporaryDirectory()
+    public LogRetentionSweepTests()
     {
         _directory = Path.Combine(Path.GetTempPath(), "pisum-whisper-tests", Guid.NewGuid().ToString("n"));
         Directory.CreateDirectory(_directory);
     }
 
-    [TestCleanup]
-    public void RemoveTemporaryDirectory()
+    public void Dispose()
     {
         Directory.Delete(_directory, true);
     }
@@ -33,7 +30,7 @@ public sealed class LogRetentionSweepTests
         return [.. Directory.GetFiles(_directory).Select(Path.GetFileName).Order(StringComparer.Ordinal)!];
     }
 
-    [TestMethod]
+    [Fact]
     public void Run_DeletesOnlyTheFilesPastTheRetentionBoundary()
     {
         // Serilog rolls to pisum-whisper_001.log, so the sequence precedes the extension and the
@@ -49,7 +46,7 @@ public sealed class LogRetentionSweepTests
         RemainingFiles().ShouldBe(["pisum-whisper_002.log", "pisum-whisper_003.log"]);
     }
 
-    [TestMethod]
+    [Fact]
     public void Run_LeavesFilesItDoesNotOwnAlone()
     {
         WriteAged("pisum-whisper.log", 30);
@@ -61,7 +58,7 @@ public sealed class LogRetentionSweepTests
         RemainingFiles().ShouldBe(["notes.txt", "other-app.log"]);
     }
 
-    [TestMethod]
+    [Fact]
     public void Run_WithNothingExpired_RemovesNothing()
     {
         WriteAged("pisum-whisper.log", 1);
@@ -71,7 +68,7 @@ public sealed class LogRetentionSweepTests
         RemainingFiles().ShouldBe(["pisum-whisper.log"]);
     }
 
-    [TestMethod]
+    [Fact]
     public void Run_OverAMissingDirectory_ReturnsEmptyRatherThanThrowing()
     {
         // Housekeeping runs before the directory is known to be usable, and must not be the thing

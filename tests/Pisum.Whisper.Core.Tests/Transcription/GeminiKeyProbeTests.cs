@@ -8,7 +8,6 @@ using Shouldly;
 /// <summary>
 /// Tasks 6.1-6.3 — what change 10's settings window asks about a key the user has just typed.
 /// </summary>
-[TestClass]
 public sealed class GeminiKeyProbeTests
 {
     private const string ApiKey = "AIza-not-a-real-key";
@@ -31,7 +30,7 @@ public sealed class GeminiKeyProbeTests
 
     // ---- Task 6.2: listing models ----
 
-    [TestMethod]
+    [Fact]
     public async Task ListModels_KeepsOnlyGenerateContentAndStripsThePrefix()
     {
         var handler = new StubHttpMessageHandler().Respond(HttpStatusCode.OK, ModelsBody);
@@ -41,7 +40,7 @@ public sealed class GeminiKeyProbeTests
         models.Select(model => model.Id).ShouldBe(["gemini-2.5-flash-lite", "gemini-2.5-pro"]);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task ListModels_FallsBackToTheIdWhenThereIsNoDisplayName()
     {
         var handler = new StubHttpMessageHandler().Respond(HttpStatusCode.OK, ModelsBody);
@@ -52,7 +51,7 @@ public sealed class GeminiKeyProbeTests
         models[1].DisplayName.ShouldBe("gemini-2.5-pro");
     }
 
-    [TestMethod]
+    [Fact]
     public async Task ListModels_SendsTheKeyInAHeaderAndNothingInTheQuery()
     {
         var handler = new StubHttpMessageHandler().Respond(HttpStatusCode.OK, ModelsBody);
@@ -65,7 +64,7 @@ public sealed class GeminiKeyProbeTests
         request.RequestUri.AbsoluteUri.ShouldNotContain(ApiKey);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task ListModels_WithARejectedKey_Raises()
     {
         var handler = new StubHttpMessageHandler()
@@ -80,7 +79,7 @@ public sealed class GeminiKeyProbeTests
 
     // ---- Task 6.3: testing a key ----
 
-    [TestMethod]
+    [Fact]
     public async Task TestConnection_WithAValidKey_Succeeds()
     {
         var handler = new StubHttpMessageHandler().Respond(HttpStatusCode.OK, OkBody);
@@ -91,7 +90,7 @@ public sealed class GeminiKeyProbeTests
         result.Category.ShouldBeNull();
     }
 
-    [TestMethod]
+    [Fact]
     public async Task TestConnection_SendsNoSystemInstruction()
     {
         var handler = new StubHttpMessageHandler().Respond(HttpStatusCode.OK, OkBody);
@@ -101,7 +100,7 @@ public sealed class GeminiKeyProbeTests
         handler.Requests.Single().Body.ShouldNotContain("systemInstruction");
     }
 
-    [TestMethod]
+    [Fact]
     public async Task TestConnection_UsesTheModelItWasGiven()
     {
         var handler = new StubHttpMessageHandler().Respond(HttpStatusCode.OK, OkBody);
@@ -112,7 +111,7 @@ public sealed class GeminiKeyProbeTests
             .ShouldEndWith("models/gemini-2.5-pro:generateContent");
     }
 
-    [TestMethod]
+    [Fact]
     public async Task TestConnection_WithARejectedKey_ReportsFailureRatherThanThrowing()
     {
         var handler = new StubHttpMessageHandler()
@@ -126,7 +125,7 @@ public sealed class GeminiKeyProbeTests
         result.Message.ShouldNotContain(ApiKey);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task TestConnection_WhenGeminiCannotBeReached_ReportsNetwork()
     {
         var handler = new StubHttpMessageHandler().Throws(new HttpRequestException("connection reset"));
@@ -140,7 +139,7 @@ public sealed class GeminiKeyProbeTests
         handler.SendCount.ShouldBe(1);
     }
 
-    [TestMethod]
+    [Fact]
     public void AnEchoedKey_IsScrubbedFromWhatIsDisplayed()
     {
         var failure = new TranscriptionException(

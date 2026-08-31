@@ -11,10 +11,9 @@ using Shouldly;
 /// given, and whether it arrives flagged as simulated. If either changes, the service tests would
 /// start passing for the wrong reason.
 /// </summary>
-[TestClass]
 public sealed class HookProviderProbeTests
 {
-    [TestMethod]
+    [Fact]
     public async Task PostedEvent_KeepsItsMaskAndIsNotFlaggedAsSimulated()
     {
         var provider = new TestProvider(TestThreadingMode.Simple);
@@ -26,7 +25,7 @@ public sealed class HookProviderProbeTests
         var running = hook.RunAsync(GlobalHookType.Keyboard, useBackgroundThread: true);
         while (!hook.IsRunning)
         {
-            await Task.Delay(5);
+            await Task.Delay(5, TestContext.Current.CancellationToken);
         }
 
         var posted = new UioHookEvent
@@ -47,7 +46,7 @@ public sealed class HookProviderProbeTests
         observed.IsEventSimulated.ShouldBeFalse();
     }
 
-    [TestMethod]
+    [Fact]
     public async Task SuppressedEvent_IsRecordedByTheProvider()
     {
         var provider = new TestProvider(TestThreadingMode.Simple);
@@ -58,7 +57,7 @@ public sealed class HookProviderProbeTests
         var running = hook.RunAsync(GlobalHookType.Keyboard, useBackgroundThread: true);
         while (!hook.IsRunning)
         {
-            await Task.Delay(5);
+            await Task.Delay(5, TestContext.Current.CancellationToken);
         }
 
         var posted = new UioHookEvent

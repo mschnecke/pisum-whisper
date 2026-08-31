@@ -14,7 +14,10 @@ public sealed class DroppedLogEventMonitor : IAsyncLogEventSinkMonitor
     /// <summary>How many events the buffer has discarded, or zero while no asynchronous sink is attached.</summary>
     public long DroppedMessagesCount => _inspector?.DroppedMessagesCount ?? 0;
 
-    public void StartMonitoring(IAsyncLogEventSinkInspector inspector) => _inspector = inspector;
+    public void StartMonitoring(IAsyncLogEventSinkInspector inspector)
+    {
+        _inspector = inspector;
+    }
 
     /// <summary>
     /// Deliberately empty. The inspector is kept after the sink lets it go, because the count is read

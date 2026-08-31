@@ -18,15 +18,17 @@ using Serilog.Core;
 internal sealed class FileLoggingHostedService : IHostedService
 {
     private readonly SettingsStore _settings;
+
     private readonly LoggingLevelSwitch _levelSwitch;
+
     private readonly DroppedLogEventMonitor _monitor;
+
     private readonly ILogger<FileLoggingHostedService> _logger;
 
-    public FileLoggingHostedService(
-        SettingsStore settings,
-        LoggingLevelSwitch levelSwitch,
-        DroppedLogEventMonitor monitor,
-        ILogger<FileLoggingHostedService> logger)
+    public FileLoggingHostedService(SettingsStore settings,
+                                    LoggingLevelSwitch levelSwitch,
+                                    DroppedLogEventMonitor monitor,
+                                    ILogger<FileLoggingHostedService> logger)
     {
         _settings = settings;
         _levelSwitch = levelSwitch;
@@ -58,8 +60,10 @@ internal sealed class FileLoggingHostedService : IHostedService
         return Task.CompletedTask;
     }
 
-    private void OnSettingsChanged(object? sender, AppSettings settings) =>
+    private void OnSettingsChanged(object? sender, AppSettings settings)
+    {
         Apply(settings.LoggingConfig.LogLevel);
+    }
 
     private void Apply(string name)
     {

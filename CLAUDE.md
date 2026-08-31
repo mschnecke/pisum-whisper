@@ -57,6 +57,55 @@ dotnet build src/Pisum.Whisper.App -r osx-arm64      # cross-builds fine from Wi
 
 There is no lint or format step configured. Warnings-as-errors is the whole quality gate today.
 
+## The test stack
+
+**xUnit v3, on Microsoft.Testing.Platform, running in parallel.** Four things follow from that which
+the code does not show you.
+
+**`dotnet test` is the MTP command, not VSTest, and `global.json` is why.** It carries a `test` block
+next to the `sdk` block; with it, each test assembly runs through its own apphost and nothing hosts
+it, which is why there is no `Microsoft.NET.Test.Sdk` reference. The cost is the CLI surface:
+**`--filter <expr>` is VSTest syntax and does not work.** The replacements are `--filter-method`,
+`--filter-class` and `--filter-namespace`, all of which take `*` wildcards:
+
+```bash
+dotnet test Pisum.Whisper.slnx
+dotnet test tests/Pisum.Whisper.Core.Tests --filter-namespace Pisum.Whisper.Core.Tests.Hotkeys
+```
+
+`xunit.v3` is pinned to **3.2.2, not the current 4.0.0**, because that is what
+`Avalonia.Headless.XUnit` 12.1.1 is compiled against — 4.0.0 resolves silently against a major it was
+not built for, and the breakage would land in the settings window rather than here.
+
+**The four manual tests need an environment variable, because a skipped test cannot be run.** xUnit
+has no runner option for it: `-explicit` covers explicit tests only. So `ManualCaptureSmokeTest`,
+`ManualTranscriptionSmokeTest`, `ManualClipboardRoundTrip` and `ManualDictationSmokeTest` are gated on
+`ManualTests.Enabled` via `SkipUnless` — they report skipped with their reason by default, and run
+when `PISUM_WHISPER_RUN_MANUAL` is set. Verified on Windows:
+
+```bash
+dotnet test tests/Pisum.Whisper.Platform.Tests \
+  --filter-method '*ManualClipboardRoundTrip.ATokenSurvivesAWriteAndAReadBack' \
+  -e PISUM_WHISPER_RUN_MANUAL=1
+```
+
+Run them one at a time. They contend for the one real clipboard and the one real microphone, so
+letting two run beside the suite is how you get a failure that means nothing.
+
+**Tests run in parallel by class, and nothing in the suite shares mutable state to protect** — no
+statics, no environment mutation, and every fixture builds its own
+`Path.Combine(Path.GetTempPath(), "pisum-whisper-tests", Guid.NewGuid().ToString("n"))`. Do not add
+`[assembly: CollectionBehavior(DisableTestParallelization = true)]`; if a new test needs isolation,
+isolate that class. The one that does is `FileLoggingRotationTests`, which asserts a p99.9 write
+latency under 500 µs and therefore measures the machine as much as the code — it sits in a
+`DisableParallelization` collection and is **still occasionally over the bound**. A lone failure
+there is a busy machine, not a regression in the logging path; two in a row is worth looking at.
+
+**`[TestCleanup]` is `Dispose()` now.** MSTest and xUnit agree on a fresh instance per test method, so
+a lifecycle pair is a constructor and `IDisposable` — there are fourteen, and four of them are on
+abstract bases whose derived classes add nothing. Assertions are Shouldly throughout; `xunit.v3.assert`
+comes along with the framework but is unused.
+
 ## Spikes
 
 `spikes/Pisum.Whisper.Spikes` is deliberately outside the solution. It was kept until the macOS
@@ -317,6 +366,17 @@ an open change, and closed on 2026-08-28. Drive
 the workflow with the `/opsx:*` commands (`explore`, `propose`, `apply`, `sync`, `archive`); the
 backing skills are in `.claude/skills/openspec-*`. Project context and per-artifact rules can be
 filled in at the bottom of `openspec/config.yaml` (all commented out today).
+
+**A commit that only touches `openspec/` must say so in its subject line.** A proposal's *What
+Changes* section is a list of imperatives — "Replace `MSTest` with `xunit.v3`", "Rewrite the
+attributes across 53 classes", "Update `README.md`" — which is indistinguishable in shape from a
+changelog of work already done. Summarise that diff and you get a commit message describing a
+migration that has not started, and a generated message will do exactly that: it happened twice on
+the `xunit` branch, once claiming "372 tests green, 0 warnings" on a commit containing four markdown
+files. This is not a tool defect to wait out, because the ambiguity is in the artifact itself and
+every planning commit for changes 9 through 12 will hit it. So lead with a verb that names the act
+of planning — `Plan the …`, `Record …`, `Repin …` — and open the body with what has **not** been
+done yet. Verify the message against `git show --stat`, not against the branch name.
 
 ## Code Intelligence
 

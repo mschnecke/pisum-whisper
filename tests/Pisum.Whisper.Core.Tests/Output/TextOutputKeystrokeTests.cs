@@ -8,10 +8,9 @@ using Shouldly;
 /// Task 2.2 — the shape of the paste keystroke on each platform, asserted from either host through
 /// the internal constructor's platform selection.
 /// </summary>
-[TestClass]
 public sealed class TextOutputKeystrokeTests : TextOutputTestBase
 {
-    [TestMethod]
+    [Fact]
     public async Task TheWindowsSelection_SendsCtrlV()
     {
         await Create(macOs: false).DeliverAsync(Transcript, CancellationToken.None);
@@ -25,7 +24,7 @@ public sealed class TextOutputKeystrokeTests : TextOutputTestBase
         ]);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task TheMacOsSelection_SendsCmdV()
     {
         await Create(macOs: true).DeliverAsync(Transcript, CancellationToken.None);
@@ -39,7 +38,7 @@ public sealed class TextOutputKeystrokeTests : TextOutputTestBase
         ]);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task TheMacOsSelection_PacesTheEdgesApartAndTheWindowsOneDoesNot()
     {
         // The pacing is why this is not an implementation detail: change 1's spike found that edges

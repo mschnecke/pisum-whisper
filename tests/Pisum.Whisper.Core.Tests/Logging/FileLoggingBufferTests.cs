@@ -7,7 +7,6 @@ using Microsoft.Extensions.Logging;
 using Pisum.Whisper.Core.Logging;
 using Shouldly;
 
-[TestClass]
 public sealed class FileLoggingBufferTests : FileLoggingTestBase
 {
     private const int Events = 3000;
@@ -26,7 +25,7 @@ public sealed class FileLoggingBufferTests : FileLoggingTestBase
         };
     }
 
-    [TestMethod]
+    [Fact]
     public void AFullBufferDropsEventsRatherThanHoldingTheCallingThread()
     {
         // Log backpressure must never become audio backpressure. Measured, blockWhenFull: true holds
@@ -50,8 +49,8 @@ public sealed class FileLoggingBufferTests : FileLoggingTestBase
         _sink.Count.ShouldBeLessThan(Events, "the buffer has to have overflowed for this to mean anything");
     }
 
-    [TestMethod]
-    public void DroppedEventsAreCountedAndReportedAtShutdown()
+    [Fact]
+    public async Task DroppedEventsAreCountedAndReportedAtShutdown()
     {
         // Dropping is the right trade, but a diagnostics subsystem does not get to lose events
         // invisibly.
@@ -76,7 +75,7 @@ public sealed class FileLoggingBufferTests : FileLoggingTestBase
             return _sink.Messages.Contains("Buffer drained.");
         }).ShouldBeTrue();
 
-        host.StopAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
+        await host.StopAsync(TimeSpan.FromSeconds(10));
 
         _sink.WaitForMessageContaining("dropped").ShouldBeTrue();
         _sink.Messages.ShouldContain(message => message.Contains($"dropped {monitor.DroppedMessagesCount} events"));

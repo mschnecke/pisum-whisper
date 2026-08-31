@@ -10,7 +10,6 @@ using Shouldly;
 /// Tasks 4.2-4.8 — the single-key client, exercised against a scripted handler. Nothing here reaches
 /// the network or needs an API key.
 /// </summary>
-[TestClass]
 public sealed class GeminiProviderTests
 {
     private const string ApiKey = "AIza-not-a-real-key";
@@ -22,7 +21,7 @@ public sealed class GeminiProviderTests
 
     // ---- Task 4.2: the key travels in a header, never the URI ----
 
-    [TestMethod]
+    [Fact]
     public async Task TheRequest_CarriesTheKeyInAHeaderAndNothingInTheQuery()
     {
         var handler = new StubHttpMessageHandler().Respond(HttpStatusCode.OK, TranscriptBody);
@@ -36,7 +35,7 @@ public sealed class GeminiProviderTests
         request.RequestUri.AbsoluteUri.ShouldEndWith($"models/{GeminiProvider.DefaultModel}:generateContent");
     }
 
-    [TestMethod]
+    [Fact]
     public async Task TheRequest_CarriesTheAudioAndThePromptGeminiExpects()
     {
         var handler = new StubHttpMessageHandler().Respond(HttpStatusCode.OK, TranscriptBody);
@@ -50,7 +49,7 @@ public sealed class GeminiProviderTests
         body.ShouldContain("\"maxOutputTokens\":8192");
     }
 
-    [TestMethod]
+    [Fact]
     public async Task AFallbackToWav_IsTaggedWithTheWavMimeType()
     {
         var handler = new StubHttpMessageHandler().Respond(HttpStatusCode.OK, TranscriptBody);
@@ -63,7 +62,7 @@ public sealed class GeminiProviderTests
 
     // ---- Task 4.3: the inline-size guard ----
 
-    [TestMethod]
+    [Fact]
     public async Task AudioOverTheInlineCeiling_IsRejectedBeforeAnyRequest()
     {
         var handler = new StubHttpMessageHandler().Respond(HttpStatusCode.OK, TranscriptBody);
@@ -79,7 +78,7 @@ public sealed class GeminiProviderTests
         handler.SendCount.ShouldBe(0);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task AudioAtTheInlineCeiling_IsSent()
     {
         var handler = new StubHttpMessageHandler().Respond(HttpStatusCode.OK, TranscriptBody);
@@ -93,22 +92,22 @@ public sealed class GeminiProviderTests
 
     // ---- Task 4.4: reading the transcript out ----
 
-    [TestMethod]
+    [Fact]
     public void ExtractText_ReturnsTheCandidateText() =>
         GeminiProvider.ExtractText(TranscriptBody).ShouldBe("hello world");
 
-    [TestMethod]
-    [DataRow("""{ "candidates": [] }""", DisplayName = "no candidate")]
-    [DataRow("""{ "candidates": [ { "content": { "parts": [] } } ] }""", DisplayName = "no part")]
-    [DataRow("""{ "candidates": [ { "content": { "parts": [ { } ] } } ] }""", DisplayName = "no text")]
-    [DataRow("""{ }""", DisplayName = "nothing at all")]
+    [Theory]
+    [InlineData("""{ "candidates": [] }""", TestDisplayName = "no candidate")]
+    [InlineData("""{ "candidates": [ { "content": { "parts": [] } } ] }""", TestDisplayName = "no part")]
+    [InlineData("""{ "candidates": [ { "content": { "parts": [ { } ] } } ] }""", TestDisplayName = "no text")]
+    [InlineData("""{ }""", TestDisplayName = "nothing at all")]
     public void ExtractText_WithNothingUsable_RaisesTranscription(string body)
     {
         Should.Throw<TranscriptionException>(() => GeminiProvider.ExtractText(body))
             .Category.ShouldBe(ErrorCategory.Transcription);
     }
 
-    [TestMethod]
+    [Fact]
     public void ExtractText_WithWhitespaceOnly_RaisesTranscription()
     {
         const string body = """{ "candidates": [ { "content": { "parts": [ { "text": "   " } ] } } ] }""";
@@ -117,7 +116,7 @@ public sealed class GeminiProviderTests
             .Category.ShouldBe(ErrorCategory.Transcription);
     }
 
-    [TestMethod]
+    [Fact]
     public void ExtractText_WithABodyLevelError_SurfacesItsMessage()
     {
         const string body = """{ "error": { "code": 400, "message": "API key not valid" } }""";
@@ -130,7 +129,7 @@ public sealed class GeminiProviderTests
 
     // ---- Task 4.5: the corrected retry predicate ----
 
-    [TestMethod]
+    [Fact]
     public void ATranscriptMentioningRateLimits_IsNotRetryable()
     {
         // The reference tests this predicate before the status, so this exact transcript is retried
@@ -139,14 +138,14 @@ public sealed class GeminiProviderTests
         GeminiProvider.IsRetryable(HttpStatusCode.OK, "the server was overloaded").ShouldBeFalse();
     }
 
-    [TestMethod]
+    [Fact]
     public void TransientStatusesAreRetryable()
     {
         GeminiProvider.IsRetryable(HttpStatusCode.ServiceUnavailable, "{}").ShouldBeTrue();
         GeminiProvider.IsRetryable(HttpStatusCode.TooManyRequests, "quota exceeded").ShouldBeTrue();
     }
 
-    [TestMethod]
+    [Fact]
     public void AnUnsuccessfulBodyMentioningOverload_IsRetryable()
     {
         GeminiProvider.IsRetryable(HttpStatusCode.InternalServerError, "model is overloaded").ShouldBeTrue();
@@ -155,7 +154,7 @@ public sealed class GeminiProviderTests
 
     // ---- Task 4.6: the retry loop ----
 
-    [TestMethod]
+    [Fact]
     public async Task A503ThenSuccess_ReturnsTheTranscriptWithoutAThirdAttempt()
     {
         var handler = new StubHttpMessageHandler()
@@ -168,7 +167,7 @@ public sealed class GeminiProviderTests
         handler.SendCount.ShouldBe(2);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task ThreeRateLimits_ExhaustTheAttemptsAndRaiseRateLimit()
     {
         var handler = new StubHttpMessageHandler().Respond(HttpStatusCode.TooManyRequests, "slow down");
@@ -180,7 +179,7 @@ public sealed class GeminiProviderTests
         handler.SendCount.ShouldBe(GeminiProvider.MaxAttempts);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task APermanentError_FailsOnTheFirstAttempt()
     {
         var handler = new StubHttpMessageHandler().Respond(HttpStatusCode.BadRequest, "invalid argument");
@@ -191,7 +190,7 @@ public sealed class GeminiProviderTests
         handler.SendCount.ShouldBe(1);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task ATransportFailure_IsRetriedAndReportedAsNetwork()
     {
         var handler = new StubHttpMessageHandler().Throws(new HttpRequestException("connection reset"));
@@ -203,7 +202,7 @@ public sealed class GeminiProviderTests
         handler.SendCount.ShouldBe(GeminiProvider.MaxAttempts);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task CancellationDuringBackoff_StopsWithoutAFurtherAttempt()
     {
         var handler = new StubHttpMessageHandler().Respond(HttpStatusCode.ServiceUnavailable);
@@ -230,11 +229,11 @@ public sealed class GeminiProviderTests
 
     // ---- Task 4.7: categories ----
 
-    [TestMethod]
-    [DataRow(HttpStatusCode.Unauthorized, ErrorCategory.Authentication)]
-    [DataRow(HttpStatusCode.Forbidden, ErrorCategory.Authentication)]
-    [DataRow(HttpStatusCode.BadRequest, ErrorCategory.Transcription)]
-    [DataRow(HttpStatusCode.InternalServerError, ErrorCategory.Transcription)]
+    [Theory]
+    [InlineData(HttpStatusCode.Unauthorized, ErrorCategory.Authentication)]
+    [InlineData(HttpStatusCode.Forbidden, ErrorCategory.Authentication)]
+    [InlineData(HttpStatusCode.BadRequest, ErrorCategory.Transcription)]
+    [InlineData(HttpStatusCode.InternalServerError, ErrorCategory.Transcription)]
     public async Task AFailureStatus_IsCategorisedAtTheThrowSite(HttpStatusCode status, ErrorCategory expected)
     {
         var handler = new StubHttpMessageHandler().Respond(status, "refused");
@@ -245,12 +244,12 @@ public sealed class GeminiProviderTests
         failure.Category.ShouldBe(expected);
     }
 
-    [TestMethod]
+    [Fact]
     public void AQuotaFailure_IsRateLimitWhateverTheStatus() =>
         GeminiProvider.FailureFor(HttpStatusCode.BadRequest, "quota exceeded for this project")
             .Category.ShouldBe(ErrorCategory.RateLimit);
 
-    [TestMethod]
+    [Fact]
     public void ALongErrorBody_IsTruncated()
     {
         var failure = GeminiProvider.FailureFor(HttpStatusCode.BadRequest, new string('x', 500));
@@ -260,7 +259,7 @@ public sealed class GeminiProviderTests
 
     // ---- Task 4.8: end to end, and what may be written down ----
 
-    [TestMethod]
+    [Fact]
     public async Task ASuccessfulTranscription_ReturnsTheText()
     {
         var handler = new StubHttpMessageHandler().Respond(HttpStatusCode.OK, TranscriptBody);
@@ -270,7 +269,7 @@ public sealed class GeminiProviderTests
         text.ShouldBe("hello world");
     }
 
-    [TestMethod]
+    [Fact]
     public async Task NeitherTheTranscriptNorTheKey_IsEverLogged()
     {
         var handler = new StubHttpMessageHandler()

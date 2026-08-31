@@ -16,16 +16,15 @@ using Shouldly;
 /// stand in for it, and that <c>AddNativeOutput</c> registers what is missing here is asserted in
 /// <c>Pisum.Whisper.Platform.Tests</c>.
 /// </remarks>
-[TestClass]
 public sealed class TextOutputRegistrationTests
 {
-    [TestMethod]
+    [Fact]
     public void TheRegistrationSatisfiesContainerValidation()
     {
         Should.NotThrow(() => BuildHost(withNativeHalf: true).Dispose());
     }
 
-    [TestMethod]
+    [Fact]
     public void TheDeliveryResolves()
     {
         using var host = BuildHost(withNativeHalf: true);
@@ -33,7 +32,7 @@ public sealed class TextOutputRegistrationTests
         host.Services.GetRequiredService<ITextOutput>().ShouldBeOfType<TextOutput>();
     }
 
-    [TestMethod]
+    [Fact]
     public void TheEventSimulatorResolvesAsASingleton()
     {
         using var host = BuildHost(withNativeHalf: true);
@@ -43,7 +42,7 @@ public sealed class TextOutputRegistrationTests
         first.ShouldBeSameAs(host.Services.GetRequiredService<IEventSimulator>());
     }
 
-    [TestMethod]
+    [Fact]
     public void OmittingTheNativeHalf_FailsAtBuildTimeNamingTheClipboard()
     {
         // Which is the whole reason the two halves are registered separately: this is a startup

@@ -23,8 +23,7 @@ using Shouldly;
 /// both edges; this is the test that keeps that check from being deleted as dead code, which is why
 /// the binding here is the paste combination itself.
 /// </remarks>
-[TestClass]
-public sealed class PasteIsNotObservedAsAHotkeyTests
+public sealed class PasteIsNotObservedAsAHotkeyTests : IDisposable
 {
     private readonly RecordingLogSource _logSource = new();
 
@@ -38,8 +37,7 @@ public sealed class PasteIsNotObservedAsAHotkeyTests
 
     private IEventSimulator _simulator = null!;
 
-    [TestInitialize]
-    public void CreateHookAndSimulator()
+    public PasteIsNotObservedAsAHotkeyTests()
     {
         _home = Path.Combine(Path.GetTempPath(), "pisum-whisper-tests", Guid.NewGuid().ToString("n"));
         Directory.CreateDirectory(_home);
@@ -59,15 +57,14 @@ public sealed class PasteIsNotObservedAsAHotkeyTests
         _simulator = EventSimulator.Create("Pisum Whisper Tests", _provider);
     }
 
-    [TestCleanup]
-    public void DisposeHookAndSimulator()
+    public void Dispose()
     {
         (_simulator as IDisposable)?.Dispose();
         _hotkeys.Dispose();
         Directory.Delete(_home, true);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task ADeliveryWhileTheHookIsRunning_ReportsNoHotkeyEdges()
     {
         await _hotkeys.StartAsync(CancellationToken.None);
@@ -77,12 +74,12 @@ public sealed class PasteIsNotObservedAsAHotkeyTests
         outcome.ShouldBe(TextOutputOutcome.Pasted);
         _provider.PostedEvents.Count.ShouldBe(4, "the keystroke did reach the operating system");
 
-        await Task.Delay(150);
+        await Task.Delay(150, TestContext.Current.CancellationToken);
 
         Observed().ShouldBeEmpty();
     }
 
-    [TestMethod]
+    [Fact]
     public async Task TheSameCombinationPressedByHand_DoesReportEdges()
     {
         // Without this the test above would pass just as well if the binding never matched anything,

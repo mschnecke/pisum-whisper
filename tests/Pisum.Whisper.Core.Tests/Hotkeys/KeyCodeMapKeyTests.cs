@@ -8,7 +8,6 @@ using Shouldly;
 /// Pins the forward key vocabulary against the reference's <c>hotkey/parse.rs</c> table. A settings
 /// file written for the reference must still load here, so every row it accepts is asserted.
 /// </summary>
-[TestClass]
 public sealed class KeyCodeMapKeyTests
 {
     private static KeyCode Parse(string name)
@@ -17,7 +16,7 @@ public sealed class KeyCodeMapKeyTests
         return keyCode;
     }
 
-    [TestMethod]
+    [Fact]
     public void Letters_CoverAToZ()
     {
         Parse("A").ShouldBe(KeyCode.VcA);
@@ -30,7 +29,7 @@ public sealed class KeyCodeMapKeyTests
         }
     }
 
-    [TestMethod]
+    [Fact]
     public void Digits_CoverZeroToNine_UnderBothSpellings()
     {
         Parse("0").ShouldBe(KeyCode.Vc0);
@@ -39,7 +38,7 @@ public sealed class KeyCodeMapKeyTests
         Parse("Digit7").ShouldBe(KeyCode.Vc7);
     }
 
-    [TestMethod]
+    [Fact]
     public void FunctionKeys_CoverF1ToF12()
     {
         Parse("F1").ShouldBe(KeyCode.VcF1);
@@ -47,7 +46,7 @@ public sealed class KeyCodeMapKeyTests
         Parse("F12").ShouldBe(KeyCode.VcF12);
     }
 
-    [TestMethod]
+    [Fact]
     public void FunctionKeys_StopAtF12()
     {
         // The reference's table ends at F12. F13 upwards exist in SharpHook and are deliberately
@@ -55,7 +54,7 @@ public sealed class KeyCodeMapKeyTests
         KeyCodeMap.TryParseKey("F13", out _).ShouldBeFalse();
     }
 
-    [TestMethod]
+    [Fact]
     public void SpecialKeys_ResolveUnderTheirFullNames()
     {
         Parse("Space").ShouldBe(KeyCode.VcSpace);
@@ -71,7 +70,7 @@ public sealed class KeyCodeMapKeyTests
         Parse("PageDown").ShouldBe(KeyCode.VcPageDown);
     }
 
-    [TestMethod]
+    [Fact]
     public void SpecialKeys_ResolveUnderTheReferenceAliases()
     {
         Parse(" ").ShouldBe(KeyCode.VcSpace);
@@ -83,7 +82,7 @@ public sealed class KeyCodeMapKeyTests
         Parse("PgDn").ShouldBe(KeyCode.VcPageDown);
     }
 
-    [TestMethod]
+    [Fact]
     public void Arrows_ResolveUnderBothSpellings()
     {
         Parse("Up").ShouldBe(KeyCode.VcUp);
@@ -96,7 +95,7 @@ public sealed class KeyCodeMapKeyTests
         Parse("ArrowRight").ShouldBe(KeyCode.VcRight);
     }
 
-    [TestMethod]
+    [Fact]
     public void Punctuation_ResolvesUnderNameAndCharacter()
     {
         Parse("Minus").ShouldBe(KeyCode.VcMinus);
@@ -123,7 +122,7 @@ public sealed class KeyCodeMapKeyTests
         Parse("/").ShouldBe(KeyCode.VcSlash);
     }
 
-    [TestMethod]
+    [Fact]
     public void Numpad_ResolvesDigitsAndOperators()
     {
         Parse("Numpad0").ShouldBe(KeyCode.VcNumPad0);
@@ -141,7 +140,7 @@ public sealed class KeyCodeMapKeyTests
         Parse("NumpadEnter").ShouldBe(KeyCode.VcNumPadEnter);
     }
 
-    [TestMethod]
+    [Fact]
     public void Names_MatchRegardlessOfCase()
     {
         Parse("space").ShouldBe(KeyCode.VcSpace);
@@ -152,7 +151,7 @@ public sealed class KeyCodeMapKeyTests
         Parse("a").ShouldBe(KeyCode.VcA);
     }
 
-    [TestMethod]
+    [Fact]
     public void UnknownName_ReportsFalseRatherThanThrowing()
     {
         KeyCodeMap.TryParseKey("Nonsense", out var keyCode).ShouldBeFalse();

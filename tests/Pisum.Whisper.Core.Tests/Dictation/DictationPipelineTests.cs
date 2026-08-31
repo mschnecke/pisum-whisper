@@ -11,12 +11,11 @@ using Shouldly;
 /// Tasks 3.1 to 3.5 — what the pipeline sends where, the two cancellation tokens, the degraded
 /// delivery, and the guarantee that no failure wedges the state machine.
 /// </summary>
-[TestClass]
 public sealed class DictationPipelineTests : DictationTestBase
 {
     // ---- Task 3.1: what the encoder is handed ----
 
-    [TestMethod]
+    [Fact]
     public async Task TheEncoderIsHandedTheCaptureRateAndTheConfiguredFormat()
     {
         Configure(settings => settings.AudioFormat = AudioFormat.Wav);
@@ -34,7 +33,7 @@ public sealed class DictationPipelineTests : DictationTestBase
     /// is no change subscription here and no rebuild step, because <c>SettingsStore.Current</c> is
     /// already authoritative.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public async Task ASettingsChangeBetweenDictationsIsPickedUp()
     {
         Configure(settings => settings.AudioFormat = AudioFormat.Opus);
@@ -51,7 +50,7 @@ public sealed class DictationPipelineTests : DictationTestBase
         Encoder.Preferred.ShouldBe(AudioFormat.Wav);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task TheEncodedAudioIsWhatReachesTheProvider()
     {
         var orchestrator = Create();
@@ -65,7 +64,7 @@ public sealed class DictationPipelineTests : DictationTestBase
 
     // ---- Task 3.2: the active preset's prompt ----
 
-    [TestMethod]
+    [Fact]
     public async Task TheActivePresetsSystemPromptIsSent()
     {
         var orchestrator = Create();
@@ -77,7 +76,7 @@ public sealed class DictationPipelineTests : DictationTestBase
         Provider.SystemPrompt.ShouldBe(active.SystemPrompt);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task ChangingTheActivePresetChangesThePromptSent()
     {
         var orchestrator = Create();
@@ -104,7 +103,7 @@ public sealed class DictationPipelineTests : DictationTestBase
     /// minutes. The budget is what keeps a hung upload from holding the hotkey shut with nothing
     /// said.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public async Task ATranscriptionThatOverrunsTheBudgetIsAbandoned()
     {
         var orchestrator = Create(transcriptionBudget: TimeSpan.FromMilliseconds(50));
@@ -122,7 +121,7 @@ public sealed class DictationPipelineTests : DictationTestBase
     /// The delivery is deliberately outside the budget: it spends more than a second waiting before
     /// its restore by design, and an expired transcription clock must not cut that short.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public async Task AnExpiredBudgetDoesNotCancelADeliveryAlreadyRunning()
     {
         var orchestrator = Create(transcriptionBudget: TimeSpan.FromMilliseconds(50));
@@ -133,7 +132,7 @@ public sealed class DictationPipelineTests : DictationTestBase
 
         // Well past the budget, which by now has expired against a transcription that already
         // finished. The delivery must not have been touched by it.
-        await Task.Delay(150);
+        await Task.Delay(150, TestContext.Current.CancellationToken);
         Output.Release();
         await SettleAsync(orchestrator);
 
@@ -141,7 +140,7 @@ public sealed class DictationPipelineTests : DictationTestBase
         Output.Calls.ShouldBe(1);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task ATranscriptionInsideTheBudgetIsUnaffected()
     {
         var orchestrator = Create(transcriptionBudget: TimeSpan.FromSeconds(30));
@@ -155,7 +154,7 @@ public sealed class DictationPipelineTests : DictationTestBase
 
     // ---- Task 3.4: a degraded delivery is not a failure ----
 
-    [TestMethod]
+    [Fact]
     public async Task AClipboardOnlyDeliveryIsNotAFailure()
     {
         var orchestrator = Create();
@@ -174,7 +173,7 @@ public sealed class DictationPipelineTests : DictationTestBase
     /// this change the log is the only place to tell them. What is <em>not</em> repeated is
     /// <c>TextOutput</c>'s own diagnosis of why the paste did not happen.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public async Task AClipboardOnlyDeliveryRecordsTheManualPasteMessageOnce()
     {
         var orchestrator = Create();
@@ -188,7 +187,7 @@ public sealed class DictationPipelineTests : DictationTestBase
             .ShouldBe(1);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task APastedDeliverySaysNothingToTheUser()
     {
         var orchestrator = Create();
@@ -203,7 +202,7 @@ public sealed class DictationPipelineTests : DictationTestBase
 
     // ---- Task 3.5: nothing wedges the state machine ----
 
-    [TestMethod]
+    [Fact]
     public async Task AFailureInAnyStageReturnsTheStateToIdle()
     {
         foreach (var stage in Stages())
@@ -221,7 +220,7 @@ public sealed class DictationPipelineTests : DictationTestBase
         }
     }
 
-    [TestMethod]
+    [Fact]
     public async Task ADictationCanFollowAFailedOne()
     {
         var orchestrator = Create();
@@ -245,7 +244,7 @@ public sealed class DictationPipelineTests : DictationTestBase
     /// state at Transcribing for ever, and the hotkey would answer "Transcription In Progress" until
     /// the application was restarted.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public async Task AnUnrecognisedFailureIsStillDescribed()
     {
         var orchestrator = Create();
@@ -264,7 +263,7 @@ public sealed class DictationPipelineTests : DictationTestBase
     /// the capture was never closed, the private capturing flag stayed set, and the state sat at
     /// Transcribing for ever with the hotkey answering "Transcription In Progress" until restart.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public async Task AThrowingStateSubscriberDoesNotWedgeTheDictation()
     {
         var orchestrator = Create();
@@ -280,7 +279,7 @@ public sealed class DictationPipelineTests : DictationTestBase
         orchestrator.State.ShouldBe(DictationState.Idle);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task ADictationCanFollowOneWhoseSubscriberThrew()
     {
         var orchestrator = Create();

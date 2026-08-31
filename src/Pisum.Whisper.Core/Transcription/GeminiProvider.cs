@@ -32,9 +32,13 @@ internal sealed class GeminiProvider : ITranscriptionProvider
     internal const int MaxInlineAudioBytes = 14 * 1024 * 1024;
 
     private readonly IHttpClientFactory _httpClientFactory;
+
     private readonly string _apiKey;
+
     private readonly string _model;
+
     private readonly ILogger _logger;
+
     private readonly Func<int, CancellationToken, Task> _backoff;
 
     public GeminiProvider(IHttpClientFactory httpClientFactory, string apiKey, string? model, ILogger logger)
@@ -44,12 +48,11 @@ internal sealed class GeminiProvider : ITranscriptionProvider
 
     /// <summary>Takes the backoff as a delegate so retry tests do not wait three real seconds,
     /// following <see cref="AudioEncoder"/>'s injected-writer precedent.</summary>
-    internal GeminiProvider(
-        IHttpClientFactory httpClientFactory,
-        string apiKey,
-        string? model,
-        ILogger logger,
-        Func<int, CancellationToken, Task> backoff)
+    internal GeminiProvider(IHttpClientFactory httpClientFactory,
+                            string apiKey,
+                            string? model,
+                            ILogger logger,
+                            Func<int, CancellationToken, Task> backoff)
     {
         _httpClientFactory = httpClientFactory;
         _apiKey = apiKey;
@@ -58,10 +61,9 @@ internal sealed class GeminiProvider : ITranscriptionProvider
         _backoff = backoff;
     }
 
-    public async Task<string> TranscribeAsync(
-        EncodedAudio audio,
-        string systemPrompt,
-        CancellationToken cancellationToken)
+    public async Task<string> TranscribeAsync(EncodedAudio audio,
+                                              string systemPrompt,
+                                              CancellationToken cancellationToken)
     {
         // Checked here rather than in the pool so an oversized recording fails once instead of once
         // per configured key — and it is provider-specific knowledge, which is where it belongs.
@@ -78,7 +80,7 @@ internal sealed class GeminiProvider : ITranscriptionProvider
         {
             SystemInstruction = new GeminiSystemInstruction
             {
-                Parts = [new GeminiPart { Text = systemPrompt }],
+                Parts = [new GeminiPart {Text = systemPrompt}],
             },
             Contents =
             [
@@ -97,7 +99,7 @@ internal sealed class GeminiProvider : ITranscriptionProvider
                     ],
                 },
             ],
-            GenerationConfig = new GeminiGenerationConfig { Temperature = 0.1f, MaxOutputTokens = 8192 },
+            GenerationConfig = new GeminiGenerationConfig {Temperature = 0.1f, MaxOutputTokens = 8192},
         };
 
         var text = await SendWithRetryAsync(request, cancellationToken).ConfigureAwait(false);
@@ -147,13 +149,13 @@ internal sealed class GeminiProvider : ITranscriptionProvider
                 "Gemini's response could not be read.", ErrorCategory.Transcription, exception);
         }
 
-        if (response?.Error?.Message is { Length: > 0 } message)
+        if (response?.Error?.Message is {Length: > 0} message)
         {
             throw new TranscriptionException(message, ErrorCategory.Transcription);
         }
 
-        var text = response?.Candidates is { Count: > 0 } candidates
-            ? candidates[0].Content?.Parts is { Count: > 0 } parts ? parts[0].Text : null
+        var text = response?.Candidates is {Count: > 0} candidates
+            ? candidates[0].Content?.Parts is {Count: > 0} parts ? parts[0].Text : null
             : null;
 
         if (text is null)
@@ -184,13 +186,18 @@ internal sealed class GeminiProvider : ITranscriptionProvider
         };
 
         var detail = body.Length > 200 ? body[..200] : body;
-        return new TranscriptionException($"Gemini returned {(int)status}: {detail}", category);
+        return new TranscriptionException($"Gemini returned {(int) status}: {detail}", category);
     }
 
-    private static bool IsSuccess(HttpStatusCode status) => (int)status is >= 200 and <= 299;
+    private static bool IsSuccess(HttpStatusCode status)
+    {
+        return (int) status is >= 200 and <= 299;
+    }
 
-    private static Task DefaultBackoffAsync(int attempt, CancellationToken cancellationToken) =>
-        Task.Delay(TimeSpan.FromSeconds(attempt), cancellationToken);
+    private static Task DefaultBackoffAsync(int attempt, CancellationToken cancellationToken)
+    {
+        return Task.Delay(TimeSpan.FromSeconds(attempt), cancellationToken);
+    }
 
     private async Task<string> SendWithRetryAsync(GeminiRequest request, CancellationToken cancellationToken)
     {
@@ -253,7 +260,7 @@ internal sealed class GeminiProvider : ITranscriptionProvider
                         "Gemini attempt {Attempt} of {MaxAttempts} returned {Status}; retrying.",
                         attempt,
                         MaxAttempts,
-                        (int)status);
+                        (int) status);
 
                     await _backoff(attempt, cancellationToken).ConfigureAwait(false);
                     continue;

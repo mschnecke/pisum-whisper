@@ -10,10 +10,9 @@ using Shouldly;
 /// and that both halves resolve. Constructing them touches no clipboard and posts no input, so this
 /// runs anywhere the suite runs.
 /// </summary>
-[TestClass]
 public sealed class NativeOutputRegistrationTests
 {
-    [TestMethod]
+    [Fact]
     public void BothHalvesResolveOnThisPlatform()
     {
         using var provider = new ServiceCollection().AddNativeOutput().BuildServiceProvider();
@@ -22,7 +21,7 @@ public sealed class NativeOutputRegistrationTests
         provider.GetRequiredService<IPasteProbe>().ShouldNotBeNull();
     }
 
-    [TestMethod]
+    [Fact]
     public void TheImplementationsMatchTheHostOperatingSystem()
     {
         using var provider = new ServiceCollection().AddNativeOutput().BuildServiceProvider();

@@ -126,15 +126,14 @@ public sealed class DictationOrchestrator : IHostedService, IDisposable
 
     private bool _disposed;
 
-    public DictationOrchestrator(
-        ILogger<DictationOrchestrator> logger,
-        IGlobalHotkeyService hotkeys,
-        SettingsStore settings,
-        IAudioCapture capture,
-        IAudioEncoder encoder,
-        ITranscriptionProvider provider,
-        ITextOutput output)
-        : this(logger, hotkeys, settings, capture, encoder, provider, output, minimumDuration: null)
+    public DictationOrchestrator(ILogger<DictationOrchestrator> logger,
+                                 IGlobalHotkeyService hotkeys,
+                                 SettingsStore settings,
+                                 IAudioCapture capture,
+                                 IAudioEncoder encoder,
+                                 ITranscriptionProvider provider,
+                                 ITextOutput output)
+        : this(logger, hotkeys, settings, capture, encoder, provider, output, null)
     {
     }
 
@@ -148,19 +147,18 @@ public sealed class DictationOrchestrator : IHostedService, IDisposable
     /// settings in whole seconds and the watchdog could not otherwise be exercised in less than a
     /// second of real time — the same reason <see cref="GeminiProvider"/> injects its backoff.
     /// </remarks>
-    internal DictationOrchestrator(
-        ILogger<DictationOrchestrator> logger,
-        IGlobalHotkeyService hotkeys,
-        SettingsStore settings,
-        IAudioCapture capture,
-        IAudioEncoder encoder,
-        ITranscriptionProvider provider,
-        ITextOutput output,
-        TimeSpan? minimumDuration = null,
-        TimeSpan? debounceWindow = null,
-        TimeSpan? transcriptionBudget = null,
-        Func<long>? timestamp = null,
-        Func<TimeSpan, CancellationToken, Task>? delay = null)
+    internal DictationOrchestrator(ILogger<DictationOrchestrator> logger,
+                                   IGlobalHotkeyService hotkeys,
+                                   SettingsStore settings,
+                                   IAudioCapture capture,
+                                   IAudioEncoder encoder,
+                                   ITranscriptionProvider provider,
+                                   ITextOutput output,
+                                   TimeSpan? minimumDuration = null,
+                                   TimeSpan? debounceWindow = null,
+                                   TimeSpan? transcriptionBudget = null,
+                                   Func<long>? timestamp = null,
+                                   Func<TimeSpan, CancellationToken, Task>? delay = null)
     {
         _logger = logger;
         _hotkeys = hotkeys;
@@ -197,7 +195,10 @@ public sealed class DictationOrchestrator : IHostedService, IDisposable
         }
     }
 
-    public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
+    }
 
     /// <summary>
     /// Stops observing the hotkey, discards a recording in progress, and <b>waits</b> for a dictation
@@ -536,8 +537,10 @@ public sealed class DictationOrchestrator : IHostedService, IDisposable
     /// built-in default — the guarantee <see cref="ITranscriptionProvider"/> already cites as its
     /// reason for taking the prompt as a parameter.
     /// </summary>
-    private static string ActiveSystemPrompt(AppSettings settings) =>
-        settings.Presets.First(preset => preset.Id == settings.ActivePresetId).SystemPrompt;
+    private static string ActiveSystemPrompt(AppSettings settings)
+    {
+        return settings.Presets.First(preset => preset.Id == settings.ActivePresetId).SystemPrompt;
+    }
 
     private async Task<float[]> StopCaptureAsync()
     {

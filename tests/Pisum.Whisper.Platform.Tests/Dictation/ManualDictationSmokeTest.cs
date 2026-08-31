@@ -12,6 +12,7 @@ using Pisum.Whisper.Core.Settings;
 using Pisum.Whisper.Core.Transcription;
 using Pisum.Whisper.Platform.Output;
 using Shouldly;
+using Pisum.Whisper.Platform.Tests;
 
 /// <summary>
 /// The whole product in one test: a real microphone, a real encode, a real Gemini round trip and a
@@ -32,18 +33,19 @@ using Shouldly;
 /// five seconds after it starts.
 /// </para>
 /// </remarks>
-[TestClass]
 public sealed class ManualDictationSmokeTest
 {
-    [TestMethod]
-    [Ignore("Requires a microphone, a configured API key and a desktop session; run manually")]
+    [Fact(
+        Skip = "Requires a microphone, a configured API key and a desktop session; run manually",
+        SkipUnless = nameof(ManualTests.Enabled),
+        SkipType = typeof(ManualTests))]
     public async Task SpeakingForFiveSecondsPutsTheWordsAtTheCursor()
     {
         using var host = BuildHost();
         var hotkeys = (StubHotkeyService)host.Services.GetRequiredService<IGlobalHotkeyService>();
         var orchestrator = host.Services.GetRequiredService<DictationOrchestrator>();
 
-        await host.StartAsync();
+        await host.StartAsync(TestContext.Current.CancellationToken);
 
         try
         {
@@ -51,14 +53,14 @@ public sealed class ManualDictationSmokeTest
             orchestrator.State.ShouldBe(DictationState.Recording);
 
             // Speak now.
-            await Task.Delay(TimeSpan.FromSeconds(5));
+            await Task.Delay(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
             hotkeys.Release();
 
             var deadline = DateTime.UtcNow.AddMinutes(3);
             while (orchestrator.State != DictationState.Idle && DateTime.UtcNow < deadline)
             {
-                await Task.Delay(100);
+                await Task.Delay(100, TestContext.Current.CancellationToken);
             }
 
             orchestrator.State.ShouldBe(
@@ -67,7 +69,7 @@ public sealed class ManualDictationSmokeTest
         }
         finally
         {
-            await host.StopAsync();
+            await host.StopAsync(TestContext.Current.CancellationToken);
         }
 
         // What actually happened is in the log and at the cursor: check that the words you spoke are

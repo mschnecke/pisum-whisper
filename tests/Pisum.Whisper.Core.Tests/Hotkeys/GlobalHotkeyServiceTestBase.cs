@@ -20,7 +20,7 @@ using SharpHook.Testing;
 /// The binding is written into the settings file explicitly rather than relying on the defaults,
 /// because those differ by platform and these assertions must not.
 /// </remarks>
-public abstract class GlobalHotkeyServiceTestBase
+public abstract class GlobalHotkeyServiceTestBase : IDisposable
 {
     protected const EventMask CtrlShift = EventMask.LeftCtrl | EventMask.LeftShift;
 
@@ -42,8 +42,7 @@ public abstract class GlobalHotkeyServiceTestBase
 
     protected string SettingsPath => Path.Combine(_home, ".pisum-whisper.json");
 
-    [TestInitialize]
-    public void CreateService()
+    protected GlobalHotkeyServiceTestBase()
     {
         _home = Path.Combine(Path.GetTempPath(), "pisum-whisper-tests", Guid.NewGuid().ToString("n"));
         Directory.CreateDirectory(_home);
@@ -67,8 +66,7 @@ public abstract class GlobalHotkeyServiceTestBase
         Service.Released += (_, _) => Record(HotkeyEdge.Released);
     }
 
-    [TestCleanup]
-    public void DisposeService()
+    public void Dispose()
     {
         Service.Dispose();
         _loggerFactory?.Dispose();

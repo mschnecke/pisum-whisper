@@ -39,31 +39,37 @@ internal static class DictationFailure
         "The transcription took too long and was abandoned.";
 
     /// <summary>Describes <paramref name="exception"/> as a title and a message written to be shown as-is.</summary>
-    public static (string Title, string Message) Describe(Exception exception) => exception switch
+    public static (string Title, string Message) Describe(Exception exception)
     {
-        // Capture and encoding. Deliberately not split further: the reference adds a macOS-only
-        // "Microphone Access Required" branch by substring-matching "No input device", which is both
-        // the rejected mechanism and a guess — spike S2 passed on the M4 with the microphone
-        // accessible, so nobody has observed what a refused grant actually looks like.
-        AudioException => (RecordingErrorTitle, exception.Message),
+        return exception switch
+        {
+            // Capture and encoding. Deliberately not split further: the reference adds a macOS-only
+            // "Microphone Access Required" branch by substring-matching "No input device", which is both
+            // the rejected mechanism and a guess — spike S2 passed on the M4 with the microphone
+            // accessible, so nobody has observed what a refused grant actually looks like.
+            AudioException => (RecordingErrorTitle, exception.Message),
 
-        TranscriptionException failure => (TitleFor(failure.Category), failure.Message),
+            TranscriptionException failure => (TitleFor(failure.Category), failure.Message),
 
-        TextOutputException => (OutputErrorTitle, exception.Message),
+            TextOutputException => (OutputErrorTitle, exception.Message),
 
-        // The transcription budget expired. Shutdown produces the same exception and is filtered out
-        // before this is reached, because the user asked for that one.
-        OperationCanceledException => (TranscriptionErrorTitle, BudgetExpiredMessage),
+            // The transcription budget expired. Shutdown produces the same exception and is filtered out
+            // before this is reached, because the user asked for that one.
+            OperationCanceledException => (TranscriptionErrorTitle, BudgetExpiredMessage),
 
-        _ => (UnexpectedErrorTitle, UnexpectedErrorMessage),
-    };
+            _ => (UnexpectedErrorTitle, UnexpectedErrorMessage),
+        };
+    }
 
-    private static string TitleFor(ErrorCategory category) => category switch
+    private static string TitleFor(ErrorCategory category)
     {
-        ErrorCategory.Configuration => "Configuration Error",
-        ErrorCategory.Network => "Network Error",
-        ErrorCategory.Authentication => "Authentication Error",
-        ErrorCategory.RateLimit => "Rate Limit Error",
-        _ => TranscriptionErrorTitle,
-    };
+        return category switch
+        {
+            ErrorCategory.Configuration => "Configuration Error",
+            ErrorCategory.Network => "Network Error",
+            ErrorCategory.Authentication => "Authentication Error",
+            ErrorCategory.RateLimit => "Rate Limit Error",
+            _ => TranscriptionErrorTitle,
+        };
+    }
 }

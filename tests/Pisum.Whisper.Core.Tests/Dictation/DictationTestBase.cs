@@ -12,7 +12,7 @@ using Serilog.Extensions.Logging;
 /// and a delay the test fires by hand. Nothing here needs a microphone, a network, a keyboard or a
 /// clipboard, and no test waits 50 ms, 200 ms or two minutes.
 /// </summary>
-public abstract class DictationTestBase
+public abstract class DictationTestBase : IDisposable
 {
     protected const string Transcript = "the quick brown fox";
 
@@ -65,8 +65,7 @@ public abstract class DictationTestBase
 
     protected IReadOnlyList<Serilog.Events.LogEvent> LogEvents => _sink.Events;
 
-    [TestInitialize]
-    public void CreateOrchestratorFixture()
+    protected DictationTestBase()
     {
         _serilog = new LoggerConfiguration().MinimumLevel.Verbose().WriteTo.Sink(_sink).CreateLogger();
         _loggerFactory = new SerilogLoggerFactory(_serilog);
@@ -81,8 +80,7 @@ public abstract class DictationTestBase
         Settings.Load();
     }
 
-    [TestCleanup]
-    public void DisposeOrchestratorFixture()
+    public void Dispose()
     {
         _orchestrator?.Dispose();
         _loggerFactory?.Dispose();

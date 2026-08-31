@@ -4,10 +4,9 @@ using System.Text;
 using Pisum.Whisper.Core.Audio;
 using Shouldly;
 
-[TestClass]
 public sealed class WavWriterTests
 {
-    [TestMethod]
+    [Fact]
     public void Write_ProducesA16BitMonoPcmRiffHeader()
     {
         float[] samples = [0f, 0.5f, -0.5f, 1f, -1f];
@@ -34,7 +33,7 @@ public sealed class WavWriterTests
         reader.ReadInt32().ShouldBe(samples.Length * 2);
     }
 
-    [TestMethod]
+    [Fact]
     public void Write_ClampsOutOfRangeSamplesRatherThanOverflowing()
     {
         var bytes = new WavWriter().Write([2f, -2f], 8_000);

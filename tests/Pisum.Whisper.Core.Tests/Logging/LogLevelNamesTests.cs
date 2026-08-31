@@ -4,25 +4,24 @@ using Pisum.Whisper.Core.Logging;
 using Serilog.Events;
 using Shouldly;
 
-[TestClass]
 public sealed class LogLevelNamesTests
 {
-    [TestMethod]
-    [DataRow("trace", LogEventLevel.Verbose)]
-    [DataRow("debug", LogEventLevel.Debug)]
-    [DataRow("info", LogEventLevel.Information)]
-    [DataRow("warn", LogEventLevel.Warning)]
-    [DataRow("error", LogEventLevel.Error)]
+    [Theory]
+    [InlineData("trace", LogEventLevel.Verbose)]
+    [InlineData("debug", LogEventLevel.Debug)]
+    [InlineData("info", LogEventLevel.Information)]
+    [InlineData("warn", LogEventLevel.Warning)]
+    [InlineData("error", LogEventLevel.Error)]
     public void TryParse_MapsTheFiveAcceptedNames(string name, LogEventLevel expected)
     {
         LogLevelNames.TryParse(name, out var level).ShouldBeTrue();
         level.ShouldBe(expected);
     }
 
-    [TestMethod]
-    [DataRow("DEBUG", LogEventLevel.Debug)]
-    [DataRow("Warn", LogEventLevel.Warning)]
-    [DataRow("eRRoR", LogEventLevel.Error)]
+    [Theory]
+    [InlineData("DEBUG", LogEventLevel.Debug)]
+    [InlineData("Warn", LogEventLevel.Warning)]
+    [InlineData("eRRoR", LogEventLevel.Error)]
     public void TryParse_IgnoresCase(string name, LogEventLevel expected)
     {
         // The reference matches case-insensitively and the settings file is hand-editable. That is
@@ -31,14 +30,14 @@ public sealed class LogLevelNamesTests
         level.ShouldBe(expected);
     }
 
-    [TestMethod]
-    [DataRow("Verbose")]
-    [DataRow("Information")]
-    [DataRow("Warning")]
-    [DataRow("fatal")]
-    [DataRow("chatty")]
-    [DataRow("")]
-    [DataRow(null)]
+    [Theory]
+    [InlineData("Verbose")]
+    [InlineData("Information")]
+    [InlineData("Warning")]
+    [InlineData("fatal")]
+    [InlineData("chatty")]
+    [InlineData("")]
+    [InlineData(null)]
     public void TryParse_RejectsAnythingElseAndFallsBackToInformation(string? name)
     {
         // Serilog spellings are deliberately not aliases: settings offers a dropdown, so free text

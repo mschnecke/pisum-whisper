@@ -187,10 +187,22 @@ rather than opting back out. The suite was audited for what that breaks, and the
 - **The polling budgets are generous.** `RecordingSink.WaitUntil` allows 10 s; the two explicit
   waits (`GlobalHotkeyServiceTests.cs:84`, `TextOutputRestoreTests.cs:142`) allow 5 s.
 
-That leaves exactly one wall-clock **upper** bound in the suite —
-`DictationLifecycleTests.cs:66`, `elapsed.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(2))` on a
-`StopAsync` that should return in milliseconds. A 2 s ceiling on a near-instant operation survives
-contention; if it ever does not, it is the single line to revisit, not the parallelism decision.
+That leaves the wall-clock **upper** bounds. The first is `DictationLifecycleTests.cs:66`,
+`elapsed.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(2))` on a `StopAsync` that should return in
+milliseconds. A 2 s ceiling on a near-instant operation survives contention; if it ever does not, it
+is the single line to revisit, not the parallelism decision.
+
+**This audit found only that one, and it was wrong.** `FileLoggingRotationTests`.`WritesDoNotStallTheCallingThreadWhenTheFileRolls`
+carries a second and much tighter one — `p999.ShouldBeLessThan(500d)` over 10 000 writes — which the
+sweep above missed because it is a latency percentile rather than a timeout, and nothing about it
+reads as a timing boundary until it fails. It passes alone and fails every parallel run, at 2000–9000 µs
+against its 500 µs bound. The resolution keeps the parallel default and the assertion: that one class
+sits in a `[CollectionDefinition("wall-clock", DisableParallelization = true)]` collection, so it never
+runs beside another. Relaxing the bound was rejected because the synchronous sink the asynchronous
+wrapper replaced costs about 1700 µs, so any ceiling loose enough to survive contention would also
+admit the thing the test exists to rule out. The generalisation for anyone auditing this suite again:
+a latency **percentile** is a wall-clock upper bound too, and `ShouldBeLessThan` over a `Stopwatch` is
+the shape to grep for, not `TimeSpan`.
 
 ### D7 — Fix what `xunit.analyzers` flags; suppress nothing
 
@@ -306,3 +318,59 @@ possible:
    rather than one file at a time.
 5. Documentation (`README.md`, `openspec/config.yaml`, `CLAUDE.md`) last, when the commands in it
    have actually been run.
+
+## Verification results
+
+Run on 2026-08-31 on win-x64 (Windows 11 Pro 10.0.26200), SDK 10.0.400, against the real solution
+plus two throwaway projects in the scratchpad. **No macOS run has happened**, so the two manual tests
+that must be exercised on both platforms (`ManualClipboardRoundTrip`, `ManualDictationSmokeTest`)
+are still open on osx-arm64.
+
+| Task | What was checked | Result |
+|---|---|---|
+| 2.2 | The transitive graph D1 predicts from one `xunit.v3` reference | **PASS** — `xunit.v3.core.mtp-v1` 3.2.2, `xunit.v3.extensibility.core` 3.2.2, `xunit.v3.assert` 3.2.2, `xunit.analyzers` 1.27.0, `Microsoft.Testing.Platform` **1.9.1**, exactly as drawn |
+| 2.3 | Whether the .NET 10 SDK's MTP command drives a 1.9.x app — *the gate this change rested on* | **PASS** — `dotnet test --help` reports the MTP command, and a throwaway single-`[Fact]` project on `xunit.v3` 3.2.2 ran and passed. No fallback needed |
+| 4.1 | The full `xunit.analyzers` diagnostic list, collected in one pass | 2 × xUnit1031, 25 × xUnit1051, and **nothing at `BlockingHookProvider.cs:35`** — the analyser does not reach the test double, so D7's contingent `#pragma` was never needed |
+| 4.4 | `dotnet build Pisum.Whisper.slnx` | **PASS** — 0 warnings, 0 errors, no `NoWarn`, no `#pragma`, no suppression of any kind |
+| 5.1 | The suite is whole | **PASS** — 372 total, 368 passed, 4 skipped; Core 368, Platform 4, split exactly as the 1.1 baseline. ~5.6 s against 12 s sequential |
+| 5.2 | Five consecutive suite runs (D6) | **PASS after a fix** — see below; the audit had missed a bound |
+| 5.3 | Running one manual test by name | **PASS** — the real clipboard round trip ran and passed. See the command below |
+| 5.5 | `Avalonia.Headless.XUnit` 12.1.1 against the pinned `xunit.v3` 3.2.2 — *the claim the pin rests on* | **PASS** — restores with no downgrade warning, resolves `xunit.v3.extensibility.core` 3.2.2, and one `[AvaloniaFact]` constructing a `Button` in a `Window` runs green |
+
+**The pin is now observed rather than reasoned.** `Avalonia.Headless.XUnit` 12.1.1's `net10.0`
+dependency group names `xunit.v3.extensibility.core` **3.2.2** in its nuspec, and a throwaway project
+referencing both resolves cleanly and runs an `[AvaloniaFact]`. What is still *not* observed is the
+negative case: nobody has run `[AvaloniaFact]` against `xunit.v3` **4.0.0** to confirm it actually
+breaks. D1's argument for 4.0.0 being dangerous — a moved assembly version behind a silent resolve —
+is unchanged and untested, and the pin costs nothing either way.
+
+**D6's audit was incomplete, and the suite is not perfectly stable.**
+`FileLoggingRotationTests.WritesDoNotStallTheCallingThreadWhenTheFileRolls` asserts a p99.9 write
+latency under 500 µs; run beside the other 52 classes it measured 2000–9000 µs and failed every run.
+Isolating that class in a `DisableParallelization` collection made task 5.2's five consecutive runs
+pass. It did **not** make the test deterministic: across roughly 22 further runs it still failed about
+three times, once at 664 µs in steady state and twice on runs that also rebuilt. The bound is
+inherently machine-sensitive and this is a known flake going into change 12's CI, not a settled
+matter.
+
+**Running one manual test by name** — this replaces the VSTest `--filter` syntax the archived tasks
+quote, and is verified on Windows:
+
+```bash
+dotnet test tests/Pisum.Whisper.Platform.Tests \
+  --filter-method '*ManualClipboardRoundTrip.ATokenSurvivesAWriteAndAReadBack' \
+  -e PISUM_WHISPER_RUN_MANUAL=1
+```
+
+The environment variable is required because xUnit v3 has **no runner option that can run a skipped
+test** — `-explicit` covers explicit tests only, and the full option list has nothing else. A plain
+`[Fact(Skip = …)]`, which is what D3's mapping produced, leaves the four manual tests unrunnable
+rather than merely unrun. They are therefore gated on `ManualTests.Enabled` through `SkipUnless`, so
+the default run still reports them skipped **with their reason**, and setting the variable runs them.
+That is a departure from D3's pure attribute rename, taken deliberately so task 5.3 could be
+satisfied at all.
+
+**One correction to this document.** D3 and task 3.5 place the four `DisplayName` rows in
+`Transcription/GeminiWireTests.cs`. They are in `Transcription/GeminiProviderTests.cs`;
+`GeminiWireTests.cs` holds no data rows at all. The rows were migrated correctly regardless, and
+`no candidate`, `no part`, `no text` and `nothing at all` are still their displayed names.

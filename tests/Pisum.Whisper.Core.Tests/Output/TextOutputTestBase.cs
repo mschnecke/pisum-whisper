@@ -15,7 +15,7 @@ using SharpHook.Testing;
 /// platform selection and both delays, which is what lets a Windows host assert the macOS keystroke
 /// and what keeps a test that exercises the restore from waiting a second for it.
 /// </summary>
-public abstract class TextOutputTestBase
+public abstract class TextOutputTestBase : IDisposable
 {
     protected const string Transcript = "the quick brown fox";
 
@@ -33,8 +33,7 @@ public abstract class TextOutputTestBase
 
     protected IEventSimulator Simulator { get; private set; } = null!;
 
-    [TestInitialize]
-    public void CreateSimulator()
+    protected TextOutputTestBase()
     {
         _serilog = new LoggerConfiguration().MinimumLevel.Verbose().WriteTo.Sink(_sink).CreateLogger();
         _loggerFactory = new SerilogLoggerFactory(_serilog);
@@ -43,8 +42,7 @@ public abstract class TextOutputTestBase
         Simulator = EventSimulator.Create("Pisum Whisper Tests", Provider);
     }
 
-    [TestCleanup]
-    public void DisposeSimulator()
+    public void Dispose()
     {
         (Simulator as IDisposable)?.Dispose();
         _loggerFactory?.Dispose();

@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Pisum.Whisper.Core.Output;
 using Pisum.Whisper.Platform.Output;
 using Shouldly;
+using Pisum.Whisper.Platform.Tests;
 
 /// <summary>
 /// Task 5.1 — the only thing that exercises the native clipboard against a real one, in the role
@@ -17,11 +18,12 @@ using Shouldly;
 /// Task 3.2's retry is exercised by running it while a second process holds the clipboard, for
 /// example a PowerShell loop calling <c>Set-Clipboard</c>.
 /// </remarks>
-[TestClass]
 public sealed class ManualClipboardRoundTrip
 {
-    [TestMethod]
-    [Ignore("Requires a real desktop clipboard; run manually")]
+    [Fact(
+        Skip = "Requires a real desktop clipboard; run manually",
+        SkipUnless = nameof(ManualTests.Enabled),
+        SkipType = typeof(ManualTests))]
     public void ATokenSurvivesAWriteAndAReadBack()
     {
         using var provider = new ServiceCollection().AddNativeOutput().BuildServiceProvider();

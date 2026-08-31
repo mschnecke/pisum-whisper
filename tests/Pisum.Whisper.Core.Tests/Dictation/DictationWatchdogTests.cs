@@ -7,12 +7,11 @@ using Shouldly;
 /// Tasks 2.8 and 2.10 — the maximum-duration watchdog, and the three points at which the state is
 /// announced.
 /// </summary>
-[TestClass]
 public sealed class DictationWatchdogTests : DictationTestBase
 {
     // ---- Task 2.8: the watchdog ----
 
-    [TestMethod]
+    [Fact]
     public async Task TheWatchdogIsArmedWithTheConfiguredMaximum()
     {
         Configure(settings => settings.MaxRecordingDurationSecs = 42);
@@ -32,7 +31,7 @@ public sealed class DictationWatchdogTests : DictationTestBase
     /// The audio is real and the user was speaking, so reaching the maximum transcribes rather than
     /// discarding — and says why, which change 11 turns into a notification.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public async Task ReachingTheMaximumStopsTheRecordingAndTranscribesIt()
     {
         var orchestrator = Create();
@@ -52,7 +51,7 @@ public sealed class DictationWatchdogTests : DictationTestBase
     /// A recording that ends normally leaves nothing running. The reference spawns a thread that
     /// sleeps the whole maximum on every recording and leaks one per dictation.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public async Task ANormalStopCancelsTheWatchdog()
     {
         var orchestrator = Create();
@@ -73,7 +72,7 @@ public sealed class DictationWatchdogTests : DictationTestBase
             message.Contains("Recording Auto-Stopped", StringComparison.Ordinal));
     }
 
-    [TestMethod]
+    [Fact]
     public async Task ADiscardedBrushAlsoCancelsTheWatchdog()
     {
         var orchestrator = Create(minimumDuration: TimeSpan.FromMilliseconds(50));
@@ -90,7 +89,7 @@ public sealed class DictationWatchdogTests : DictationTestBase
 
     // ---- Task 2.10: what is announced, and when ----
 
-    [TestMethod]
+    [Fact]
     public async Task ASuccessfulDictationAnnouncesRecordingThenTranscribingThenIdle()
     {
         var orchestrator = Create();
@@ -101,7 +100,7 @@ public sealed class DictationWatchdogTests : DictationTestBase
         States.ShouldBe([DictationState.Recording, DictationState.Transcribing, DictationState.Idle]);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task ADiscardedBrushAnnouncesRecordingThenIdleAndNeverTranscribing()
     {
         var orchestrator = Create(minimumDuration: TimeSpan.FromMilliseconds(50));
@@ -116,7 +115,7 @@ public sealed class DictationWatchdogTests : DictationTestBase
     /// Announced from the pipeline's <c>finally</c>, so a dictation that failed returns the signal
     /// exactly as a successful one does — otherwise change 9's icon would stick on "transcribing".
     /// </summary>
-    [TestMethod]
+    [Fact]
     public async Task AFailedDictationStillReturnsToIdle()
     {
         var orchestrator = Create();
@@ -133,7 +132,7 @@ public sealed class DictationWatchdogTests : DictationTestBase
     /// Transcribing is announced when the stop is <em>claimed</em>, not when the capture device has
     /// finished closing, so the user's key press moves the icon immediately.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public async Task TranscribingIsAnnouncedBeforeTheCaptureHasFinishedClosing()
     {
         var orchestrator = Create();

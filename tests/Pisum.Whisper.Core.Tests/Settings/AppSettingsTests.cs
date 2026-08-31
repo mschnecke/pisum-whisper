@@ -8,7 +8,6 @@ using Shouldly;
 /// The settings shape is fixed by this change because five later changes read it. These tests pin
 /// the schema table in <c>specs/settings-persistence/spec.md</c> so a drift is a test failure.
 /// </summary>
-[TestClass]
 public sealed class AppSettingsTests
 {
     private static string Serialize(AppSettings settings)
@@ -16,7 +15,7 @@ public sealed class AppSettingsTests
         return JsonSerializer.Serialize(settings, SettingsJsonContext.OnDisk.AppSettings);
     }
 
-    [TestMethod]
+    [Fact]
     public void Defaults_MatchTheSchemaTable()
     {
         var settings = new AppSettings();
@@ -36,7 +35,7 @@ public sealed class AppSettingsTests
         settings.LoggingConfig.LogRetentionDays.ShouldBe(7);
     }
 
-    [TestMethod]
+    [Fact]
     public void Preset_RoundTripsThroughJson()
     {
         var preset = new Preset
@@ -56,7 +55,7 @@ public sealed class AppSettingsTests
         restored.IsBuiltin.ShouldBe(preset.IsBuiltin);
     }
 
-    [TestMethod]
+    [Fact]
     public void ProviderConfig_RoundTripsThroughJson()
     {
         var provider = new ProviderConfig
@@ -76,7 +75,7 @@ public sealed class AppSettingsTests
         restored.Enabled.ShouldBe(provider.Enabled);
     }
 
-    [TestMethod]
+    [Fact]
     public void ProviderConfig_DefaultsToEnabledWithNoModel()
     {
         var json = """{"id":"gemini","apiKey":"secret"}""";
@@ -87,7 +86,7 @@ public sealed class AppSettingsTests
         provider.Enabled.ShouldBeTrue();
     }
 
-    [TestMethod]
+    [Fact]
     public void SerializedPropertyNames_AreCamelCase()
     {
         var json = Serialize(new AppSettings());
@@ -101,7 +100,7 @@ public sealed class AppSettingsTests
         json.ShouldContain("\"isBuiltin\"");
     }
 
-    [TestMethod]
+    [Fact]
     public void NonAsciiText_IsWrittenAsItselfRatherThanEscaped()
     {
         // The file is advertised as hand-editable and users write German prompts and preset names
@@ -117,7 +116,7 @@ public sealed class AppSettingsTests
         json.ShouldNotContain("u00fc");
     }
 
-    [TestMethod]
+    [Fact]
     public void BuiltinPresets_AreBothPresentAndMarkedBuiltin()
     {
         var presets = BuiltinPresets.Create();
@@ -128,7 +127,7 @@ public sealed class AppSettingsTests
         presets.Select(p => p.Name).ShouldBe(["Transcribe DE", "Transcribe EN"]);
     }
 
-    [TestMethod]
+    [Fact]
     public void BuiltinPresets_AreNotSharedBetweenCallers()
     {
         // Presets are mutable and get merged into the user's list, so a shared instance would let
@@ -136,7 +135,7 @@ public sealed class AppSettingsTests
         BuiltinPresets.Create()[0].ShouldNotBeSameAs(BuiltinPresets.Create()[0]);
     }
 
-    [TestMethod]
+    [Fact]
     public void Enums_SerializeToTheDocumentedStrings()
     {
         Serialize(new AppSettings {AudioFormat = AudioFormat.Opus}).ShouldContain("\"audioFormat\": \"opus\"");
@@ -147,7 +146,7 @@ public sealed class AppSettingsTests
             .ShouldContain("\"recordingMode\": \"toggle\"");
     }
 
-    [TestMethod]
+    [Fact]
     public void DroppedReferenceFields_AreAbsent()
     {
         // The first two went with local inference; the third went with the decision that Gemini is

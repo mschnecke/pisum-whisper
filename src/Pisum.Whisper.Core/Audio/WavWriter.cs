@@ -8,14 +8,16 @@ namespace Pisum.Whisper.Core.Audio;
 public sealed class WavWriter
 {
     private const short BitsPerSample = 16;
+
     private const short Channels = 1;
+
     private const short BytesPerSample = BitsPerSample / 8;
 
     public byte[] Write(float[] samples, int sampleRate)
     {
         var dataSize = samples.Length * BytesPerSample;
         var byteRate = sampleRate * Channels * BytesPerSample;
-        var blockAlign = (short)(Channels * BytesPerSample);
+        var blockAlign = (short) (Channels * BytesPerSample);
 
         using var stream = new MemoryStream();
         using var writer = new BinaryWriter(stream);
@@ -26,7 +28,7 @@ public sealed class WavWriter
 
         writer.Write("fmt "u8);
         writer.Write(16); // fmt chunk size for PCM
-        writer.Write((short)1); // PCM
+        writer.Write((short) 1); // PCM
         writer.Write(Channels);
         writer.Write(sampleRate);
         writer.Write(byteRate);
@@ -38,7 +40,7 @@ public sealed class WavWriter
         foreach (var sample in samples)
         {
             var clamped = Math.Clamp(sample, -1f, 1f);
-            writer.Write((short)(clamped * short.MaxValue));
+            writer.Write((short) (clamped * short.MaxValue));
         }
 
         writer.Flush();

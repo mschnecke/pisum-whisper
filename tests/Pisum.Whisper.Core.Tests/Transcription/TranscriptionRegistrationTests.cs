@@ -10,25 +10,22 @@ using Shouldly;
 /// <summary>
 /// Task 7.1 — the registration itself, exercised rather than reconstructed.
 /// </summary>
-[TestClass]
-public sealed class TranscriptionRegistrationTests
+public sealed class TranscriptionRegistrationTests : IDisposable
 {
     private string _home = string.Empty;
 
-    [TestInitialize]
-    public void CreateTemporaryHome()
+    public TranscriptionRegistrationTests()
     {
         _home = Path.Combine(Path.GetTempPath(), "pisum-whisper-tests", Guid.NewGuid().ToString("n"));
         Directory.CreateDirectory(_home);
     }
 
-    [TestCleanup]
-    public void RemoveTemporaryHome()
+    public void Dispose()
     {
         Directory.Delete(_home, true);
     }
 
-    [TestMethod]
+    [Fact]
     public void TheRegistrationSatisfiesContainerValidation()
     {
         // The application builds its container with ValidateOnBuild, so an unsatisfiable dependency
@@ -36,7 +33,7 @@ public sealed class TranscriptionRegistrationTests
         Should.NotThrow(() => BuildHost(validate: true).Dispose());
     }
 
-    [TestMethod]
+    [Fact]
     public void TheProviderResolvesAsThePool()
     {
         using var host = BuildHost();
@@ -44,7 +41,7 @@ public sealed class TranscriptionRegistrationTests
         host.Services.GetRequiredService<ITranscriptionProvider>().ShouldBeOfType<GeminiProviderPool>();
     }
 
-    [TestMethod]
+    [Fact]
     public void TheKeyProbeResolves()
     {
         using var host = BuildHost();
@@ -52,7 +49,7 @@ public sealed class TranscriptionRegistrationTests
         host.Services.GetRequiredService<IGeminiKeyProbe>().ShouldBeOfType<GeminiKeyProbe>();
     }
 
-    [TestMethod]
+    [Fact]
     public void TheNamedClientCarriesTheBaseAddressAndTimeout()
     {
         using var host = BuildHost();

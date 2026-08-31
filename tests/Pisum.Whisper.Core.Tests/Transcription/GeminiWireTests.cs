@@ -8,10 +8,9 @@ using Shouldly;
 /// Tasks 3.1-3.3 — the wire shape, serialised through the source-generated context rather than
 /// reflection, so a property name that drifts fails here rather than at the API.
 /// </summary>
-[TestClass]
 public sealed class GeminiWireTests
 {
-    [TestMethod]
+    [Fact]
     public void ARequestWithoutASystemInstruction_OmitsTheProperty()
     {
         var request = new GeminiRequest
@@ -27,7 +26,7 @@ public sealed class GeminiWireTests
         json.ShouldNotContain("inlineData");
     }
 
-    [TestMethod]
+    [Fact]
     public void APopulatedRequest_EmitsEveryPropertyGeminiExpects()
     {
         var request = new GeminiRequest
@@ -65,7 +64,7 @@ public sealed class GeminiWireTests
         json.ShouldNotContain("null");
     }
 
-    [TestMethod]
+    [Fact]
     public void AResponse_YieldsTheCandidateText()
     {
         const string payload = """
@@ -84,7 +83,7 @@ public sealed class GeminiWireTests
         response.Candidates!.Single().Content!.Parts!.Single().Text.ShouldBe("hello world");
     }
 
-    [TestMethod]
+    [Fact]
     public void AnErrorResponse_YieldsTheMessage()
     {
         const string payload = """
@@ -98,7 +97,7 @@ public sealed class GeminiWireTests
         response.Error!.Message.ShouldBe("API key not valid");
     }
 
-    [TestMethod]
+    [Fact]
     public void AModelsResponse_YieldsNamesAndSupportedMethods()
     {
         const string payload = """

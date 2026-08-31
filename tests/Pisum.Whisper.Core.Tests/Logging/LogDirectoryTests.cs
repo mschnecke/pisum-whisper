@@ -3,25 +3,22 @@ namespace Pisum.Whisper.Core.Tests.Logging;
 using Pisum.Whisper.Core.Logging;
 using Shouldly;
 
-[TestClass]
-public sealed class LogDirectoryTests
+public sealed class LogDirectoryTests : IDisposable
 {
     private string _home = string.Empty;
 
-    [TestInitialize]
-    public void CreateTemporaryHome()
+    public LogDirectoryTests()
     {
         _home = Path.Combine(Path.GetTempPath(), "pisum-whisper-tests", Guid.NewGuid().ToString("n"));
         Directory.CreateDirectory(_home);
     }
 
-    [TestCleanup]
-    public void RemoveTemporaryHome()
+    public void Dispose()
     {
         Directory.Delete(_home, true);
     }
 
-    [TestMethod]
+    [Fact]
     public void DefaultPath_IsTheLogsFolderUnderTheApplicationDirectory()
     {
         var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -30,7 +27,7 @@ public sealed class LogDirectoryTests
         new LogDirectory().Path.ShouldBe(LogDirectory.DefaultPath());
     }
 
-    [TestMethod]
+    [Fact]
     public void Path_IsResolvedWhetherOrNotTheDirectoryExists()
     {
         var directory = new LogDirectory(Path.Combine(_home, "logs"));
@@ -40,7 +37,7 @@ public sealed class LogDirectoryTests
         directory.LogFilePath.ShouldBe(Path.Combine(directory.Path, "pisum-whisper.log"));
     }
 
-    [TestMethod]
+    [Fact]
     public void TryCreate_CreatesTheDirectoryAndReportsNoFailure()
     {
         var directory = new LogDirectory(Path.Combine(_home, "logs"));
@@ -50,7 +47,7 @@ public sealed class LogDirectoryTests
         Directory.Exists(directory.Path).ShouldBeTrue();
     }
 
-    [TestMethod]
+    [Fact]
     public void TryCreate_OverAnExistingDirectory_Succeeds()
     {
         var directory = new LogDirectory(Path.Combine(_home, "logs"));
@@ -59,7 +56,7 @@ public sealed class LogDirectoryTests
         directory.TryCreate().ShouldBeNull();
     }
 
-    [TestMethod]
+    [Fact]
     public void TryCreate_WhenTheDirectoryCannotBeCreated_ReturnsTheReasonRatherThanThrowing()
     {
         var path = Path.Combine(_home, "logs");

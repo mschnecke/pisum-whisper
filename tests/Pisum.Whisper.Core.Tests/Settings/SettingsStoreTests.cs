@@ -7,23 +7,20 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Pisum.Whisper.Core.Settings;
 using Shouldly;
 
-[TestClass]
-public sealed class SettingsStoreTests
+public sealed class SettingsStoreTests : IDisposable
 {
     private string _directory = string.Empty;
 
     private string _path = string.Empty;
 
-    [TestInitialize]
-    public void CreateTemporaryHome()
+    public SettingsStoreTests()
     {
         _directory = Path.Combine(Path.GetTempPath(), "pisum-whisper-tests", Guid.NewGuid().ToString("n"));
         Directory.CreateDirectory(_directory);
         _path = Path.Combine(_directory, ".pisum-whisper.json");
     }
 
-    [TestCleanup]
-    public void RemoveTemporaryHome()
+    public void Dispose()
     {
         Directory.Delete(_directory, true);
     }
@@ -38,7 +35,7 @@ public sealed class SettingsStoreTests
         File.WriteAllText(_path, json);
     }
 
-    [TestMethod]
+    [Fact]
     public void DefaultFilePath_IsTheDotFileInTheHomeDirectory()
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -46,7 +43,7 @@ public sealed class SettingsStoreTests
         SettingsStore.DefaultFilePath().ShouldBe(Path.Combine(home, ".pisum-whisper.json"));
     }
 
-    [TestMethod]
+    [Fact]
     public void Load_ReadsAHandWrittenFile()
     {
         WriteFile(
@@ -79,7 +76,7 @@ public sealed class SettingsStoreTests
         settings.LoggingConfig.LogRetentionDays.ShouldBe(2);
     }
 
-    [TestMethod]
+    [Fact]
     public void Load_WithNoFile_WritesDefaultsAndReportsAFirstLaunch()
     {
         var store = NewStore();
@@ -98,7 +95,7 @@ public sealed class SettingsStoreTests
         second.IsFirstLaunch.ShouldBeFalse();
     }
 
-    [TestMethod]
+    [Fact]
     public void Load_WithAPartialFile_DefaultsEveryOtherProperty()
     {
         WriteFile("""{"startWithSystem": false}""");
@@ -121,7 +118,7 @@ public sealed class SettingsStoreTests
         settings.LoggingConfig.LogRetentionDays.ShouldBe(defaults.LoggingConfig.LogRetentionDays);
     }
 
-    [TestMethod]
+    [Fact]
     public void Load_AddsMissingBuiltinPresets()
     {
         WriteFile("""{"presets": [], "activePresetId": "de-transcribe"}""");
@@ -132,7 +129,7 @@ public sealed class SettingsStoreTests
         settings.Presets.ShouldAllBe(p => p.IsBuiltin);
     }
 
-    [TestMethod]
+    [Fact]
     public void Load_KeepsAnEditedBuiltinPreset()
     {
         WriteFile(
@@ -152,7 +149,7 @@ public sealed class SettingsStoreTests
         settings.Presets.ShouldContain(p => p.Id == "en-transcribe");
     }
 
-    [TestMethod]
+    [Fact]
     public void Load_WithADanglingActivePresetId_RepairsRewritesAndWarns()
     {
         WriteFile("""{"activePresetId": "gone"}""");
@@ -173,7 +170,7 @@ public sealed class SettingsStoreTests
             .MustHaveHappenedOnceExactly();
     }
 
-    [TestMethod]
+    [Fact]
     public void Save_UpdatesTheCacheAndNotifiesSubscribers()
     {
         var store = NewStore();
@@ -190,7 +187,7 @@ public sealed class SettingsStoreTests
         NewStore().Load().StartWithSystem.ShouldBeFalse();
     }
 
-    [TestMethod]
+    [Fact]
     public void Load_WithInvalidJson_ThrowsNamingThePathAndLeavesTheFileUntouched()
     {
         WriteFile("""{"startWithSystem": tru""");
@@ -203,7 +200,7 @@ public sealed class SettingsStoreTests
         File.ReadAllBytes(_path).ShouldBe(before);
     }
 
-    [TestMethod]
+    [Fact]
     public void Load_WithAPresetMissingItsName_ThrowsRatherThanMaterialisingNulls()
     {
         WriteFile("""{"presets":[{"id":"x"}]}""");
@@ -211,7 +208,7 @@ public sealed class SettingsStoreTests
         Should.Throw<SettingsException>(() => NewStore().Load()).Message.ShouldContain(_path);
     }
 
-    [TestMethod]
+    [Fact]
     public void Load_WithAProviderMissingItsApiKey_Throws()
     {
         WriteFile("""{"providers":[{"id":"gemini"}]}""");
@@ -219,7 +216,7 @@ public sealed class SettingsStoreTests
         Should.Throw<SettingsException>(() => NewStore().Load()).Message.ShouldContain(_path);
     }
 
-    [TestMethod]
+    [Fact]
     public void Save_ReplacesTheFileRatherThanAppendingToIt()
     {
         var store = NewStore();
@@ -240,7 +237,7 @@ public sealed class SettingsStoreTests
         NewStore().Load().Presets.Select(p => p.Id).ShouldBe(["de-transcribe", "en-transcribe"]);
     }
 
-    [TestMethod]
+    [Fact]
     public void Save_WritesThroughATemporaryFileAndLeavesNothingBehind()
     {
         var store = NewStore();

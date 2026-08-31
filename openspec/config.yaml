@@ -39,7 +39,9 @@ context: |
   - Concentus 2.2.2 for Opus encoding, with a hand-rolled Ogg muxer
   - Serilog + Serilog.Sinks.File for rolling file logs with a runtime-switchable level
   - System.Text.Json with a source-generated context for settings
-  - MSTest + FakeItEasy + Shouldly for tests
+  - xUnit v3 (3.2.2, pinned to what Avalonia.Headless.XUnit is built against) + FakeItEasy
+    + Shouldly for tests; dotnet test runs on Microsoft.Testing.Platform, opted into in
+    global.json, so VSTest --filter syntax does not work
 
   Solution layout:
   - src/Pisum.Whisper.Core      — all logic, no UI (Configuration, Audio, Ai, Hotkeys,

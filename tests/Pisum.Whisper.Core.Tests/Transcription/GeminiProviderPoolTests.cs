@@ -12,29 +12,26 @@ using Shouldly;
 /// Tasks 5.1-5.4 — selection, fallback and aggregation. Every test here substitutes the per-entry
 /// construction, so no HTTP handler is involved.
 /// </summary>
-[TestClass]
-public sealed class GeminiProviderPoolTests
+public sealed class GeminiProviderPoolTests : IDisposable
 {
     private static readonly EncodedAudio Audio = new([1, 2, 3], EncodedAudio.OpusMimeType, AudioFormat.Opus);
 
     private string _home = string.Empty;
 
-    [TestInitialize]
-    public void CreateTemporaryHome()
+    public GeminiProviderPoolTests()
     {
         _home = Path.Combine(Path.GetTempPath(), "pisum-whisper-tests", Guid.NewGuid().ToString("n"));
         Directory.CreateDirectory(_home);
     }
 
-    [TestCleanup]
-    public void RemoveTemporaryHome()
+    public void Dispose()
     {
         Directory.Delete(_home, true);
     }
 
     // ---- Task 5.1: nothing to transcribe with ----
 
-    [TestMethod]
+    [Fact]
     public async Task WithNoProviders_RaisesConfiguration()
     {
         var pool = Pool(Store());
@@ -46,7 +43,7 @@ public sealed class GeminiProviderPoolTests
         failure.Message.ShouldBe(GeminiProviderPool.NoProvidersMessage);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task WithOnlyDisabledProviders_RaisesConfiguration()
     {
         var pool = Pool(Store(Entry("a", enabled: false), Entry("b", enabled: false)));
@@ -57,7 +54,7 @@ public sealed class GeminiProviderPoolTests
         failure.Category.ShouldBe(ErrorCategory.Configuration);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task ADisabledEntry_IsNeverSelected()
     {
         var tried = new List<string>();
@@ -71,7 +68,7 @@ public sealed class GeminiProviderPoolTests
 
     // ---- Task 5.2: round-robin selection ----
 
-    [TestMethod]
+    [Fact]
     public async Task ConsecutiveTranscriptions_StartFromDifferentEntries()
     {
         var tried = new List<string>();
@@ -84,7 +81,7 @@ public sealed class GeminiProviderPoolTests
         tried.ShouldBe(["a", "b", "c"]);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task AWrappingCursor_DoesNotProduceANegativeIndex()
     {
         var tried = new List<string>();
@@ -101,7 +98,7 @@ public sealed class GeminiProviderPoolTests
 
     // ---- Task 5.3: fallback and aggregation ----
 
-    [TestMethod]
+    [Fact]
     public async Task WhenTheFirstEntryFails_TheNextOneAnswers()
     {
         var tried = new List<string>();
@@ -118,7 +115,7 @@ public sealed class GeminiProviderPoolTests
         tried.ShouldBe(["a", "b"]);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task WhenEveryEntryFails_TheFailuresAreAggregated()
     {
         var pool = Pool(
@@ -134,7 +131,7 @@ public sealed class GeminiProviderPoolTests
         failure.Message.ShouldContain("b: b is broken");
     }
 
-    [TestMethod]
+    [Fact]
     public async Task WhenTheOnlyEntryIsRejected_TheCategorySurvives()
     {
         // The reference flattens this into "All providers failed: …", whose first substring test in
@@ -151,7 +148,7 @@ public sealed class GeminiProviderPoolTests
         failure.Category.ShouldBe(ErrorCategory.Authentication);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task WhenEveryEntryIsRateLimited_TheCategorySurvives()
     {
         var pool = Pool(
@@ -165,7 +162,7 @@ public sealed class GeminiProviderPoolTests
         failure.Category.ShouldBe(ErrorCategory.RateLimit);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task WhenEntriesFailDifferently_TheAggregateIsGeneric()
     {
         var pool = Pool(
@@ -181,7 +178,7 @@ public sealed class GeminiProviderPoolTests
         failure.Category.ShouldBe(ErrorCategory.Transcription);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task Cancellation_StopsTheWalkWithoutTryingTheRest()
     {
         var tried = new List<string>();
@@ -204,7 +201,7 @@ public sealed class GeminiProviderPoolTests
 
     // ---- Settings are read per call, never rebuilt ----
 
-    [TestMethod]
+    [Fact]
     public async Task AnEntryAddedAfterConstruction_IsUsedWithoutARebuild()
     {
         var store = Store(Entry("a"));
