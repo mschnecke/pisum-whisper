@@ -109,15 +109,17 @@ so cannot precede one. `HookProviderProbeTests` does that, and then waits for it
 loses this 2 times in 3000 and `HookEnabled` none; on an idle machine neither loses, which is why
 this arrived only once tests ran in parallel.
 
-**Every test class carries a category attribute — `[UnitTest]`, `[IntegrationTest]` or
-`[ManualTest]` — and the value is decided by what the test touches, not by where it lives.** They are
-in `TestCategories.cs` in each test project, and they implement `Xunit.v3.ITraitAttribute` rather than
-deriving from `TraitAttribute`, which is sealed; the runner sees an ordinary `Category` trait, so the
-filters below are the normal ones. `IntegrationTest` means running it creates a real file or directory
+**Every test class carries a category trait — `[Trait(Traits.Category, Traits.Categories.Unit)]`
+and its `Integration` and `Manual` siblings — and the value is decided by what the test touches, not
+by where it lives.** The names are string constants in `Traits.cs` in each test project, applied
+through xUnit's own `[Trait]`; there is no custom attribute, because `TraitAttribute` is sealed and
+the `Xunit.v3.ITraitAttribute` implementation it would take is more machinery than a pair of
+constants. The runner sees an ordinary `Category` trait either way, so the filters below are the
+normal ones. `Integration` means running it creates a real file or directory
 under the temp path, or builds a real DI container or generic `Host` — following the base-class chain,
 which is why every class deriving `DictationTestBase`, `FileLoggingTestBase` or
 `GlobalHotkeyServiceTestBase` is one: those bases create a temp home in their constructor.
-`UnitTest` means neither; in-memory objects and fakes only, including the Gemini tests, which drive a
+`Unit` means neither; in-memory objects and fakes only, including the Gemini tests, which drive a
 real `HttpClient` over a fake handler and never reach the network. The split is 23 / 26 / 4 classes and
 189 / 179 / 4 tests — they sum to 372, so exactly one category applies to every test.
 
@@ -128,9 +130,9 @@ dotnet test Pisum.Whisper.slnx --filter-not-trait Category=Manual    # 368, what
 
 Keep the rule mechanical when adding a class: if its constructor or its base's reaches
 `Path.GetTempPath`, `Directory.CreateDirectory`, `File.WriteAll*`, `new ServiceCollection` or
-`Host.CreateApplicationBuilder`, it is `[IntegrationTest]`. `TextOutputTestBase` is the one base that
+`Host.CreateApplicationBuilder`, it is `Integration`. `TextOutputTestBase` is the one base that
 is not — it builds a fake clipboard, a fake probe and a `TestProvider`, all in memory — so its four
-derived classes are `[UnitTest]`.
+derived classes are `Unit`.
 
 **`[TestCleanup]` is `Dispose()` now.** MSTest and xUnit agree on a fresh instance per test method, so
 a lifecycle pair is a constructor and `IDisposable` — there are fourteen, and four of them are on
