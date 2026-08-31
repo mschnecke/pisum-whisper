@@ -204,10 +204,11 @@ is exactly what gets a low-level hook removed.
 `openspec/config.yaml` sets `schema: spec-driven`. Change proposals live in `openspec/changes/`,
 completed ones move to `openspec/changes/archive/`, and capability specs land in `openspec/specs/`.
 `openspec/ROADMAP.md` sequences the work as **12 ordered changes**, each tracked by a GitHub issue
-labelled `change:NN`. Changes 1, 2, 3, 4 and 6 are archived and their `application-host`,
-`settings-persistence`, `file-logging`, `audio-capture`, `audio-encoding` and `global-hotkey` specs
-are synced, so read them from `openspec/specs/` like any other; the macOS verification change 1 left
-unfinished was tracked by issue #15 rather than by an open change, and closed on 2026-08-28. Drive
+labelled `change:NN`. Changes 1 through 7 are archived and their `application-host`,
+`settings-persistence`, `file-logging`, `audio-capture`, `audio-encoding`, `global-hotkey`,
+`gemini-transcription` and `text-output` specs are synced, so read them from `openspec/specs/` like
+any other; the macOS verification change 1 left unfinished was tracked by issue #15 rather than by
+an open change, and closed on 2026-08-28. Drive
 the workflow with the `/opsx:*` commands (`explore`, `propose`, `apply`, `sync`, `archive`); the
 backing skills are in `.claude/skills/openspec-*`. Project context and per-artifact rules can be
 filled in at the bottom of `openspec/config.yaml` (all commented out today).
