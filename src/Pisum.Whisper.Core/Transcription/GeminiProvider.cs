@@ -214,10 +214,8 @@ internal sealed class GeminiProvider : ITranscriptionProvider
 
             try
             {
-                using var message = new HttpRequestMessage(HttpMethod.Post, relativeUri)
-                {
-                    Content = new StringContent(payload, Encoding.UTF8, "application/json"),
-                };
+                using var message = new HttpRequestMessage(HttpMethod.Post, relativeUri);
+                message.Content = new StringContent(payload, Encoding.UTF8, "application/json");
 
                 // Never logged: the request headers carry the key, which is why nothing here writes
                 // the message or its headers to the log.
