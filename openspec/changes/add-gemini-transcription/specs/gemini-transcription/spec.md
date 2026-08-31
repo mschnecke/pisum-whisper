@@ -108,6 +108,24 @@ on failure SHALL try every remaining enabled entry before reporting failure.
 - **WHEN** provider entries are added, removed or disabled and a transcription is then requested
 - **THEN** the request uses the entries as they currently stand, with no separate rebuild step
 
+### Requirement: An aggregated failure keeps an unambiguous category
+When every enabled provider has failed, the system SHALL report the category they share if they all
+failed the same way, and SHALL fall back to `Transcription` only when they failed in different ways.
+One configured provider is the ordinary case, and reporting its failure as a generic one would
+discard exactly the information categorising at the throw site exists to carry.
+
+#### Scenario: The only configured provider is rejected
+- **WHEN** one enabled provider is configured and its key is rejected
+- **THEN** the aggregated failure is categorised `Authentication`, not `Transcription`
+
+#### Scenario: Every provider is rate limited
+- **WHEN** every enabled provider fails with `RateLimit`
+- **THEN** the aggregated failure is categorised `RateLimit`
+
+#### Scenario: Providers fail in different ways
+- **WHEN** one enabled provider fails with `Authentication` and another with `Network`
+- **THEN** the aggregated failure is categorised `Transcription`
+
 ### Requirement: Recordings too large to send inline are rejected before upload
 The system SHALL reject encoded audio whose size exceeds Gemini's inline-request ceiling, with a
 message naming the size and the format, rather than sending a request that cannot succeed.

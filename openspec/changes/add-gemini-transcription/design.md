@@ -167,6 +167,27 @@ transcription happens to start from.
 `Interlocked.Increment` over an `int` wraps to `int.MinValue` after ~2.1 billion dictations; the cast
 to `uint` before the modulo is what keeps the index non-negative rather than throwing.
 
+**An aggregated failure keeps the category its parts shared.** The reference flattens every pool
+failure into one `AppError::Transcription("All providers failed: …")` (`ai/pool.rs:91-94`) and lets
+`categorize_error` recover the cause from the message text. It does not recover: the very first
+substring test is `lower.contains("provider")`, and the aggregate message begins *"All providers
+failed"*, so **every** cloud transcription failure in the reference is titled "Configuration Error" —
+a rejected key, an exhausted quota and a dropped connection alike. The four tests below it are
+unreachable through this path.
+
+That makes flattening the category here not a simplification but the reproduction of a defect, and
+the case that matters most is the ordinary one: a single configured key, mistyped, should say so.
+The pool therefore reports the category its failures shared, and falls back to `Transcription` only
+when they genuinely differ:
+
+```csharp
+var category = categories.Distinct().Count() == 1 ? categories[0] : ErrorCategory.Transcription;
+```
+
+`Distinct()` over a five-value enum on a list bounded by the number of configured keys costs nothing
+worth measuring, and the fallback is deliberate rather than clever: when two keys fail for two
+different reasons there is no single true answer, and a generic title beats an arbitrary one.
+
 **`ListModelsAsync` and `TestConnectionAsync` live on `IGeminiKeyProbe`, not on
 `ITranscriptionProvider`.** Both are change 10's, and change 10 calls them against *an API key the
 user has just typed into a textbox* — not a configured, enabled provider entry. The reference already
