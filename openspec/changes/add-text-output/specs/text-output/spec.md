@@ -164,14 +164,17 @@ in place.
 - **THEN** no restore is attempted
 
 ### Requirement: The transcript is kept out of the operating system's clipboard history
-The application SHALL mark what it writes to the clipboard so that the operating system's clipboard
-history and cloud clipboard synchronisation do not retain it, and so that clipboard managers that
-honour the platform's concealed-content convention do not record it. A transcript is the user's
-speech, which this product does not retain anywhere else.
+The application SHALL mark what it writes to the clipboard with every exclusion its platform
+provides, so that clipboard history, cloud clipboard synchronisation and clipboard managers that
+honour the platform's concealed-content convention do not retain it. A transcript is the user's
+speech, which this product does not retain anywhere else. The reach of the marking is the platform's
+to decide: Windows excludes both its own history and the cloud clipboard, while macOS offers no way
+to opt a pasteboard entry out of Universal Clipboard, so there the marking reaches clipboard managers
+only and a transcript still syncs to the user's other Apple devices when Handoff is on.
 
 #### Scenario: A transcript is written to the clipboard
 - **WHEN** a transcript is placed on the clipboard
-- **THEN** it is marked as excluded from clipboard history and from cloud clipboard synchronisation
+- **THEN** it carries every exclusion mark its platform provides
 
 #### Scenario: The previous contents are restored
 - **WHEN** the previous clipboard text is restored after a paste

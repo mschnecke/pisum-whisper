@@ -29,9 +29,18 @@ public interface ISystemClipboard
     string? TryGetText();
 
     /// <summary>
-    /// Replaces the clipboard's contents with <paramref name="text"/>, marked so that the operating
-    /// system's clipboard history and cloud synchronisation do not retain it.
+    /// Replaces the clipboard's contents with <paramref name="text"/>, carrying every mark its
+    /// platform offers for keeping the entry out of clipboard history, cloud synchronisation and
+    /// clipboard managers.
     /// </summary>
+    /// <remarks>
+    /// Best effort, and how far it reaches is the platform's to decide rather than this contract's.
+    /// Windows has documented formats covering both Win+V and the cloud clipboard tied to the user's
+    /// Microsoft account. macOS exposes no way to opt a pasteboard entry out of Universal Clipboard,
+    /// so there the mark is the <c>org.nspasteboard.ConcealedType</c> convention and reaches
+    /// clipboard managers only — a transcript still syncs to the user's other Apple devices when
+    /// Handoff is on.
+    /// </remarks>
     /// <exception cref="Exception">The text could not be placed on the clipboard.</exception>
     void SetText(string text);
 }

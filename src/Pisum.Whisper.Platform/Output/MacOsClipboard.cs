@@ -29,7 +29,10 @@ public sealed partial class MacOsClipboard : ISystemClipboard
     /// <summary>
     /// The convention clipboard managers honour to keep an entry out of their history. Not an Apple
     /// API — a community convention (nspasteboard.org) — which is why it is verified by hand rather
-    /// than assumed to work.
+    /// than assumed to work. It is also the whole of what this platform allows: nothing public opts
+    /// a pasteboard entry out of Universal Clipboard, so with Handoff on the transcript still
+    /// reaches the user's other Apple devices. Windows' side of <see cref="ISystemClipboard"/> can
+    /// exclude its cloud clipboard; this one cannot, and the interface says so.
     /// </summary>
     private const string ConcealedType = "org.nspasteboard.ConcealedType";
 
