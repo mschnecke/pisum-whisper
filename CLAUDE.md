@@ -7,9 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 Pisum.Whisper.slnx
 ├── src/Pisum.Whisper.Core        domain + orchestration; no platform or UI dependencies
-├── src/Pisum.Whisper.Platform    the OS-specific surface (autostart, notifications, shell)
+├── src/Pisum.Whisper.Platform    the OS-specific surface (the clipboard and paste probes today)
 ├── src/Pisum.Whisper.App         Avalonia tray shell and the composition root
-└── tests/Pisum.Whisper.Core.Tests
+├── tests/Pisum.Whisper.Core.Tests
+└── tests/Pisum.Whisper.Platform.Tests   native registration, and the manual clipboard round trip
 
 spikes/Pisum.Whisper.Spikes       throwaway; NOT in the solution — see "Spikes" below
 ```
@@ -194,10 +195,13 @@ paste survives this process exiting, where Avalonia's OLE path would not.
 `ValidateOnBuild` on, omitting the native half is a startup failure naming `ISystemClipboard` rather
 than a null reference at the first paste.
 
-Two things not to undo: the paste keystroke is paced 30 ms per edge **on macOS only** (edges posted
+Three things not to undo: the paste keystroke is paced 30 ms per edge **on macOS only** (edges posted
 back to back outrun the OS folding earlier keys into the modifier flags, and Cmd+V arrives as a bare
-"v"), and `TextOutput` must never be called from a hook handler — it sleeps for over a second, which
-is exactly what gets a low-level hook removed.
+"v"); `TextOutput` must never be called from a hook handler — it sleeps for over a second, which is
+exactly what gets a low-level hook removed; and `MacOsClipboard` wraps both of its operations in an
+`objc_autoreleasePoolPush`/`Pop` pair, because every object it touches arrives autoreleased and this
+runs on a thread-pool thread rather than inside an AppKit callback, where the run loop would drain a
+pool for it.
 
 ## Spec-driven workflow (OpenSpec)
 

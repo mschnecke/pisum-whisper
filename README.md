@@ -10,15 +10,17 @@ local Whisper inference is out of scope.
 ## Status
 
 Under construction, and **not yet usable**. Work is sequenced as twelve ordered changes in
-[`openspec/ROADMAP.md`](openspec/ROADMAP.md); changes 1, 2, 3, 4 and 6 of 12 have landed, which means
-the solution builds and starts as a tray-only process with a Quit menu, reads its settings from
+[`openspec/ROADMAP.md`](openspec/ROADMAP.md); changes 1 through 7 of 12 have landed, which means the
+solution builds and starts as a tray-only process with a Quit menu, reads its settings from
 `~/.pisum-whisper.json`, creating that file on first run and repairing it when it has gone stale,
 writes a rolling log to `~/.pisum-whisper/logs/`, can capture microphone audio and encode it to Opus
-or WAV, and observes the configured global hotkey — both edges of it, withheld from whatever
-application has focus, and re-bindable without a restart.
+or WAV, can transcribe that audio with Gemini — retried, with a round-robin key pool and categorised
+failures — observes the configured global hotkey, both edges of it, withheld from whatever
+application has focus and re-bindable without a restart, and can deliver a transcript at the cursor
+through the clipboard and a synthetic paste.
 
-Nothing yet connects the hotkey to the audio pipeline: there is no recording, no transcription and
-no settings UI yet.
+What is missing is the wiring between those parts. The hotkey does not yet start a recording and no
+recording yet reaches Gemini; that is change 8. There is no settings UI, which is change 10.
 
 macOS is **partly verified**. Change 1's spikes were re-run on an Apple M4 (macOS 26.6.2) under
 [issue #15](https://github.com/mschnecke/pisum-whisper/issues/15), now closed: the global hook, its
@@ -33,7 +35,7 @@ itself has still never been run end to end on macOS. See the *Platform verificat
 - **.NET SDK `10.0.400`** — pinned in `global.json`, so a different patch level will refuse to build.
   Get it from <https://dotnet.microsoft.com/download/dotnet/10.0>.
 - A working microphone.
-- A **Google Gemini API key**, once transcription lands ([aistudio.google.com](https://aistudio.google.com/app/apikey)).
+- A **Google Gemini API key** ([aistudio.google.com](https://aistudio.google.com/app/apikey)).
 
 No other tooling is required. All packages come from nuget.org; the repository ships a `NuGet.config`
 that pins that source, so a machine configured for private feeds still restores correctly.
@@ -103,9 +105,10 @@ app says so, which is expected behaviour rather than a defect.
 | Path | |
 |---|---|
 | `src/Pisum.Whisper.Core` | domain and orchestration; no platform or UI dependencies |
-| `src/Pisum.Whisper.Platform` | the OS-specific surface |
+| `src/Pisum.Whisper.Platform` | the OS-specific surface; the clipboard and paste probes today |
 | `src/Pisum.Whisper.App` | Avalonia tray shell and composition root |
 | `tests/Pisum.Whisper.Core.Tests` | MSTest, FakeItEasy, Shouldly |
+| `tests/Pisum.Whisper.Platform.Tests` | native registration, and the manual clipboard round trip |
 | `spikes/` | throwaway de-risking spikes, outside the solution |
 | `openspec/` | the spec-driven change workflow that drives this repository |
 
