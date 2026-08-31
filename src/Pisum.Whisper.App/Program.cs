@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Pisum.Whisper.Core.Audio;
+using Pisum.Whisper.Core.Dictation;
 using Pisum.Whisper.Core.Hotkeys;
 using Pisum.Whisper.Core.Logging;
 using Pisum.Whisper.Core.Output;
@@ -72,6 +73,12 @@ internal static class Program
         // native half a named startup failure rather than a null reference at the first paste.
         builder.Services.AddTextOutput();
         builder.Services.AddNativeOutput();
+
+        // Last, because it consumes all four of the capabilities above. Registered as a hosted
+        // service so the host constructs it — nothing else resolves it yet — and so that its
+        // StopAsync runs on the way out: a dictation caught mid-delivery has to finish putting the
+        // user's clipboard back before the process exits.
+        builder.Services.AddDictationPipeline();
 
         try
         {

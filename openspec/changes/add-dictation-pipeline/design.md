@@ -341,8 +341,11 @@ re-deriving the mapping.
 Three of the eight sites are not exceptions and do not go through `Describe`: the in-progress guard
 and the auto-stop notice are status with no branching, and get plain log statements. The third is
 `TextOutputOutcome.ClipboardOnly`, which is a returned value — and *from the code* `TextOutput`
-**already logs it**, on both degraded paths. This change must not log it again; it records the
-outcome for its own state purposes and stays quiet.
+**already logs the diagnosis**, on both degraded paths ("the paste keystroke could not be sent",
+"the focused application cannot be reached"). This change does not repeat that. What it does record,
+once, is the user-facing message, because the `dictation-pipeline` spec requires the user to be told
+the text can be pasted manually and in this change the log is the only place to tell them — the same
+treatment the other two status sites get.
 
 The consequence, stated rather than discovered later: **change 11 modifies `dictation-pipeline`.** It
 needs the outcome and the failure surfaced to notify on them, and no seam left here would change

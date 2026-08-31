@@ -244,6 +244,63 @@ exactly what gets a low-level hook removed; and `MacOsClipboard` wraps both of i
 runs on a thread-pool thread rather than inside an AppKit callback, where the run loop would drain a
 pool for it.
 
+## The dictation pipeline
+
+`Core/Dictation/` is the recording state machine — the component that turns the hotkey's two edges
+into a recording and a recording into text at the cursor. `AddDictationPipeline` registers
+`DictationOrchestrator` once, as both the singleton and a hosted service; it is a concrete class with
+no interface, following `SettingsStore` rather than `IGlobalHotkeyService`, because every dependency
+it has is already a seam.
+
+**Nothing but a state transition may run in a hotkey handler.** `GlobalHotkeyService` raises its
+events *synchronously* from its channel read loop, so a handler that awaits the pipeline blocks that
+loop — and in hold-to-record the very next thing in the channel is the release that ends the
+recording. The handlers claim a transition under one lock and return; everything with a duration runs
+on a pooled task. This is separate from, and additional to, the rule about the hook thread itself.
+
+**The state is three values, not a boolean.** `Idle`, `Recording`, `Transcribing`. The reference
+publishes one flag and clears it only after the paste, so its icon claims to be recording throughout
+the upload. Publishing three is the *smaller* change here, not the larger one: the orchestrator must
+already tell recording from transcribing because a hotkey press means different things in each, so a
+boolean would mean adding a step that discards what is known. Announcements are made by the pipeline
+task itself, as its first act — announcing from the claiming thread lets a fast dictation's `Idle`
+overtake its own `Transcribing` and leaves a subscriber stuck.
+
+**A transcription is bounded by a 120 s budget, and the per-request timeout is not that bound.** The
+60 s on the Gemini client is per request; three attempts across N keys multiply it to 183 s per key,
+so six minutes with two configured — throughout which the hotkey does nothing and says nothing. The
+budget is a linked token wrapping `TranscribeAsync` **only**. `DeliverAsync` gets the shutdown token
+alone, because it spends more than a second waiting before its restore by design and an expired
+transcription clock must not cut that short. It is a constant, deliberately not a setting.
+
+**`StopAsync` cancels *and awaits*.** Awaiting is a correctness requirement, not tidiness: between
+`TextOutput` writing the transcript and restoring the previous clipboard, those previous contents
+exist nowhere but inside that call, and on Windows `SetClipboardData` hands ownership to the system,
+so the transcript outlives the process. Cancelling without awaiting lets the process exit inside that
+window and destroys the user's clipboard permanently.
+
+**Two rules that look redundant and are not.** The 50 ms minimum and the empty-capture check are a
+diagnosis, not a duplicate: under 50 ms is a brush and is discarded in silence, while over 50 ms with
+no samples is a dead microphone and is reported. Merging them into one sample-count measurement would
+silently swallow every dictation from a muted input device. And the 200 ms toggle debounce is
+**kept for a different reason than the reference gives** — its stated purpose is auto-repeat, which
+`HotkeyMatcher` already absorbs without raising an edge; what it still covers is a fumbled double-tap
+between 50 ms and 200 ms, which would otherwise be uploaded and fail. Do not delete it as dead code.
+
+**Failures are described, never matched.** `DictationFailure.Describe` maps an exception to a title
+and a message by type for `AudioException`, `TextOutputException` and `OperationCanceledException`,
+and by `ErrorCategory` for `TranscriptionException`. There is no substring matching on message text,
+and the reference's macOS "Microphone Access Required" branch is deliberately absent — it needs
+exactly that, and spike S2 passed with the microphone accessible, so nobody has observed what a
+refused grant looks like. Change 11 adds the notification transport and the
+forced-versus-suppressible policy and calls the same function; it **modifies** this capability rather
+than filling in markers left for it.
+
+**The pipeline task catches everything.** An exception escaping it becomes an unobserved task
+exception, which does not crash the process — it vanishes, leaves the state at `Transcribing` for
+ever, and the hotkey answers "Transcription In Progress" until the application is restarted. The
+`finally` is there for the state reset first and the message second.
+
 ## Spec-driven workflow (OpenSpec)
 
 `openspec/config.yaml` sets `schema: spec-driven`. Change proposals live in `openspec/changes/`,
