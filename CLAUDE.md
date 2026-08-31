@@ -174,6 +174,47 @@ are unions of both sides (`Ctrl` is `LeftCtrl | RightCtrl`), so `HasFlag` demand
 and the mask also carries the lock keys and the mouse buttons. `ModifierGroups.FromEventMask` folds
 those away, and matching compares the folded groups for equality.
 
+## Transcription
+
+`Core/Transcription/` sends the encoded audio to Gemini and returns the text. `AddGeminiTranscription`
+registers **`GeminiProviderPool` as the `ITranscriptionProvider`**, and `GeminiProvider` — one key and
+one model — is `internal` behind it, so change 8's pipeline depends on a single contract and never
+learns how many keys are configured.
+
+**The API key travels in the `x-goog-api-key` header and must not move to the query string.** The
+reference uses `?key=`; `IHttpClientFactory` logs every request URI at `Information` and the default
+`logLevel` is `info`, so the query form would write the user's key into the log file that change 10
+puts one click away. For the same reason nothing in `SendWithRetryAsync` logs the request message or
+its headers, and `GeminiKeyProbe` scrubs the key out of any message it re-throws.
+
+**The pool is never rebuilt.** It reads the enabled entries from `SettingsStore.Current` on each call
+and snapshots them once, so a save mid-transcription cannot change the set between fallback attempts.
+That is a deliberate divergence: the reference copies settings into a global pool in `apply_settings`
+because it has no authoritative in-memory store, and this codebase has one. No rebuild step, no change
+subscription and no lock — the only durable state is the round-robin cursor.
+
+**`IsRetryable` checks the status before it looks at the body**, which is the one place this capability
+corrects the reference rather than reproducing it. The body is matched for "overloaded", "too many
+requests" and "rate limit" — and on a 200 the body *is* the transcript, so without the success check a
+user dictating "we hit the rate limit yesterday" would have their speech retried three times and then
+fail. `FailureFor` is the mirror of that rule: it embeds up to 200 characters of the body in its
+message, which is safe **only** because it is called for unsuccessful responses, where the body is
+Google's error JSON and never a transcript.
+
+Failures carry an `ErrorCategory` — `Configuration`, `Network`, `Authentication`, `RateLimit`,
+`Transcription` — fixed where the failure is raised rather than re-derived from message text by the
+caller. When every provider fails the pool aggregates them and **a category they all share survives**:
+a single misconfigured key must still reach the user as an authentication failure instead of being
+flattened into a generic one. Mixed categories do flatten, to `Transcription`.
+
+Three constants that are provider knowledge rather than pipeline knowledge: the **14 MiB inline
+ceiling** is checked in `GeminiProvider`, so an oversized recording fails once instead of once per
+configured key; the **60 s timeout** on the named client is per request, not per transcription, because
+a budget spanning retries and providers belongs to change 8 through the token it already passes; and
+retries are **three attempts and two waits**, 1 s then 2 s, injected as a delegate so the tests do not
+spend three real seconds. `GeminiKeyProbe` deliberately retries neither of its calls — both are started
+by a user looking at a window they can click again, unlike a dictation already spoken.
+
 ## Text output
 
 `Core/Output/` owns the whole delivery — read the clipboard's previous text, write the transcript,
