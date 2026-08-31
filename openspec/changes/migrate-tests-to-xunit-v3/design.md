@@ -204,6 +204,21 @@ admit the thing the test exists to rule out. The generalisation for anyone audit
 a latency **percentile** is a wall-clock upper bound too, and `ShouldBeLessThan` over a `Stopwatch` is
 the shape to grep for, not `TimeSpan`.
 
+**And the audit's whole frame was too narrow.** A third failure, found by running the `Category=Unit`
+filter 25 times, was not a timing bound at all: `HookProviderProbeTests.PostedEvent_KeepsItsMaskAndIsNotFlaggedAsSimulated`
+spins until `hook.IsRunning`, posts an event, then immediately calls `hook.Stop()` — with nothing
+waiting for the event to be *dispatched*. A started hook has not necessarily dispatched a posted
+event, so the handler can be skipped entirely; `PostEvent` still answers `Success`, and the failure
+appears six lines later as `observed should not be null`. Sequentially the race was never lost, which
+is why it arrived with this change rather than existing as a known flake. Its sibling
+`SuppressedEvent_IsRecordedByTheProvider` has the identical shape and did not fail in 25 runs. Both
+now wait on a `ManualResetEventSlim` set by the handler, matching `GlobalHotkeyServiceTests.cs:83`,
+which already does exactly this.
+
+So D6 swept for static state, process-global mutation, shared hooks and wall-clock bounds, and a test
+that simply synchronises on the wrong event passes every one of those checks. The frame to use next
+time is not "what state is shared" but "what does this test assume has already happened".
+
 ### D7 — Fix what `xunit.analyzers` flags; suppress nothing
 
 `xunit.analyzers` 1.27.0 arrives with the framework and its diagnostics are warnings, which

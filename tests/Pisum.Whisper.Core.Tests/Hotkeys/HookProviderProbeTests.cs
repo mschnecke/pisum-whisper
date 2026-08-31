@@ -20,8 +20,13 @@ public sealed class HookProviderProbeTests
         var provider = new TestProvider();
         using var hook = new SimpleGlobalHook(provider);
 
+        using var dispatched = new ManualResetEventSlim();
         KeyboardHookEventArgs? observed = null;
-        hook.KeyPressed += (_, e) => observed = e;
+        hook.KeyPressed += (_, e) =>
+        {
+            observed = e;
+            dispatched.Set();
+        };
 
         var running = hook.RunAsync(GlobalHookType.Keyboard, true);
         while (!hook.IsRunning)
@@ -38,6 +43,13 @@ public sealed class HookProviderProbeTests
 
         provider.PostEvent(ref posted).ShouldBe(UioHookResult.Success);
 
+        // Waiting on the handler, not on IsRunning. A started hook has not necessarily dispatched a
+        // posted event yet, and stopping before it does drops the event silently — PostEvent still
+        // answers Success, so the failure surfaces four lines down as a null. Sequentially that
+        // race was never lost; under xUnit's parallel classes it was, about once in 25 runs.
+        dispatched.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken)
+            .ShouldBeTrue("the posted event should have reached the hook");
+
         hook.Stop();
         await running;
 
@@ -53,7 +65,12 @@ public sealed class HookProviderProbeTests
         var provider = new TestProvider();
         using var hook = new SimpleGlobalHook(provider);
 
-        hook.KeyPressed += (_, e) => e.SuppressEvent = true;
+        using var dispatched = new ManualResetEventSlim();
+        hook.KeyPressed += (_, e) =>
+        {
+            e.SuppressEvent = true;
+            dispatched.Set();
+        };
 
         var running = hook.RunAsync(GlobalHookType.Keyboard, true);
         while (!hook.IsRunning)
@@ -68,6 +85,10 @@ public sealed class HookProviderProbeTests
         };
 
         provider.PostEvent(ref posted);
+
+        // Same race as above: without this the handler that sets SuppressEvent may never run.
+        dispatched.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken)
+            .ShouldBeTrue("the posted event should have reached the hook");
 
         hook.Stop();
         await running;

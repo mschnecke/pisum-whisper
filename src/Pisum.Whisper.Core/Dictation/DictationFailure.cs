@@ -54,7 +54,7 @@ internal static class DictationFailure
             TextOutputException => (OutputErrorTitle, exception.Message),
 
             // The transcription budget expired. Shutdown produces the same exception and is filtered out
-            // before this is reached, because the user asked for that one.
+            // before this is reached because the user asked for that one.
             OperationCanceledException => (TranscriptionErrorTitle, BudgetExpiredMessage),
 
             _ => (UnexpectedErrorTitle, UnexpectedErrorMessage),

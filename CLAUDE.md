@@ -99,7 +99,12 @@ statics, no environment mutation, and every fixture builds its own
 isolate that class. The one that does is `FileLoggingRotationTests`, which asserts a p99.9 write
 latency under 500 µs and therefore measures the machine as much as the code — it sits in a
 `DisableParallelization` collection and is **still occasionally over the bound**. A lone failure
-there is a busy machine, not a regression in the logging path; two in a row is worth looking at.
+there is a busy machine, not a regression in the logging path; two in a row is worth looking at. The
+other thing parallelism exposed is subtler and worth copying: a test that posts an event to a
+`SimpleGlobalHook` must wait for its **handler** to run, not for `hook.IsRunning`, because a started
+hook has not necessarily dispatched anything yet and `Stop()` drops what is still in flight.
+`HookProviderProbeTests` and `GlobalHotkeyServiceTests.cs:83` both wait on a `ManualResetEventSlim`
+for this reason.
 
 **Every test class carries a category attribute — `[UnitTest]`, `[IntegrationTest]` or
 `[ManualTest]` — and the value is decided by what the test touches, not by where it lives.** They are

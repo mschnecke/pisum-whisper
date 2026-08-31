@@ -19,7 +19,7 @@ internal static class GeminiHttpClient
 
     /// <summary>
     /// Per request, not per transcription. The reference sets no timeout at all (reqwest's default),
-    /// so a hung upload hangs the dictation for ever. A budget spanning retries and providers is the
+    /// so a hung upload hangs the dictation forever. A budget spanning retries and providers is the
     /// dictation pipeline's to impose, through the cancellation token it already passes.
     /// </summary>
     public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(60);
