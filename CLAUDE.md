@@ -7,9 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 Pisum.Whisper.slnx
 ├── src/Pisum.Whisper.Core        domain + orchestration; no platform or UI dependencies
-├── src/Pisum.Whisper.Platform    the OS-specific surface (autostart, notifications, shell)
+├── src/Pisum.Whisper.Platform    the OS-specific surface (the clipboard and paste probes today)
 ├── src/Pisum.Whisper.App         Avalonia tray shell and the composition root
-└── tests/Pisum.Whisper.Core.Tests
+├── tests/Pisum.Whisper.Core.Tests
+└── tests/Pisum.Whisper.Platform.Tests   native registration, and the manual clipboard round trip
 
 spikes/Pisum.Whisper.Spikes       throwaway; NOT in the solution — see "Spikes" below
 ```
@@ -125,11 +126,15 @@ swept by age; the console sink is `#if DEBUG` only.
 `Microsoft.Extensions.Logging` does not gate Serilog, and a minimum level put back would be a second
 gate in front of the switch that silently breaks the runtime level change.
 
-Four rules every later change is written against:
+Five rules every later change is written against:
 
 - **Never log transcript text or API key values.** Transcripts are the user's speech and the settings
   file holds API keys. Log lengths, categories and outcomes instead — the character count, not the
   characters.
+- **Never log clipboard contents.** `Core/Output/` reads what the user had copied before it writes a
+  transcript over it, and a password manager's clipboard is the obvious thing to find there — so
+  those contents are not logged at any level, not even by length. What `TextOutput` may write down
+  is the transcript's character count, the paste result, and which guard stood a restore down.
 - **Never log a keystroke that is not the configured hotkey.** `Core/Hotkeys/` observes every key on
   the machine in order to match one combination, so a `Trace` statement dumping `e.Data.KeyCode` —
   the obvious thing to write while debugging it — turns the log file into a keylog, one that change
@@ -169,15 +174,86 @@ are unions of both sides (`Ctrl` is `LeftCtrl | RightCtrl`), so `HasFlag` demand
 and the mask also carries the lock keys and the mouse buttons. `ModifierGroups.FromEventMask` folds
 those away, and matching compares the folded groups for equality.
 
+## Transcription
+
+`Core/Transcription/` sends the encoded audio to Gemini and returns the text. `AddGeminiTranscription`
+registers **`GeminiProviderPool` as the `ITranscriptionProvider`**, and `GeminiProvider` — one key and
+one model — is `internal` behind it, so change 8's pipeline depends on a single contract and never
+learns how many keys are configured.
+
+**The API key travels in the `x-goog-api-key` header and must not move to the query string.** The
+reference uses `?key=`; `IHttpClientFactory` logs every request URI at `Information` and the default
+`logLevel` is `info`, so the query form would write the user's key into the log file that change 10
+puts one click away. For the same reason nothing in `SendWithRetryAsync` logs the request message or
+its headers, and `GeminiKeyProbe` scrubs the key out of any message it re-throws.
+
+**The pool is never rebuilt.** It reads the enabled entries from `SettingsStore.Current` on each call
+and snapshots them once, so a save mid-transcription cannot change the set between fallback attempts.
+That is a deliberate divergence: the reference copies settings into a global pool in `apply_settings`
+because it has no authoritative in-memory store, and this codebase has one. No rebuild step, no change
+subscription and no lock — the only durable state is the round-robin cursor.
+
+**`IsRetryable` checks the status before it looks at the body**, which is the one place this capability
+corrects the reference rather than reproducing it. The body is matched for "overloaded", "too many
+requests" and "rate limit" — and on a 200 the body *is* the transcript, so without the success check a
+user dictating "we hit the rate limit yesterday" would have their speech retried three times and then
+fail. `FailureFor` is the mirror of that rule: it embeds up to 200 characters of the body in its
+message, which is safe **only** because it is called for unsuccessful responses, where the body is
+Google's error JSON and never a transcript.
+
+Failures carry an `ErrorCategory` — `Configuration`, `Network`, `Authentication`, `RateLimit`,
+`Transcription` — fixed where the failure is raised rather than re-derived from message text by the
+caller. When every provider fails the pool aggregates them and **a category they all share survives**:
+a single misconfigured key must still reach the user as an authentication failure instead of being
+flattened into a generic one. Mixed categories do flatten, to `Transcription`.
+
+Three constants that are provider knowledge rather than pipeline knowledge: the **14 MiB inline
+ceiling** is checked in `GeminiProvider`, so an oversized recording fails once instead of once per
+configured key; the **60 s timeout** on the named client is per request, not per transcription, because
+a budget spanning retries and providers belongs to change 8 through the token it already passes; and
+retries are **three attempts and two waits**, 1 s then 2 s, injected as a delegate so the tests do not
+spend three real seconds. `GeminiKeyProbe` deliberately retries neither of its calls — both are started
+by a user looking at a window they can click again, unlike a dictation already spoken.
+
+## Text output
+
+`Core/Output/` owns the whole delivery — read the clipboard's previous text, write the transcript,
+paste, restore — behind one `ITextOutput.DeliverAsync`. The steps are invariants about each other
+("never restore after a failed paste", "only restore what is still ours"), not a sequence a caller
+may order, so they do not split into thinner services for change 8 to sequence.
+
+**The clipboard is native code in `Pisum.Whisper.Platform`, and that is deliberate.** Avalonia cannot
+supply one to this process: in 12.1 `Avalonia.Application` has no `Clipboard` property, `TopLevel.Clipboard`
+is the only public route to an `IClipboard`, the concrete `Avalonia.Input.Platform.Clipboard` is not
+exported — and this is a tray-only process that creates no `TopLevel` at all. So `ISystemClipboard`
+and `IPasteProbe` are declared in `Core` and implemented over Win32 and `NSPasteboard` in
+`Platform/Output/`, which is the first and so far only code in that project. Do not replace it with
+an Avalonia clipboard; there isn't one to reach. Win32 is also the better owner regardless:
+`SetClipboardData` hands the data to the system, so a transcript left on the clipboard for a manual
+paste survives this process exiting, where Avalonia's OLE path would not.
+
+`AddTextOutput` (Core) and `AddNativeOutput` (Platform) are registered separately on purpose — with
+`ValidateOnBuild` on, omitting the native half is a startup failure naming `ISystemClipboard` rather
+than a null reference at the first paste.
+
+Three things not to undo: the paste keystroke is paced 30 ms per edge **on macOS only** (edges posted
+back to back outrun the OS folding earlier keys into the modifier flags, and Cmd+V arrives as a bare
+"v"); `TextOutput` must never be called from a hook handler — it sleeps for over a second, which is
+exactly what gets a low-level hook removed; and `MacOsClipboard` wraps both of its operations in an
+`objc_autoreleasePoolPush`/`Pop` pair, because every object it touches arrives autoreleased and this
+runs on a thread-pool thread rather than inside an AppKit callback, where the run loop would drain a
+pool for it.
+
 ## Spec-driven workflow (OpenSpec)
 
 `openspec/config.yaml` sets `schema: spec-driven`. Change proposals live in `openspec/changes/`,
 completed ones move to `openspec/changes/archive/`, and capability specs land in `openspec/specs/`.
 `openspec/ROADMAP.md` sequences the work as **12 ordered changes**, each tracked by a GitHub issue
-labelled `change:NN`. Changes 1, 2, 3, 4 and 6 are archived and their `application-host`,
-`settings-persistence`, `file-logging`, `audio-capture`, `audio-encoding` and `global-hotkey` specs
-are synced, so read them from `openspec/specs/` like any other; the macOS verification change 1 left
-unfinished was tracked by issue #15 rather than by an open change, and closed on 2026-08-28. Drive
+labelled `change:NN`. Changes 1 through 7 are archived and their `application-host`,
+`settings-persistence`, `file-logging`, `audio-capture`, `audio-encoding`, `global-hotkey`,
+`gemini-transcription` and `text-output` specs are synced, so read them from `openspec/specs/` like
+any other; the macOS verification change 1 left unfinished was tracked by issue #15 rather than by
+an open change, and closed on 2026-08-28. Drive
 the workflow with the `/opsx:*` commands (`explore`, `propose`, `apply`, `sync`, `archive`); the
 backing skills are in `.claude/skills/openspec-*`. Project context and per-artifact rules can be
 filled in at the bottom of `openspec/config.yaml` (all commented out today).

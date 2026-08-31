@@ -1,5 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <PropertyGroup>
+    <!-- Required by LibraryImport: its generated marshalling stubs are unsafe, whatever the
+         signatures being imported look like. This project is the whole of the P/Invoke surface. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Pisum.Whisper.Core\Pisum.Whisper.Core.csproj" />
   </ItemGroup>

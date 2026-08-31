@@ -6,8 +6,10 @@ using Microsoft.Extensions.Logging;
 using Pisum.Whisper.Core.Audio;
 using Pisum.Whisper.Core.Hotkeys;
 using Pisum.Whisper.Core.Logging;
+using Pisum.Whisper.Core.Output;
 using Pisum.Whisper.Core.Settings;
 using Pisum.Whisper.Core.Transcription;
+using Pisum.Whisper.Platform.Output;
 
 namespace Pisum.Whisper.App;
 
@@ -64,6 +66,12 @@ internal static class Program
         // One hook for the whole process; it starts with the host, before Avalonia's run loop, and
         // needs no UI of its own.
         builder.Services.AddGlobalHotkey();
+
+        // Two halves on purpose: the sequence and its rules are in Core, the clipboard and the paste
+        // probe are native and live in Platform. Registering them separately is what makes a missing
+        // native half a named startup failure rather than a null reference at the first paste.
+        builder.Services.AddTextOutput();
+        builder.Services.AddNativeOutput();
 
         try
         {
