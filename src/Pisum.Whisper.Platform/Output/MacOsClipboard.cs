@@ -60,31 +60,58 @@ public sealed partial class MacOsClipboard : ISystemClipboard
 
     public string? TryGetText()
     {
-        var pasteboard = SendMessage(PasteboardClass, GeneralPasteboardSelector);
-        var value = SendMessage(pasteboard, StringForTypeSelector, PasteboardTypeString());
+        // Every object below arrives autoreleased — the pasteboard's return values as much as the
+        // strings this class makes — and nothing drains a pool for us: this runs on a thread-pool
+        // thread rather than inside an AppKit callback, where the run loop would drain one per
+        // iteration. Without this the process leaks a little of the user's speech per dictation.
+        var pool = AutoreleasePoolPush();
 
-        if (value == IntPtr.Zero)
+        try
         {
-            return null;
+            var pasteboard = SendMessage(PasteboardClass, GeneralPasteboardSelector);
+            var value = SendMessage(pasteboard, StringForTypeSelector, PasteboardTypeString());
+
+            if (value == IntPtr.Zero)
+            {
+                return null;
+            }
+
+            var utf8 = SendMessage(value, Utf8StringSelector);
+
+            // Copied into a managed string before the pop: the buffer belongs to the autoreleased
+            // NSString above and does not outlive it.
+            return utf8 == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(utf8);
         }
-
-        var utf8 = SendMessage(value, Utf8StringSelector);
-
-        return utf8 == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(utf8);
+        finally
+        {
+            AutoreleasePoolPop(pool);
+        }
     }
 
     public void SetText(string text)
     {
-        var pasteboard = SendMessage(PasteboardClass, GeneralPasteboardSelector);
-        SendMessageReturningLong(pasteboard, ClearContentsSelector);
+        var pool = AutoreleasePoolPush();
 
-        // The concealed type first: a manager watching the pasteboard reads it after the write that
-        // carries the text, so the mark has to already be there.
-        SendMessageSettingString(pasteboard, SetStringForTypeSelector, NewString(string.Empty), NewString(ConcealedType));
-
-        if (!SendMessageSettingString(pasteboard, SetStringForTypeSelector, NewString(text), PasteboardTypeString()))
+        try
         {
-            throw new InvalidOperationException("NSPasteboard refused the text.");
+            var pasteboard = SendMessage(PasteboardClass, GeneralPasteboardSelector);
+            SendMessageReturningLong(pasteboard, ClearContentsSelector);
+
+            // The concealed type first: a manager watching the pasteboard reads it after the write
+            // that carries the text, so the mark has to already be there.
+            SendMessageSettingString(
+                pasteboard, SetStringForTypeSelector, NewString(string.Empty), NewString(ConcealedType));
+
+            if (!SendMessageSettingString(pasteboard, SetStringForTypeSelector, NewString(text), PasteboardTypeString()))
+            {
+                throw new InvalidOperationException("NSPasteboard refused the text.");
+            }
+        }
+        finally
+        {
+            // Safe as soon as the writes above return: the pasteboard holds its own copy of what it
+            // was handed, so these strings are ours to let go of.
+            AutoreleasePoolPop(pool);
         }
     }
 
@@ -121,6 +148,17 @@ public sealed partial class MacOsClipboard : ISystemClipboard
 
     [LibraryImport(ObjectiveCRuntime, EntryPoint = "sel_registerName", StringMarshalling = StringMarshalling.Utf8)]
     private static partial IntPtr RegisterSelector(string name);
+
+    /// <summary>
+    /// The two halves of <c>@autoreleasepool</c>, which is all that keyword compiles to. Popping
+    /// must happen on the pushing thread and in reverse order, which the <c>try</c>/<c>finally</c>
+    /// pairs above guarantee — both callers are synchronous and never await inside the scope.
+    /// </summary>
+    [LibraryImport(ObjectiveCRuntime, EntryPoint = "objc_autoreleasePoolPush")]
+    private static partial IntPtr AutoreleasePoolPush();
+
+    [LibraryImport(ObjectiveCRuntime, EntryPoint = "objc_autoreleasePoolPop")]
+    private static partial void AutoreleasePoolPop(IntPtr pool);
 
     [LibraryImport(ObjectiveCRuntime, EntryPoint = "objc_msgSend")]
     private static partial IntPtr SendMessage(IntPtr receiver, IntPtr selector);
