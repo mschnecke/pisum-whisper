@@ -273,7 +273,10 @@ budget is a linked token wrapping `TranscribeAsync` **only**. `DeliverAsync` get
 alone, because it spends more than a second waiting before its restore by design and an expired
 transcription clock must not cut that short. It is a constant, deliberately not a setting.
 
-**`StopAsync` cancels *and awaits*.** Awaiting is a correctness requirement, not tidiness: between
+**`StopAsync` claims, cancels *and awaits*.** It is the fourth way a recording can end, alongside the
+release edge, a toggle press and the watchdog, so it takes the same atomic claim they do — removing
+the handlers does not retract an event invocation already in flight, and `MiniAudioCapture.StopAsync`
+is not reentrant. Awaiting is a correctness requirement, not tidiness: between
 `TextOutput` writing the transcript and restoring the previous clipboard, those previous contents
 exist nowhere but inside that call, and on Windows `SetClipboardData` hands ownership to the system,
 so the transcript outlives the process. Cancelling without awaiting lets the process exit inside that

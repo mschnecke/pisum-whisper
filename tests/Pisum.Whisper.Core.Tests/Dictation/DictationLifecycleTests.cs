@@ -94,6 +94,59 @@ public sealed class DictationLifecycleTests : DictationTestBase
         Output.Calls.ShouldBe(1);
     }
 
+    /// <summary>
+    /// Shutdown is the fourth way a recording can end, and it must take the same atomic claim the
+    /// other three do. Without it, an edge the dispatch thread had already begun delivering — or a
+    /// watchdog whose delay had already returned — still finds <c>Recording</c>, wins its own claim,
+    /// and stops the same capture a second time; <c>MiniAudioCapture.StopAsync</c> is not reentrant.
+    /// The observable form of the claim is that the state has left <c>Recording</c> before the
+    /// device starts closing, which is what makes every other claimant a no-op.
+    /// </summary>
+    [TestMethod]
+    public async Task ShuttingDownWhileRecordingClaimsTheRecordingBeforeClosingTheDevice()
+    {
+        var orchestrator = Create();
+        Capture.BlockStop();
+
+        Hotkeys.Press();
+        Clock.Advance(TimeSpan.FromSeconds(2));
+
+        var stopping = orchestrator.StopAsync(CancellationToken.None);
+
+        (await WaitForAsync(() => orchestrator.State != DictationState.Recording)).ShouldBeTrue(
+            "shutdown must claim the recording before it begins closing the device");
+
+        Capture.ReleaseStop();
+        await stopping;
+
+        Capture.Stops.ShouldBe(1);
+        Provider.Calls.ShouldBe(0);
+    }
+
+    /// <summary>
+    /// The other half of the claim: shutdown awaits the pipeline it read in the same lock, so a
+    /// dictation that was already past the microphone is still waited for rather than abandoned.
+    /// </summary>
+    [TestMethod]
+    public async Task ShuttingDownAwaitsThePipelineItObservedUnderTheLock()
+    {
+        var orchestrator = Create();
+        Output.Block();
+
+        Dictate(TimeSpan.FromSeconds(2));
+        await Output.Entered;
+
+        var stopping = orchestrator.StopAsync(CancellationToken.None);
+        await Task.Delay(50);
+        stopping.IsCompleted.ShouldBeFalse();
+
+        Output.Release();
+        await stopping;
+
+        Output.Calls.ShouldBe(1);
+        orchestrator.State.ShouldBe(DictationState.Idle);
+    }
+
     [TestMethod]
     public async Task ShuttingDownWhenIdleDoesNothing()
     {

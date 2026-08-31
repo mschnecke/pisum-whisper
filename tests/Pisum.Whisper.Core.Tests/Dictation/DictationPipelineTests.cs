@@ -258,6 +258,45 @@ public sealed class DictationPipelineTests : DictationTestBase
         WaitForLog(DictationFailureTitles.UnexpectedError).ShouldBeTrue();
     }
 
+    /// <summary>
+    /// A state subscriber runs arbitrary code, and the announcement is the pipeline task's first
+    /// act. Before this was guarded, a throwing subscriber meant <c>RunAsync</c> never ran at all:
+    /// the capture was never closed, the private capturing flag stayed set, and the state sat at
+    /// Transcribing for ever with the hotkey answering "Transcription In Progress" until restart.
+    /// </summary>
+    [TestMethod]
+    public async Task AThrowingStateSubscriberDoesNotWedgeTheDictation()
+    {
+        var orchestrator = Create();
+        orchestrator.StateChanged += (_, _) => throw new InvalidOperationException("a subscriber went wrong");
+
+        Dictate(TimeSpan.FromSeconds(2));
+        await SettleAsync(orchestrator);
+
+        // The dictation still ran end to end, and the device was closed.
+        Capture.Stops.ShouldBe(1);
+        Provider.Calls.ShouldBe(1);
+        Output.Calls.ShouldBe(1);
+        orchestrator.State.ShouldBe(DictationState.Idle);
+    }
+
+    [TestMethod]
+    public async Task ADictationCanFollowOneWhoseSubscriberThrew()
+    {
+        var orchestrator = Create();
+        orchestrator.StateChanged += (_, _) => throw new InvalidOperationException("a subscriber went wrong");
+
+        Dictate(TimeSpan.FromSeconds(2));
+        await SettleAsync(orchestrator);
+
+        Dictate(TimeSpan.FromSeconds(2));
+        await SettleAsync(orchestrator);
+
+        // Wedging would have made the second press report "Transcription In Progress" instead.
+        Capture.Starts.ShouldBe(2);
+        Provider.Calls.ShouldBe(2);
+    }
+
     private IEnumerable<Action> Stages()
     {
         yield return () => Capture.StopFailure = new InvalidOperationException("capture");

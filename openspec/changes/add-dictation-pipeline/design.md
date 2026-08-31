@@ -134,9 +134,13 @@ release is **claimed**, not when `StopAsync()` returns, so the icon answers the 
 successful one does. The event shape mirrors `SettingsStore.Changed` and is raised on a pooled
 thread, which change 9's proposal already anticipates marshalling with `Dispatcher.UIThread.Post`.
 
-**Ending a recording is an atomic claim, because three things can end it.**
-A release edge (hold mode), a press edge (toggle mode) and the max-duration watchdog are all
-claimants, and the watchdog runs on a different thread from the dispatch loop. A plain
+**Ending a recording is an atomic claim, because *four* things can end it.**
+A release edge (hold mode), a press edge (toggle mode), the max-duration watchdog and `StopAsync`
+are all claimants, and the last two run on different threads from the dispatch loop. Shutdown is
+easy to overlook — removing the event handlers does not retract a `Released?.Invoke` the dispatch
+thread has already entered, and cancelling the watchdog cannot un-fire a delay that has already
+returned — so it takes the same claim as the other three rather than reading the state and acting on
+the answer afterwards. A plain
 `if (state == Recording) { … }` lets a watchdog firing at the same moment as a real release run the
 pipeline twice over one capture. The reference gets this right with `ACTIVE_RECORDER.take()` under a
 mutex; here the whole transition is taken under a single `Lock`, and the loser of the race finds the
@@ -220,6 +224,12 @@ rather than skipping the restore.
 | `Idle` | nothing | — |
 | `Recording` | stop the capture, discard the samples | nobody is waiting on a dictation they did not finish |
 | `Transcribing` | cancel, then **await** the pipeline task | the clipboard hazard above |
+
+**A state subscriber cannot break a dictation.** The announcement is the pipeline task's first act,
+so an exception from `StateChanged` would skip the whole dictation — the capture never closed, the
+capturing flag never cleared, the state at `Transcribing` for ever. `Announce` therefore catches and
+logs. This is the same wedge `RunAsync`'s catch exists to prevent, and it has to be prevented in both
+places because the announcement runs outside that catch.
 
 **Budget expiry and shutdown are the same exception and must be told apart.**
 Both arrive as `OperationCanceledException`. Budget expiry is a failure the user needs to hear about

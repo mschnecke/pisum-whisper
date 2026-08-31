@@ -223,8 +223,23 @@ public sealed class DictationOrchestrator : IHostedService, IDisposable
         lock (_gate)
         {
             watchdog = TakeWatchdog();
+
+            // Read in the same lock as the claim below, so a pipeline started by a claimant that
+            // won the race is the one awaited, not a stale completed task.
             pipeline = _pipeline;
+
+            // Shutdown is the fourth way a recording can end, and it takes the same atomic claim
+            // the other three do. Reading the state without moving it left the door open: removing
+            // the handlers above does not retract a `Released?.Invoke` the dispatch thread has
+            // already entered, and cancelling the watchdog cannot un-fire a delay that has already
+            // returned. Either claimant would still find `Recording`, win, and stop the same
+            // capture a second time — and `MiniAudioCapture.StopAsync` is not reentrant.
             recording = _state == DictationState.Recording;
+
+            if (recording)
+            {
+                _state = DictationState.Idle;
+            }
         }
 
         CancelAndDispose(watchdog);
@@ -246,7 +261,9 @@ public sealed class DictationOrchestrator : IHostedService, IDisposable
                 _logger.LogWarning(exception, "The capture could not be stopped cleanly during shutdown.");
             }
 
-            SetStateAndAnnounce(DictationState.Idle);
+            // Announced rather than set: the claim above already moved the state, so
+            // SetStateAndAnnounce would find nothing to change and say nothing.
+            Announce(DictationState.Idle);
         }
 
         await pipeline.ConfigureAwait(false);
@@ -624,6 +641,23 @@ public sealed class DictationOrchestrator : IHostedService, IDisposable
     private void Announce(DictationState state)
     {
         _logger.LogDebug("The dictation state is now {State}.", state);
-        StateChanged?.Invoke(this, state);
+
+        try
+        {
+            StateChanged?.Invoke(this, state);
+        }
+        catch (Exception exception)
+        {
+            // A subscriber runs arbitrary code, and announcing is the pipeline task's first act, so
+            // an escaping exception would skip the entire dictation: the capture would never be
+            // closed, `_capturing` would stay set, and the state would sit at Transcribing for ever
+            // with the hotkey answering "Transcription In Progress" until the application was
+            // restarted. That is precisely the wedge `RunAsync`'s catch exists to prevent, and it
+            // has to be prevented here too, because this runs outside it.
+            _logger.LogError(
+                exception,
+                "A dictation state subscriber threw while being told about {State}; the dictation continues.",
+                state);
+        }
     }
 }
