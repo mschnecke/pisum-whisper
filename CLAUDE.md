@@ -100,11 +100,14 @@ isolate that class. The one that does is `FileLoggingRotationTests`, which asser
 latency under 500 µs and therefore measures the machine as much as the code — it sits in a
 `DisableParallelization` collection and is **still occasionally over the bound**. A lone failure
 there is a busy machine, not a regression in the logging path; two in a row is worth looking at. The
-other thing parallelism exposed is subtler and worth copying: a test that posts an event to a
-`SimpleGlobalHook` must wait for its **handler** to run, not for `hook.IsRunning`, because a started
-hook has not necessarily dispatched anything yet and `Stop()` drops what is still in flight.
-`HookProviderProbeTests` and `GlobalHotkeyServiceTests.cs:83` both wait on a `ManualResetEventSlim`
-for this reason.
+other thing parallelism exposed is subtler and worth copying: **`SimpleGlobalHook.IsRunning` is not a
+readiness signal.** It turns true before the provider's dispatch proc is installed, and an event
+posted in that window is answered with `Success` and then dropped for good — no later wait recovers
+it. Wait for the hook's `HookEnabled` event instead, which is delivered through the dispatch proc and
+so cannot precede one. `HookProviderProbeTests` does that, and then waits for its own handler before
+`Stop()`, which does not drain what is in flight. Measured under a starved thread pool, `IsRunning`
+loses this 2 times in 3000 and `HookEnabled` none; on an idle machine neither loses, which is why
+this arrived only once tests ran in parallel.
 
 **Every test class carries a category attribute — `[UnitTest]`, `[IntegrationTest]` or
 `[ManualTest]` — and the value is decided by what the test touches, not by where it lives.** They are

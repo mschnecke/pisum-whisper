@@ -20,7 +20,10 @@ public sealed class HookProviderProbeTests
         var provider = new TestProvider();
         using var hook = new SimpleGlobalHook(provider);
 
+        using var enabled = new ManualResetEventSlim();
         using var dispatched = new ManualResetEventSlim();
+        hook.HookEnabled += (_, _) => enabled.Set();
+
         KeyboardHookEventArgs? observed = null;
         hook.KeyPressed += (_, e) =>
         {
@@ -29,10 +32,13 @@ public sealed class HookProviderProbeTests
         };
 
         var running = hook.RunAsync(GlobalHookType.Keyboard, true);
-        while (!hook.IsRunning)
-        {
-            await Task.Delay(5, TestContext.Current.CancellationToken);
-        }
+
+        // HookEnabled, not IsRunning. IsRunning turns true before the provider's dispatch proc is
+        // installed, and an event posted in that window is answered with Success and then dropped
+        // for good — no later wait recovers it. Sequentially the window was never hit; with the
+        // thread pool contended by parallel test classes it is, measured at 2 in 3000.
+        enabled.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken)
+            .ShouldBeTrue("the hook should have reported itself enabled");
 
         var posted = new UioHookEvent
         {
@@ -43,10 +49,7 @@ public sealed class HookProviderProbeTests
 
         provider.PostEvent(ref posted).ShouldBe(UioHookResult.Success);
 
-        // Waiting on the handler, not on IsRunning. A started hook has not necessarily dispatched a
-        // posted event yet, and stopping before it does drops the event silently — PostEvent still
-        // answers Success, so the failure surfaces four lines down as a null. Sequentially that
-        // race was never lost; under xUnit's parallel classes it was, about once in 25 runs.
+        // And the handler has to have run before Stop, which does not wait for what is in flight.
         dispatched.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken)
             .ShouldBeTrue("the posted event should have reached the hook");
 
@@ -65,7 +68,10 @@ public sealed class HookProviderProbeTests
         var provider = new TestProvider();
         using var hook = new SimpleGlobalHook(provider);
 
+        using var enabled = new ManualResetEventSlim();
         using var dispatched = new ManualResetEventSlim();
+        hook.HookEnabled += (_, _) => enabled.Set();
+
         hook.KeyPressed += (_, e) =>
         {
             e.SuppressEvent = true;
@@ -73,10 +79,13 @@ public sealed class HookProviderProbeTests
         };
 
         var running = hook.RunAsync(GlobalHookType.Keyboard, true);
-        while (!hook.IsRunning)
-        {
-            await Task.Delay(5, TestContext.Current.CancellationToken);
-        }
+
+        // HookEnabled, not IsRunning. IsRunning turns true before the provider's dispatch proc is
+        // installed, and an event posted in that window is answered with Success and then dropped
+        // for good — no later wait recovers it. Sequentially the window was never hit; with the
+        // thread pool contended by parallel test classes it is, measured at 2 in 3000.
+        enabled.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken)
+            .ShouldBeTrue("the hook should have reported itself enabled");
 
         var posted = new UioHookEvent
         {
@@ -86,7 +95,7 @@ public sealed class HookProviderProbeTests
 
         provider.PostEvent(ref posted);
 
-        // Same race as above: without this the handler that sets SuppressEvent may never run.
+        // As above: Stop does not wait for an in-flight dispatch.
         dispatched.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken)
             .ShouldBeTrue("the posted event should have reached the hook");
 

@@ -205,15 +205,23 @@ a latency **percentile** is a wall-clock upper bound too, and `ShouldBeLessThan`
 the shape to grep for, not `TimeSpan`.
 
 **And the audit's whole frame was too narrow.** A third failure, found by running the `Category=Unit`
-filter 25 times, was not a timing bound at all: `HookProviderProbeTests.PostedEvent_KeepsItsMaskAndIsNotFlaggedAsSimulated`
-spins until `hook.IsRunning`, posts an event, then immediately calls `hook.Stop()` — with nothing
-waiting for the event to be *dispatched*. A started hook has not necessarily dispatched a posted
-event, so the handler can be skipped entirely; `PostEvent` still answers `Success`, and the failure
-appears six lines later as `observed should not be null`. Sequentially the race was never lost, which
-is why it arrived with this change rather than existing as a known flake. Its sibling
-`SuppressedEvent_IsRecordedByTheProvider` has the identical shape and did not fail in 25 runs. Both
-now wait on a `ManualResetEventSlim` set by the handler, matching `GlobalHotkeyServiceTests.cs:83`,
-which already does exactly this.
+filter 25 times, was not a timing bound at all:
+`HookProviderProbeTests.PostedEvent_KeepsItsMaskAndIsNotFlaggedAsSimulated` spins until
+`hook.IsRunning` and then posts an event, and **`IsRunning` is not a readiness signal**. It turns true
+before the provider's dispatch proc is installed; an event posted inside that window is answered with
+`UioHookResult.Success` and then dropped permanently, so the failure appears six lines later as
+`observed should not be null`. The signal that does mean ready is the hook's `HookEnabled` event,
+which is itself delivered through the dispatch proc and therefore cannot arrive before one is
+installed. Its sibling `SuppressedEvent_IsRecordedByTheProvider` has the identical shape and did not
+fail in 25 runs. Both now wait for `HookEnabled` before posting, and for the handler before `Stop`,
+which does not wait for an in-flight dispatch.
+
+The first attempt at this fix was wrong and is worth recording: waiting on the *handler* while still
+spinning on `IsRunning` turned a null-reference-shaped failure into a five-second timeout at the same
+1-in-25 rate, because the event was already gone by then. What settled it was an in-process A/B — 3000
+iterations of each readiness signal under a deliberately starved thread pool — which measured 2 drops
+for `IsRunning` and 0 for `HookEnabled`. On an idle machine both read 0 in 3000, which is exactly why
+the sequential suite never saw it.
 
 So D6 swept for static state, process-global mutation, shared hooks and wall-clock bounds, and a test
 that simply synchronises on the wrong event passes every one of those checks. The frame to use next
