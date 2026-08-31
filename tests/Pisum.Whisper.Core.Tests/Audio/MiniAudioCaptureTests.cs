@@ -4,6 +4,7 @@ using System.Threading.Channels;
 using Pisum.Whisper.Core.Audio;
 using Shouldly;
 
+[UnitTest]
 public sealed class MiniAudioCaptureTests
 {
     /// <summary>

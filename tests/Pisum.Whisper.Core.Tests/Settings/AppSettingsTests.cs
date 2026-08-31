@@ -8,6 +8,7 @@ using Shouldly;
 /// The settings shape is fixed by this change because five later changes read it. These tests pin
 /// the schema table in <c>specs/settings-persistence/spec.md</c> so a drift is a test failure.
 /// </summary>
+[UnitTest]
 public sealed class AppSettingsTests
 {
     private static string Serialize(AppSettings settings)

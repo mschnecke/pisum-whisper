@@ -5,6 +5,7 @@ using Pisum.Whisper.Core.Settings;
 using SharpHook.Data;
 using Shouldly;
 
+[UnitTest]
 public sealed class HotkeyChordTests
 {
     private static HotkeyBinding Binding(string key, params string[] modifiers)

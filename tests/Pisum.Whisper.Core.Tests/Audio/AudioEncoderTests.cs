@@ -6,6 +6,7 @@ using Pisum.Whisper.Core.Audio;
 using Pisum.Whisper.Core.Settings;
 using Shouldly;
 
+[UnitTest]
 public sealed class AudioEncoderTests
 {
     private static readonly float[] Samples = [0f, 0.1f, -0.1f];

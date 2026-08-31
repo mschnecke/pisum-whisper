@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Pisum.Whisper.Core.Output;
 using Pisum.Whisper.Platform.Output;
 using Shouldly;
-using Pisum.Whisper.Platform.Tests;
 
 /// <summary>
 /// Task 5.1 — the only thing that exercises the native clipboard against a real one, in the role
@@ -18,6 +17,7 @@ using Pisum.Whisper.Platform.Tests;
 /// Task 3.2's retry is exercised by running it while a second process holds the clipboard, for
 /// example a PowerShell loop calling <c>Set-Clipboard</c>.
 /// </remarks>
+[ManualTest]
 public sealed class ManualClipboardRoundTrip
 {
     [Fact(

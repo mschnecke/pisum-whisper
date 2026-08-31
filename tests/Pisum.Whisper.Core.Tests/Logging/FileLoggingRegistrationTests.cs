@@ -9,6 +9,7 @@ using Serilog.Extensions.Logging;
 using Shouldly;
 using ILogger = Serilog.ILogger;
 
+[IntegrationTest]
 public sealed class FileLoggingRegistrationTests : FileLoggingTestBase
 {
     private static FileLoggingOptions Recording(LogDirectory logs, RecordingSink sink, string level = "info")

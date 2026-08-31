@@ -8,6 +8,7 @@ using Shouldly;
 /// Tasks 3.1-3.3 — the wire shape, serialised through the source-generated context rather than
 /// reflection, so a property name that drifts fails here rather than at the API.
 /// </summary>
+[UnitTest]
 public sealed class GeminiWireTests
 {
     [Fact]

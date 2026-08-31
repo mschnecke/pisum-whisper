@@ -4,6 +4,7 @@ using System.Text;
 using Pisum.Whisper.Core.Audio;
 using Shouldly;
 
+[UnitTest]
 public sealed class WavWriterTests
 {
     [Fact]

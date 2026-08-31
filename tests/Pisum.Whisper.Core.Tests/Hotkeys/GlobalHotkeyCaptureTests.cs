@@ -8,6 +8,7 @@ using Shouldly;
 /// Task 3.8 — the entry point change 10's hotkey recorder uses. It reuses this observation rather
 /// than starting a second one, because libuiohook keeps one static callback per process.
 /// </summary>
+[IntegrationTest]
 public sealed class GlobalHotkeyCaptureTests : GlobalHotkeyServiceTestBase
 {
     [Fact]

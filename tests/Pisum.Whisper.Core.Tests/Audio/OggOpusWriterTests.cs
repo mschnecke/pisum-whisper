@@ -5,6 +5,7 @@ using Concentus.Oggfile;
 using Pisum.Whisper.Core.Audio;
 using Shouldly;
 
+[UnitTest]
 public sealed class OggOpusWriterTests
 {
     private const int SampleRate = 48_000;

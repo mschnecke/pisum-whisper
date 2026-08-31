@@ -12,6 +12,7 @@ using Shouldly;
 /// an "Open Log Folder" button a click away. The privacy assertions below are therefore load-bearing
 /// rather than decorative: the obvious debugging statement in this component is a keylog.
 /// </remarks>
+[IntegrationTest]
 public sealed class GlobalHotkeyLoggingTests : GlobalHotkeyServiceTestBase
 {
     // ---- Task 3.9: libuiohook's own diagnostics reach the log, at warning and above ----

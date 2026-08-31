@@ -8,6 +8,7 @@ using Shouldly;
 /// The binding rules, exercised without a keyboard or a hook. The default binding is used
 /// throughout: Ctrl+Shift+Space.
 /// </summary>
+[UnitTest]
 public sealed class HotkeyMatcherTests
 {
     private const EventMask CtrlShift = EventMask.LeftCtrl | EventMask.LeftShift;

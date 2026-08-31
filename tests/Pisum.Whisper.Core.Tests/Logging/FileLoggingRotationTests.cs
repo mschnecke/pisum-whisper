@@ -19,6 +19,7 @@ using Shouldly;
 public sealed class WallClockCollection;
 
 [Collection("wall-clock")]
+[IntegrationTest]
 public sealed class FileLoggingRotationTests : FileLoggingTestBase
 {
     /// <summary>Writes <paramref name="events"/> lines and flushes, returning nothing but a drained sink.</summary>

@@ -9,6 +9,7 @@ using Shouldly;
 /// treating <c>EventMask</c>'s group values as single bits, and comparing a raw mask that also
 /// carries the lock keys and the mouse buttons.
 /// </summary>
+[UnitTest]
 public sealed class ModifierGroupsTests
 {
     [Fact]

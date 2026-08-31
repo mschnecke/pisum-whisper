@@ -5,6 +5,7 @@ using Pisum.Whisper.Core.Settings;
 using Shouldly;
 
 /// <summary>The preset operations the settings window will drive, exercised against a real file.</summary>
+[IntegrationTest]
 public sealed class SettingsStorePresetTests : IDisposable
 {
     private string _directory = string.Empty;

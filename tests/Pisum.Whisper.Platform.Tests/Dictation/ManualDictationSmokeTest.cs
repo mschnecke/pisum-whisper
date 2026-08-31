@@ -12,7 +12,6 @@ using Pisum.Whisper.Core.Settings;
 using Pisum.Whisper.Core.Transcription;
 using Pisum.Whisper.Platform.Output;
 using Shouldly;
-using Pisum.Whisper.Platform.Tests;
 
 /// <summary>
 /// The whole product in one test: a real microphone, a real encode, a real Gemini round trip and a
@@ -33,6 +32,7 @@ using Pisum.Whisper.Platform.Tests;
 /// five seconds after it starts.
 /// </para>
 /// </remarks>
+[ManualTest]
 public sealed class ManualDictationSmokeTest
 {
     [Fact(

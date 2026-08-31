@@ -3,6 +3,7 @@ namespace Pisum.Whisper.Core.Tests.Logging;
 using Pisum.Whisper.Core.Logging;
 using Shouldly;
 
+[IntegrationTest]
 public sealed class LogDirectoryTests : IDisposable
 {
     private string _home = string.Empty;

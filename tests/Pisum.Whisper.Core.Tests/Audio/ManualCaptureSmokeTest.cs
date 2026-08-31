@@ -1,7 +1,6 @@
 namespace Pisum.Whisper.Core.Tests.Audio;
 
 using Pisum.Whisper.Core.Audio;
-using Pisum.Whisper.Core.Tests;
 
 /// <summary>
 /// The spikes never reference <c>Core</c> (see <c>spikes/Pisum.Whisper.Spikes</c>), so this is the
@@ -9,6 +8,7 @@ using Pisum.Whisper.Core.Tests;
 /// is no microphone in CI. Run manually on both Windows and macOS before this change ships, and play
 /// both written files back to confirm they sound right.
 /// </summary>
+[ManualTest]
 public sealed class ManualCaptureSmokeTest
 {
     [Fact(

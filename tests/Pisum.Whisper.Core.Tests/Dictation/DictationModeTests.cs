@@ -7,6 +7,7 @@ using Shouldly;
 /// <summary>
 /// Tasks 2.2, 2.3 and 2.4 — the two recording modes and the debounce that guards one of them.
 /// </summary>
+[IntegrationTest]
 public sealed class DictationModeTests : DictationTestBase
 {
     // ---- Task 2.2: hold-to-record ----

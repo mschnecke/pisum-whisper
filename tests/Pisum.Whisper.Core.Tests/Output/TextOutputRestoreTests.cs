@@ -8,6 +8,7 @@ using Shouldly;
 /// Tasks 2.7, 2.8 and 2.10 — putting the user's clipboard back, and the three ways that goes wrong
 /// if it is done unguarded, unserialised, or abandoned half way.
 /// </summary>
+[UnitTest]
 public sealed class TextOutputRestoreTests : TextOutputTestBase
 {
     private const string Copied = "https://example.invalid/what-the-user-had-copied";

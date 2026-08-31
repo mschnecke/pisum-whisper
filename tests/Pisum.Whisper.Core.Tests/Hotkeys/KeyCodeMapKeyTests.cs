@@ -8,6 +8,7 @@ using Shouldly;
 /// Pins the forward key vocabulary against the reference's <c>hotkey/parse.rs</c> table. A settings
 /// file written for the reference must still load here, so every row it accepts is asserted.
 /// </summary>
+[UnitTest]
 public sealed class KeyCodeMapKeyTests
 {
     private static KeyCode Parse(string name)

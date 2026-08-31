@@ -8,6 +8,7 @@ using Shouldly;
 /// <summary>
 /// Tasks 6.1-6.3 — what change 10's settings window asks about a key the user has just typed.
 /// </summary>
+[UnitTest]
 public sealed class GeminiKeyProbeTests
 {
     private const string ApiKey = "AIza-not-a-real-key";

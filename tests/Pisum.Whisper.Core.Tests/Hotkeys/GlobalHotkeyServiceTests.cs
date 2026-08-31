@@ -5,6 +5,7 @@ using Pisum.Whisper.Core.Settings;
 using SharpHook.Data;
 using Shouldly;
 
+[IntegrationTest]
 public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
 {
     // ---- Task 3.1: the binding is observed through a real hook over a fake provider ----

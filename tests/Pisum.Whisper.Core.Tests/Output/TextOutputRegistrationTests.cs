@@ -16,6 +16,7 @@ using Shouldly;
 /// stand in for it, and that <c>AddNativeOutput</c> registers what is missing here is asserted in
 /// <c>Pisum.Whisper.Platform.Tests</c>.
 /// </remarks>
+[IntegrationTest]
 public sealed class TextOutputRegistrationTests
 {
     [Fact]

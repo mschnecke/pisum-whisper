@@ -15,6 +15,7 @@ using Shouldly;
 /// <summary>
 /// Task 5.1 — what shutting down does to each state.
 /// </summary>
+[IntegrationTest]
 public sealed class DictationLifecycleTests : DictationTestBase
 {
     [Fact]
@@ -162,6 +163,7 @@ public sealed class DictationLifecycleTests : DictationTestBase
 /// <summary>
 /// Task 5.2 — the registration itself, exercised rather than reconstructed.
 /// </summary>
+[IntegrationTest]
 public sealed class DictationRegistrationTests : IDisposable
 {
     private string _home = string.Empty;

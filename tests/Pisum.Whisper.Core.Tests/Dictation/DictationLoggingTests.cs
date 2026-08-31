@@ -7,6 +7,7 @@ using Shouldly;
 /// Task 5.3 — the logging rules, at the most verbose level there is. This component sees the user's
 /// speech and writes none of it down, and it sees no keys at all.
 /// </summary>
+[IntegrationTest]
 public sealed class DictationLoggingTests : DictationTestBase
 {
     private const string Spoken = "my password is hunter2 and the account number is 4417";

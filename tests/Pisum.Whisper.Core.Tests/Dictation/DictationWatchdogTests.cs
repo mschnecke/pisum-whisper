@@ -7,6 +7,7 @@ using Shouldly;
 /// Tasks 2.8 and 2.10 — the maximum-duration watchdog, and the three points at which the state is
 /// announced.
 /// </summary>
+[IntegrationTest]
 public sealed class DictationWatchdogTests : DictationTestBase
 {
     // ---- Task 2.8: the watchdog ----

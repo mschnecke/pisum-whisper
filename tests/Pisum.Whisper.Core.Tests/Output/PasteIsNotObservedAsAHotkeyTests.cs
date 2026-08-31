@@ -23,6 +23,7 @@ using Shouldly;
 /// both edges; this is the test that keeps that check from being deleted as dead code, which is why
 /// the binding here is the paste combination itself.
 /// </remarks>
+[IntegrationTest]
 public sealed class PasteIsNotObservedAsAHotkeyTests : IDisposable
 {
     private readonly RecordingLogSource _logSource = new();

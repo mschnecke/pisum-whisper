@@ -11,6 +11,7 @@ using Shouldly;
 /// given, and whether it arrives flagged as simulated. If either changes, the service tests would
 /// start passing for the wrong reason.
 /// </summary>
+[UnitTest]
 public sealed class HookProviderProbeTests
 {
     [Fact]

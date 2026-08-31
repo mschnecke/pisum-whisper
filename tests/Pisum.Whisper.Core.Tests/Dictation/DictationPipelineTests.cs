@@ -11,6 +11,7 @@ using Shouldly;
 /// Tasks 3.1 to 3.5 — what the pipeline sends where, the two cancellation tokens, the degraded
 /// delivery, and the guarantee that no failure wedges the state machine.
 /// </summary>
+[IntegrationTest]
 public sealed class DictationPipelineTests : DictationTestBase
 {
     // ---- Task 3.1: what the encoder is handed ----

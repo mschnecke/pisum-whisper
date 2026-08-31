@@ -8,6 +8,7 @@ using Shouldly;
 /// Tasks 2.1, 2.3, 2.4, 2.5 and 2.6 — the steps of the delivery and the two ways it stops early
 /// without losing the transcript.
 /// </summary>
+[UnitTest]
 public sealed class TextOutputSequenceTests : TextOutputTestBase
 {
     // ---- Task 2.1: read, write, wait, paste ----

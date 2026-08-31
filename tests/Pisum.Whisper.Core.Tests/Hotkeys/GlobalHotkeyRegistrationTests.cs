@@ -14,6 +14,7 @@ using Shouldly;
 /// <summary>
 /// Task 4.1 — the registration itself, exercised rather than reconstructed.
 /// </summary>
+[IntegrationTest]
 public sealed class GlobalHotkeyRegistrationTests : IDisposable
 {
     private string _home = string.Empty;

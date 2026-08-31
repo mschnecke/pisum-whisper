@@ -7,7 +7,6 @@ using Pisum.Whisper.Core.Audio;
 using Pisum.Whisper.Core.Settings;
 using Pisum.Whisper.Core.Transcription;
 using Shouldly;
-using Pisum.Whisper.Core.Tests;
 
 /// <summary>
 /// Task 8.1 — the only thing that exercises the real wire format against the real API, in the same
@@ -19,6 +18,7 @@ using Pisum.Whisper.Core.Tests;
 /// so it costs a token or two and asserts only that the round trip completes — what a model returns
 /// for a tone is not something to assert on.
 /// </remarks>
+[ManualTest]
 public sealed class ManualTranscriptionSmokeTest
 {
     private const string KeyVariable = "PISUM_WHISPER_GEMINI_KEY";
