@@ -1,7 +1,6 @@
 namespace Pisum.Whisper.Core.Dictation;
 
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
 /// <summary>
 /// Registers the recording state machine.

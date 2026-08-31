@@ -9,7 +9,7 @@ using Serilog.Core;
 using Serilog.Events;
 using Shouldly;
 
-[TestClass]
+[Trait(Traits.Category, Traits.Categories.Integration)]
 public sealed class FileLoggingLevelTests : FileLoggingTestBase
 {
     private readonly RecordingSink _sink = new();
@@ -29,7 +29,7 @@ public sealed class FileLoggingLevelTests : FileLoggingTestBase
         File.WriteAllText(SettingsPath, $$"""{ "loggingConfig": { "logLevel": "{{logLevel}}" } }""");
     }
 
-    [TestMethod]
+    [Fact]
     public void ChangingTheLevelInSettings_TakesEffectWithoutRebuildingTheLogger()
     {
         // The point of the feature: restarting to raise verbosity destroys the state that caused the
@@ -56,7 +56,7 @@ public sealed class FileLoggingLevelTests : FileLoggingTestBase
         _sink.WaitForMessageContaining("After the change.").ShouldBeTrue();
     }
 
-    [TestMethod]
+    [Fact]
     public void RaisingTheLevel_MovesIsEnabledWithTheSwitchRatherThanBehindASecondGate()
     {
         // A stray provider, or an ILoggerFactory that was not replaced, would answer IsEnabled on its
@@ -81,7 +81,7 @@ public sealed class FileLoggingLevelTests : FileLoggingTestBase
         logger.IsEnabled(LogLevel.Debug).ShouldBeTrue();
     }
 
-    [TestMethod]
+    [Fact]
     public void LoweringTheLevel_StopsOutputWithoutARestart()
     {
         WriteSettings("debug");
@@ -106,7 +106,7 @@ public sealed class FileLoggingLevelTests : FileLoggingTestBase
         _sink.Messages.ShouldNotContain("Suppressed.");
     }
 
-    [TestMethod]
+    [Fact]
     public void AtTrace_NothingClampsTheSwitchFromAbove()
     {
         // Microsoft.Extensions.Logging installs a provider-scoped filter rule at Trace and resolves
@@ -127,7 +127,7 @@ public sealed class FileLoggingLevelTests : FileLoggingTestBase
         _sink.WaitForMessageContaining("Trace output.").ShouldBeTrue();
     }
 
-    [TestMethod]
+    [Fact]
     public void AnUnrecognisedLevel_FallsBackToInformationAndSaysWhatItFound()
     {
         WriteSettings("chatty");

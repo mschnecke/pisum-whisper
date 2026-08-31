@@ -7,12 +7,12 @@ using Shouldly;
 /// <summary>
 /// Tasks 2.2, 2.3 and 2.4 — the two recording modes and the debounce that guards one of them.
 /// </summary>
-[TestClass]
+[Trait(Traits.Category, Traits.Categories.Integration)]
 public sealed class DictationModeTests : DictationTestBase
 {
     // ---- Task 2.2: hold-to-record ----
 
-    [TestMethod]
+    [Fact]
     public async Task HoldToRecord_RunsTheWholePipelineOnce()
     {
         var orchestrator = Create();
@@ -32,7 +32,7 @@ public sealed class DictationModeTests : DictationTestBase
     /// each stage received exactly what the one before it produced, which cannot happen in any
     /// other sequence.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public async Task HoldToRecord_FlowsTheRecordingThroughEveryStage()
     {
         var orchestrator = Create();
@@ -47,7 +47,7 @@ public sealed class DictationModeTests : DictationTestBase
         Output.Transcript.ShouldBe(Transcript);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task HoldToRecord_PressAloneStartsARecordingAndNothingElse()
     {
         var orchestrator = Create();
@@ -66,7 +66,7 @@ public sealed class DictationModeTests : DictationTestBase
 
     // ---- Task 2.3: toggle ----
 
-    [TestMethod]
+    [Fact]
     public void Toggle_TheFirstPressStartsRecording()
     {
         Configure(settings => settings.RecordingMode = RecordingMode.Toggle);
@@ -78,7 +78,7 @@ public sealed class DictationModeTests : DictationTestBase
         Capture.Starts.ShouldBe(1);
     }
 
-    [TestMethod]
+    [Fact]
     public void Toggle_TheReleaseIsIgnoredEntirely()
     {
         Configure(settings => settings.RecordingMode = RecordingMode.Toggle);
@@ -93,7 +93,7 @@ public sealed class DictationModeTests : DictationTestBase
         Provider.Calls.ShouldBe(0);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task Toggle_ALaterPressStopsAndTranscribes()
     {
         Configure(settings => settings.RecordingMode = RecordingMode.Toggle);
@@ -111,7 +111,7 @@ public sealed class DictationModeTests : DictationTestBase
 
     // ---- Task 2.4: the debounce ----
 
-    [TestMethod]
+    [Fact]
     public void Toggle_ASecondPressInsideTheDebounceWindowIsIgnored()
     {
         Configure(settings => settings.RecordingMode = RecordingMode.Toggle);
@@ -127,7 +127,7 @@ public sealed class DictationModeTests : DictationTestBase
         Provider.Calls.ShouldBe(0);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task Toggle_ASecondPressOutsideTheDebounceWindowIsActedOn()
     {
         Configure(settings => settings.RecordingMode = RecordingMode.Toggle);
@@ -146,7 +146,7 @@ public sealed class DictationModeTests : DictationTestBase
     /// The debounce is toggle's alone. In hold-to-record the two edges are not two presses, so
     /// applying it there would silently drop a genuine second dictation.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public async Task HoldToRecord_IsNotDebounced()
     {
         var orchestrator = Create(debounceWindow: TimeSpan.FromSeconds(30));

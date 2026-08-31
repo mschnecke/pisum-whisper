@@ -1,9 +1,11 @@
 namespace Pisum.Whisper.Core.Logging;
 
+using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using Serilog.Configuration;
 using Serilog.Core;
+using Serilog.Debugging;
 
 /// <summary>
 /// Registers file logging as the host's logging implementation.
@@ -17,17 +19,19 @@ public static class FileLoggingServiceCollectionExtensions
     private const int RetainedFileCountLimit = 10;
 
     /// <summary>Builds the logger from a peek at the settings file and registers it.</summary>
-    public static IServiceCollection AddFileLogging(this IServiceCollection services, out ILogger logger) =>
-        services.AddFileLogging(FileLoggingOptions.Peek(), out logger);
+    public static IServiceCollection AddFileLogging(this IServiceCollection services, out ILogger logger)
+    {
+        return services.AddFileLogging(FileLoggingOptions.Peek(), out logger);
+    }
 
-    public static IServiceCollection AddFileLogging(
-        this IServiceCollection services,
-        FileLoggingOptions options,
-        out ILogger logger)
+    public static IServiceCollection AddFileLogging(this IServiceCollection services,
+                                                    FileLoggingOptions options,
+                                                    out ILogger logger)
     {
 #if DEBUG
+
         // Serilog's own failures are silent by design; a misconfigured sink should not be.
-        Serilog.Debugging.SelfLog.Enable(message => System.Diagnostics.Debug.WriteLine(message));
+        SelfLog.Enable(message => Debug.WriteLine(message));
 #endif
 
         LogLevelNames.TryParse(options.Config.LogLevel, out var initialLevel);
@@ -51,7 +55,7 @@ public static class FileLoggingServiceCollectionExtensions
         var sink = options.SinkOverride ?? (directoryFailure is null ? LogFileSink(options) : null);
         if (sink is not null)
         {
-            configuration.WriteTo.Async(sink, bufferSize: options.AsyncBufferSize, monitor: monitor);
+            configuration.WriteTo.Async(sink, options.AsyncBufferSize, monitor: monitor);
         }
 
         var serilog = configuration.CreateLogger();
@@ -73,7 +77,7 @@ public static class FileLoggingServiceCollectionExtensions
                 swept);
         }
 
-        services.AddSerilog(serilog, dispose: true);
+        services.AddSerilog(serilog, true);
         services.AddSingleton(options.Directory);
         services.AddSingleton(levelSwitch);
         services.AddSingleton(monitor);
@@ -88,11 +92,14 @@ public static class FileLoggingServiceCollectionExtensions
     /// the latency tail worse, and widens the window of events lost when the process dies — which in
     /// a diagnostics feature are the ones worth having.
     /// </remarks>
-    private static Action<LoggerSinkConfiguration> LogFileSink(FileLoggingOptions options) => write =>
-        write.File(
-            options.Directory.LogFilePath,
-            fileSizeLimitBytes: options.ResolvedFileSizeLimitBytes,
-            rollOnFileSizeLimit: true,
-            retainedFileCountLimit: RetainedFileCountLimit,
-            buffered: false);
+    private static Action<LoggerSinkConfiguration> LogFileSink(FileLoggingOptions options)
+    {
+        return write =>
+            write.File(
+                options.Directory.LogFilePath,
+                fileSizeLimitBytes: options.ResolvedFileSizeLimitBytes,
+                rollOnFileSizeLimit: true,
+                retainedFileCountLimit: RetainedFileCountLimit,
+                buffered: false);
+    }
 }

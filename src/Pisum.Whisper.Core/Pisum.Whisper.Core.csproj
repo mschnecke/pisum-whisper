@@ -1,21 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Http" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
-    <PackageReference Include="Serilog" />
-    <PackageReference Include="Serilog.Extensions.Hosting" />
-    <PackageReference Include="Serilog.Sinks.Async" />
-    <PackageReference Include="Serilog.Sinks.Console" />
-    <PackageReference Include="Serilog.Sinks.File" />
-    <PackageReference Include="SharpHook" />
-    <PackageReference Include="SoundFlow" />
-    <PackageReference Include="Concentus" />
-    <PackageReference Include="Concentus.Oggfile" />
+    <PackageReference Include="Microsoft.Extensions.Http"/>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions"/>
+    <PackageReference Include="Serilog"/>
+    <PackageReference Include="Serilog.Extensions.Hosting"/>
+    <PackageReference Include="Serilog.Sinks.Async"/>
+    <PackageReference Include="Serilog.Sinks.Console"/>
+    <PackageReference Include="Serilog.Sinks.File"/>
+    <PackageReference Include="SharpHook"/>
+    <PackageReference Include="SoundFlow"/>
+    <PackageReference Include="Concentus"/>
+    <PackageReference Include="Concentus.Oggfile"/>
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="Pisum.Whisper.Core.Tests" />
+    <InternalsVisibleTo Include="Pisum.Whisper.Core.Tests"/>
   </ItemGroup>
 
 </Project>

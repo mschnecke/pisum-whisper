@@ -107,7 +107,7 @@ app says so, which is expected behaviour rather than a defect.
 | `src/Pisum.Whisper.Core` | domain and orchestration; no platform or UI dependencies |
 | `src/Pisum.Whisper.Platform` | the OS-specific surface; the clipboard and paste probes today |
 | `src/Pisum.Whisper.App` | Avalonia tray shell and composition root |
-| `tests/Pisum.Whisper.Core.Tests` | MSTest, FakeItEasy, Shouldly |
+| `tests/Pisum.Whisper.Core.Tests` | xUnit v3, FakeItEasy, Shouldly |
 | `tests/Pisum.Whisper.Platform.Tests` | native registration, and the manual clipboard round trip |
 | `spikes/` | throwaway de-risking spikes, outside the solution |
 | `openspec/` | the spec-driven change workflow that drives this repository |

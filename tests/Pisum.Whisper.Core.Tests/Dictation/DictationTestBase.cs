@@ -5,6 +5,8 @@ using Pisum.Whisper.Core.Dictation;
 using Pisum.Whisper.Core.Settings;
 using Pisum.Whisper.Core.Tests.Logging;
 using Serilog;
+using Serilog.Core;
+using Serilog.Events;
 using Serilog.Extensions.Logging;
 
 /// <summary>
@@ -12,7 +14,7 @@ using Serilog.Extensions.Logging;
 /// and a delay the test fires by hand. Nothing here needs a microphone, a network, a keyboard or a
 /// clipboard, and no test waits 50 ms, 200 ms or two minutes.
 /// </summary>
-public abstract class DictationTestBase
+public abstract class DictationTestBase : IDisposable
 {
     protected const string Transcript = "the quick brown fox";
 
@@ -22,11 +24,11 @@ public abstract class DictationTestBase
 
     private readonly Lock _statesGate = new();
 
-    private Serilog.Core.Logger? _serilog;
+    private readonly Logger? _serilog;
 
-    private SerilogLoggerFactory? _loggerFactory;
+    private readonly SerilogLoggerFactory? _loggerFactory;
 
-    private string _home = string.Empty;
+    private readonly string _home = string.Empty;
 
     private DictationOrchestrator? _orchestrator;
 
@@ -61,12 +63,14 @@ public abstract class DictationTestBase
     protected IReadOnlyList<string> LogMessages => _sink.Messages;
 
     /// <summary>Waits for a log line containing <paramref name="fragment"/>, so assertions do not race the pipeline.</summary>
-    protected bool WaitForLog(string fragment) => _sink.WaitForMessageContaining(fragment);
+    protected bool WaitForLog(string fragment)
+    {
+        return _sink.WaitForMessageContaining(fragment);
+    }
 
-    protected IReadOnlyList<Serilog.Events.LogEvent> LogEvents => _sink.Events;
+    protected IReadOnlyList<LogEvent> LogEvents => _sink.Events;
 
-    [TestInitialize]
-    public void CreateOrchestratorFixture()
+    protected DictationTestBase()
     {
         _serilog = new LoggerConfiguration().MinimumLevel.Verbose().WriteTo.Sink(_sink).CreateLogger();
         _loggerFactory = new SerilogLoggerFactory(_serilog);
@@ -81,8 +85,7 @@ public abstract class DictationTestBase
         Settings.Load();
     }
 
-    [TestCleanup]
-    public void DisposeOrchestratorFixture()
+    public void Dispose()
     {
         _orchestrator?.Dispose();
         _loggerFactory?.Dispose();
@@ -95,10 +98,9 @@ public abstract class DictationTestBase
     /// fake clock can step either side of; the budget defaults to something no test reaches by
     /// accident.
     /// </summary>
-    protected DictationOrchestrator Create(
-        TimeSpan? minimumDuration = null,
-        TimeSpan? debounceWindow = null,
-        TimeSpan? transcriptionBudget = null)
+    protected DictationOrchestrator Create(TimeSpan? minimumDuration = null,
+                                           TimeSpan? debounceWindow = null,
+                                           TimeSpan? transcriptionBudget = null)
     {
         var orchestrator = new DictationOrchestrator(
             _loggerFactory!.CreateLogger<DictationOrchestrator>(),

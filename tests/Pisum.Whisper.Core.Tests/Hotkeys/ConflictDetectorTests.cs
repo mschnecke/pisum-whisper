@@ -8,15 +8,15 @@ using Shouldly;
 /// The conflict table is warn-only, so these tests are about what it reports, never about what it
 /// prevents. The default binding reporting no conflict is the one that would be noticed in practice.
 /// </summary>
-[TestClass]
+[Trait(Traits.Category, Traits.Categories.Unit)]
 public sealed class ConflictDetectorTests
 {
     private static HotkeyBinding Binding(string key, params string[] modifiers)
     {
-        return new HotkeyBinding { Modifiers = [.. modifiers], Key = key };
+        return new HotkeyBinding {Modifiers = [.. modifiers], Key = key};
     }
 
-    [TestMethod]
+    [Fact]
     public void ExactSystemShortcut_IsReportedAsConflicting()
     {
         ConflictDetector.ConflictsWithSystemHotkey(Binding("Tab", "Alt")).ShouldBeTrue();
@@ -27,7 +27,7 @@ public sealed class ConflictDetectorTests
         ConflictDetector.ConflictsWithSystemHotkey(Binding("4", "Cmd", "Shift")).ShouldBeTrue();
     }
 
-    [TestMethod]
+    [Fact]
     public void ModifierOrder_DoesNotMatter()
     {
         ConflictDetector.ConflictsWithSystemHotkey(Binding("Escape", "Ctrl", "Shift")).ShouldBeTrue();
@@ -35,7 +35,7 @@ public sealed class ConflictDetectorTests
         ConflictDetector.ConflictsWithSystemHotkey(Binding("3", "Shift", "Cmd")).ShouldBeTrue();
     }
 
-    [TestMethod]
+    [Fact]
     public void ModifierSpelling_DoesNotMatter()
     {
         // Win+L and Cmd+L are the same entry once folded, which is what lets one table serve both
@@ -48,7 +48,7 @@ public sealed class ConflictDetectorTests
         ConflictDetector.ConflictsWithSystemHotkey(Binding("Space", "Control")).ShouldBeTrue();
     }
 
-    [TestMethod]
+    [Fact]
     public void KeyAliases_ConflictLikeTheirPrimaryName()
     {
         // Resolving the key through the vocabulary rather than comparing strings is what makes this
@@ -57,7 +57,7 @@ public sealed class ConflictDetectorTests
         ConflictDetector.ConflictsWithSystemHotkey(Binding("Esc", "Ctrl", "Shift")).ShouldBeTrue();
     }
 
-    [TestMethod]
+    [Fact]
     public void DefaultBinding_ReportsNoConflict()
     {
         ConflictDetector.ConflictsWithSystemHotkey(Binding("Space", "Ctrl", "Shift")).ShouldBeFalse();
@@ -67,14 +67,14 @@ public sealed class ConflictDetectorTests
         ConflictDetector.ConflictsWithSystemHotkey(new HotkeyBinding()).ShouldBeFalse();
     }
 
-    [TestMethod]
+    [Fact]
     public void UnrelatedBinding_ReportsNoConflict()
     {
         ConflictDetector.ConflictsWithSystemHotkey(Binding("F9")).ShouldBeFalse();
         ConflictDetector.ConflictsWithSystemHotkey(Binding("J", "Ctrl", "Alt")).ShouldBeFalse();
     }
 
-    [TestMethod]
+    [Fact]
     public void ExtraModifier_BreaksTheMatch()
     {
         // Ctrl+Shift+Space is not Ctrl+Space, which is why the comparison is equality rather than
@@ -83,14 +83,14 @@ public sealed class ConflictDetectorTests
         ConflictDetector.ConflictsWithSystemHotkey(Binding("Tab", "Alt", "Shift")).ShouldBeFalse();
     }
 
-    [TestMethod]
+    [Fact]
     public void BlankModifierEntry_IsSkippedRatherThanRejected()
     {
         ConflictDetector.ConflictsWithSystemHotkey(Binding("Tab", "Alt", "")).ShouldBeTrue();
         ConflictDetector.ConflictsWithSystemHotkey(Binding("Tab", "  ", "Alt")).ShouldBeTrue();
     }
 
-    [TestMethod]
+    [Fact]
     public void UnresolvableBinding_ReportsNoConflict()
     {
         ConflictDetector.ConflictsWithSystemHotkey(Binding("Tab", "Hyper")).ShouldBeFalse();

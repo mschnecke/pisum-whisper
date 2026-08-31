@@ -14,6 +14,7 @@ using Concentus.Oggfile;
 public sealed class OggOpusWriter
 {
     private const int Bitrate = 24_000;
+
     private const int ResamplerQuality = 5;
 
     public byte[] Write(float[] samples, int sampleRate)
@@ -22,7 +23,7 @@ public sealed class OggOpusWriter
         encoder.Bitrate = Bitrate;
 
         using var stream = new MemoryStream();
-        var ogg = new OpusOggWriteStream(encoder, stream, new OpusTags(), sampleRate, ResamplerQuality, leaveOpen: false);
+        var ogg = new OpusOggWriteStream(encoder, stream, new OpusTags(), sampleRate);
         ogg.WriteSamples(samples, 0, samples.Length);
         ogg.Finish();
 

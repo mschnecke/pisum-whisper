@@ -4,6 +4,8 @@ using Microsoft.Extensions.Logging;
 using Pisum.Whisper.Core.Output;
 using Pisum.Whisper.Core.Tests.Logging;
 using Serilog;
+using Serilog.Core;
+using Serilog.Events;
 using Serilog.Extensions.Logging;
 using SharpHook.Data;
 using SharpHook.Simulation;
@@ -15,15 +17,15 @@ using SharpHook.Testing;
 /// platform selection and both delays, which is what lets a Windows host assert the macOS keystroke
 /// and what keeps a test that exercises the restore from waiting a second for it.
 /// </summary>
-public abstract class TextOutputTestBase
+public abstract class TextOutputTestBase : IDisposable
 {
     protected const string Transcript = "the quick brown fox";
 
     private readonly RecordingSink _sink = new();
 
-    private Serilog.Core.Logger? _serilog;
+    private readonly Logger? _serilog;
 
-    private SerilogLoggerFactory? _loggerFactory;
+    private readonly SerilogLoggerFactory? _loggerFactory;
 
     protected FakeClipboard Clipboard { get; } = new();
 
@@ -33,20 +35,18 @@ public abstract class TextOutputTestBase
 
     protected IEventSimulator Simulator { get; private set; } = null!;
 
-    [TestInitialize]
-    public void CreateSimulator()
+    protected TextOutputTestBase()
     {
         _serilog = new LoggerConfiguration().MinimumLevel.Verbose().WriteTo.Sink(_sink).CreateLogger();
         _loggerFactory = new SerilogLoggerFactory(_serilog);
 
-        Provider = new TestProvider(TestThreadingMode.Simple);
+        Provider = new TestProvider();
         Simulator = EventSimulator.Create("Pisum Whisper Tests", Provider);
     }
 
-    [TestCleanup]
-    public void DisposeSimulator()
+    public void Dispose()
     {
-        (Simulator as IDisposable)?.Dispose();
+        Simulator?.Dispose();
         _loggerFactory?.Dispose();
         _serilog?.Dispose();
     }
@@ -73,5 +73,5 @@ public abstract class TextOutputTestBase
 
     protected IReadOnlyList<string> LogMessages => _sink.Messages;
 
-    protected IReadOnlyList<Serilog.Events.LogEvent> LogEvents => _sink.Events;
+    protected IReadOnlyList<LogEvent> LogEvents => _sink.Events;
 }

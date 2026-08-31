@@ -10,10 +10,15 @@ reference the tray icon is the *only* recording indicator — there is no HUD an
 - Two icon states, idle and recording, driven by the orchestrator's recording signal. Those updates
   arrive on background threads, so marshal them through `Dispatcher.UIThread.Post`.
 - Dynamic tooltip, `"Pisum Whisper - {active preset}"`, refreshed when the active preset changes.
-- Theme handling through `TopLevel.PlatformSettings.GetColorValues()` and its `ColorValuesChanged`
-  event to select a light or dark icon variant. One mechanism covers **both** platforms, replacing
-  the reference's direct Windows registry read of `AppsUseLightTheme`. On macOS, prefer a template
-  image and let AppKit invert it if Avalonia exposes that (spike S3).
+- Theme handling through `Application.Current.PlatformSettings.GetColorValues()` and its
+  `ColorValuesChanged` event to select a light or dark icon variant. One mechanism covers **both**
+  platforms, replacing the reference's direct Windows registry read of `AppsUseLightTheme`. On macOS,
+  prefer a template image and let AppKit invert it if Avalonia exposes that (spike S3).
+  **`Application`, not `TopLevel`** — this is a tray-only process that creates no `TopLevel`, which is
+  why change 7's clipboard had to become native code in `Pisum.Whisper.Platform`. Platform settings
+  are not the same case: in Avalonia 12.1.1 `PlatformSettings` is declared on `Avalonia.Application`
+  as well as on `TopLevel`, whereas `Clipboard` is declared on `TopLevel` alone. Do not conclude from
+  the clipboard's history that a native theme probe is needed here; it is not.
 - Confirm the application runs correctly with no window ever shown.
 
 Reference: `W:\github-pisum-transcript\src-tauri\src\tray.rs`.

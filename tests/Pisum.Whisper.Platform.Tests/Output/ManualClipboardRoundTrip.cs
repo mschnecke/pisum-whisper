@@ -17,11 +17,13 @@ using Shouldly;
 /// Task 3.2's retry is exercised by running it while a second process holds the clipboard, for
 /// example a PowerShell loop calling <c>Set-Clipboard</c>.
 /// </remarks>
-[TestClass]
+[Trait(Traits.Category, Traits.Categories.Manual)]
 public sealed class ManualClipboardRoundTrip
 {
-    [TestMethod]
-    [Ignore("Requires a real desktop clipboard; run manually")]
+    [Fact(
+        Skip = "Requires a real desktop clipboard; run manually",
+        SkipUnless = nameof(ManualTests.Enabled),
+        SkipType = typeof(ManualTests))]
     public void ATokenSurvivesAWriteAndAReadBack()
     {
         using var provider = new ServiceCollection().AddNativeOutput().BuildServiceProvider();

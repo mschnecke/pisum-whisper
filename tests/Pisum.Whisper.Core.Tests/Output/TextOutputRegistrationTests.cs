@@ -16,39 +16,39 @@ using Shouldly;
 /// stand in for it, and that <c>AddNativeOutput</c> registers what is missing here is asserted in
 /// <c>Pisum.Whisper.Platform.Tests</c>.
 /// </remarks>
-[TestClass]
+[Trait(Traits.Category, Traits.Categories.Integration)]
 public sealed class TextOutputRegistrationTests
 {
-    [TestMethod]
+    [Fact]
     public void TheRegistrationSatisfiesContainerValidation()
     {
-        Should.NotThrow(() => BuildHost(withNativeHalf: true).Dispose());
+        Should.NotThrow(() => BuildHost(true).Dispose());
     }
 
-    [TestMethod]
+    [Fact]
     public void TheDeliveryResolves()
     {
-        using var host = BuildHost(withNativeHalf: true);
+        using var host = BuildHost(true);
 
         host.Services.GetRequiredService<ITextOutput>().ShouldBeOfType<TextOutput>();
     }
 
-    [TestMethod]
+    [Fact]
     public void TheEventSimulatorResolvesAsASingleton()
     {
-        using var host = BuildHost(withNativeHalf: true);
+        using var host = BuildHost(true);
 
         var first = host.Services.GetRequiredService<IEventSimulator>();
 
         first.ShouldBeSameAs(host.Services.GetRequiredService<IEventSimulator>());
     }
 
-    [TestMethod]
+    [Fact]
     public void OmittingTheNativeHalf_FailsAtBuildTimeNamingTheClipboard()
     {
         // Which is the whole reason the two halves are registered separately: this is a startup
         // failure that names the missing service, not a null reference at the first paste.
-        var exception = Should.Throw<AggregateException>(() => BuildHost(withNativeHalf: false).Dispose());
+        var exception = Should.Throw<AggregateException>(() => BuildHost(false).Dispose());
 
         exception.ToString().ShouldContain(nameof(ISystemClipboard));
     }

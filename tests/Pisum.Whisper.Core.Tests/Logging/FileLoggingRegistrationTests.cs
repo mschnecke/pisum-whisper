@@ -9,7 +9,7 @@ using Serilog.Extensions.Logging;
 using Shouldly;
 using ILogger = Serilog.ILogger;
 
-[TestClass]
+[Trait(Traits.Category, Traits.Categories.Integration)]
 public sealed class FileLoggingRegistrationTests : FileLoggingTestBase
 {
     private static FileLoggingOptions Recording(LogDirectory logs, RecordingSink sink, string level = "info")
@@ -22,7 +22,7 @@ public sealed class FileLoggingRegistrationTests : FileLoggingTestBase
         };
     }
 
-    [TestMethod]
+    [Fact]
     public void AddFileLogging_ReplacesTheHostDefaultProviders()
     {
         // ILogger<T>.IsEnabled answers "is any provider enabled", so a surviving console provider
@@ -36,7 +36,7 @@ public sealed class FileLoggingRegistrationTests : FileLoggingTestBase
             .ShouldBeFalse();
     }
 
-    [TestMethod]
+    [Fact]
     public void AddFileLogging_ExposesTheResolvedLogDirectory()
     {
         using var host = BuildHost(new FileLoggingOptions {Directory = Logs});
@@ -45,7 +45,7 @@ public sealed class FileLoggingRegistrationTests : FileLoggingTestBase
         Directory.Exists(Logs.Path).ShouldBeTrue();
     }
 
-    [TestMethod]
+    [Fact]
     public void AddFileLogging_WithAnUnusableDirectory_KeepsRunningAndSaysWhy()
     {
         // A file where the directory should be: unusable in the same way on every platform.
@@ -65,7 +65,7 @@ public sealed class FileLoggingRegistrationTests : FileLoggingTestBase
         File.ReadAllText(Logs.Path).ShouldBe("not a directory");
     }
 
-    [TestMethod]
+    [Fact]
     public void AddFileLogging_AtInformation_DropsDebugOutput()
     {
         var sink = new RecordingSink();
@@ -79,8 +79,8 @@ public sealed class FileLoggingRegistrationTests : FileLoggingTestBase
         sink.Messages.ShouldBe(["Past the level switch."]);
     }
 
-    [TestMethod]
-    public void DisposingTheHost_DrainsTheQueueRatherThanDiscardingIt()
+    [Fact]
+    public async Task DisposingTheHost_DrainsTheQueueRatherThanDiscardingIt()
     {
         // AddSerilog defaults to dispose: false, which throws the queue away instead of draining it.
         // Measured against a clean shutdown, that default leaves an empty file.
@@ -94,7 +94,7 @@ public sealed class FileLoggingRegistrationTests : FileLoggingTestBase
             logger.LogInformation("Event {Index}.", index);
         }
 
-        host.StopAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
+        await host.StopAsync(TimeSpan.FromSeconds(5));
         host.Dispose();
 
         File.ReadAllLines(Logs.LogFilePath).Count(line => line.Contains("Event ")).ShouldBe(events);

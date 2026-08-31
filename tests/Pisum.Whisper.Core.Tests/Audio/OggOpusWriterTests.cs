@@ -5,15 +5,15 @@ using Concentus.Oggfile;
 using Pisum.Whisper.Core.Audio;
 using Shouldly;
 
-[TestClass]
+[Trait(Traits.Category, Traits.Categories.Unit)]
 public sealed class OggOpusWriterTests
 {
     private const int SampleRate = 48_000;
 
-    [TestMethod]
+    [Fact]
     public void Write_ProducesAStreamThatDecodesBackToTheSourceDuration()
     {
-        var samples = GenerateTone(seconds: 1);
+        var samples = GenerateTone(1);
 
         var bytes = new OggOpusWriter().Write(samples, SampleRate);
 
@@ -34,7 +34,7 @@ public sealed class OggOpusWriterTests
         }
 
         // Same 97-103% tolerance spike S4 used, since the tail frame is zero-padded to a full frame.
-        var ratio = decodedSamples / (double)samples.Length;
+        var ratio = decodedSamples / (double) samples.Length;
         ratio.ShouldBeInRange(0.97, 1.03);
     }
 
@@ -43,7 +43,7 @@ public sealed class OggOpusWriterTests
         var samples = new float[SampleRate * seconds];
         for (var i = 0; i < samples.Length; i++)
         {
-            samples[i] = (float)Math.Sin(2 * Math.PI * 440 * i / SampleRate);
+            samples[i] = (float) Math.Sin(2 * Math.PI * 440 * i / SampleRate);
         }
 
         return samples;

@@ -5,15 +5,15 @@ using Pisum.Whisper.Core.Settings;
 using SharpHook.Data;
 using Shouldly;
 
-[TestClass]
+[Trait(Traits.Category, Traits.Categories.Unit)]
 public sealed class HotkeyChordTests
 {
     private static HotkeyBinding Binding(string key, params string[] modifiers)
     {
-        return new HotkeyBinding { Modifiers = [.. modifiers], Key = key };
+        return new HotkeyBinding {Modifiers = [.. modifiers], Key = key};
     }
 
-    [TestMethod]
+    [Fact]
     public void DefaultBinding_CompilesToItsGroupsAndKey()
     {
         HotkeyChord.TryCompile(Binding("Space", "Ctrl", "Shift"), out var chord, out _).ShouldBeTrue();
@@ -22,7 +22,7 @@ public sealed class HotkeyChordTests
         chord.Key.ShouldBe(KeyCode.VcSpace);
     }
 
-    [TestMethod]
+    [Fact]
     public void ModifierSpellings_CompileToTheSameChord()
     {
         HotkeyChord.TryCompile(Binding("Space", "Cmd", "Shift"), out var mac, out _).ShouldBeTrue();
@@ -31,7 +31,7 @@ public sealed class HotkeyChordTests
         mac.ShouldBe(windows);
     }
 
-    [TestMethod]
+    [Fact]
     public void BindingWithNoModifiers_CompilesToNone()
     {
         HotkeyChord.TryCompile(Binding("F9"), out var chord, out _).ShouldBeTrue();
@@ -40,7 +40,7 @@ public sealed class HotkeyChordTests
         chord.Key.ShouldBe(KeyCode.VcF9);
     }
 
-    [TestMethod]
+    [Fact]
     public void BlankModifierEntry_IsSkipped()
     {
         HotkeyChord.TryCompile(Binding("Space", "Ctrl", "", "  "), out var chord, out _).ShouldBeTrue();
@@ -48,21 +48,21 @@ public sealed class HotkeyChordTests
         chord.Modifiers.ShouldBe(HotkeyModifiers.Ctrl);
     }
 
-    [TestMethod]
+    [Fact]
     public void UnknownKey_FailsWithoutThrowing_AndNamesTheToken()
     {
         HotkeyChord.TryCompile(Binding("Nonsense", "Ctrl"), out _, out var token).ShouldBeFalse();
         token.ShouldBe("Nonsense");
     }
 
-    [TestMethod]
+    [Fact]
     public void UnknownModifier_FailsWithoutThrowing_AndNamesTheToken()
     {
         HotkeyChord.TryCompile(Binding("Space", "Ctrl", "Hyper"), out _, out var token).ShouldBeFalse();
         token.ShouldBe("Hyper");
     }
 
-    [TestMethod]
+    [Fact]
     public void Default_MatchesThisPlatformsSettingsDefault()
     {
         HotkeyChord.TryCompile(new HotkeyBinding(), out var fromSettings, out _).ShouldBeTrue();
@@ -75,7 +75,7 @@ public sealed class HotkeyChordTests
                 : HotkeyModifiers.Ctrl | HotkeyModifiers.Shift);
     }
 
-    [TestMethod]
+    [Fact]
     public void ToString_RendersTheBindingForLogging()
     {
         HotkeyChord.TryCompile(Binding("Space", "Shift", "Ctrl"), out var chord, out _).ShouldBeTrue();
@@ -84,7 +84,7 @@ public sealed class HotkeyChordTests
         chord.ToString().ShouldBe("Ctrl+Shift+Space");
     }
 
-    [TestMethod]
+    [Fact]
     public void Chords_CompareByValue()
     {
         // The service swaps chords with a volatile write and compares to decide whether anything

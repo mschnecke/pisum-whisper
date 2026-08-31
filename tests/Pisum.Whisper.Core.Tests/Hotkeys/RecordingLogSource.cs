@@ -18,12 +18,15 @@ public sealed class RecordingLogSource : ILogSource
         MessageLogged?.Invoke(this, new LogEventArgs(new LogEntry(
             level,
             text,
-            format: text,
-            nativeFormat: text,
-            arguments: [],
-            rawArguments: [],
-            argumentPlaceholders: [])));
+            text,
+            text,
+            [],
+            [],
+            [])));
     }
 
-    public void Dispose() => IsDisposed = true;
+    public void Dispose()
+    {
+        IsDisposed = true;
+    }
 }

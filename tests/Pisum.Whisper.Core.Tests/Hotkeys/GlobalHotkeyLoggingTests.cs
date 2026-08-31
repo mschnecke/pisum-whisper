@@ -1,6 +1,5 @@
 namespace Pisum.Whisper.Core.Tests.Hotkeys;
 
-using Pisum.Whisper.Core.Hotkeys;
 using SharpHook.Data;
 using Shouldly;
 
@@ -12,12 +11,12 @@ using Shouldly;
 /// an "Open Log Folder" button a click away. The privacy assertions below are therefore load-bearing
 /// rather than decorative: the obvious debugging statement in this component is a keylog.
 /// </remarks>
-[TestClass]
+[Trait(Traits.Category, Traits.Categories.Integration)]
 public sealed class GlobalHotkeyLoggingTests : GlobalHotkeyServiceTestBase
 {
     // ---- Task 3.9: libuiohook's own diagnostics reach the log, at warning and above ----
 
-    [TestMethod]
+    [Fact]
     public async Task LibUioHookWarnings_ReachTheLog()
     {
         await StartAsync();
@@ -27,7 +26,7 @@ public sealed class GlobalHotkeyLoggingTests : GlobalHotkeyServiceTestBase
         WaitForLogMessageContaining("hook thread is falling behind").ShouldBeTrue();
     }
 
-    [TestMethod]
+    [Fact]
     public async Task LibUioHookErrors_ReachTheLog()
     {
         await StartAsync();
@@ -37,7 +36,7 @@ public sealed class GlobalHotkeyLoggingTests : GlobalHotkeyServiceTestBase
         WaitForLogMessageContaining("failed to create event port").ShouldBeTrue();
     }
 
-    [TestMethod]
+    [Fact]
     public async Task LibUioHookDebugAndInfo_DoNotReachTheLog()
     {
         await StartAsync();
@@ -48,11 +47,11 @@ public sealed class GlobalHotkeyLoggingTests : GlobalHotkeyServiceTestBase
         LogSource.Raise(LogLevel.Debug, "key 0x20 pressed");
         LogSource.Raise(LogLevel.Info, "key 0x20 released");
 
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
         LogMessages.Count.ShouldBe(before);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task DisposingTheService_DisposesTheLogSource()
     {
         await StartAsync();
@@ -64,7 +63,7 @@ public sealed class GlobalHotkeyLoggingTests : GlobalHotkeyServiceTestBase
 
     // ---- Task 3.10: no keystroke is ever written down ----
 
-    [TestMethod]
+    [Fact]
     public async Task TypingIsNeverLogged_EvenAtTheMostVerboseLevel()
     {
         await StartAsync();
@@ -86,7 +85,7 @@ public sealed class GlobalHotkeyLoggingTests : GlobalHotkeyServiceTestBase
             Release(key, EventMask.None);
         }
 
-        await Task.Delay(150);
+        await Task.Delay(150, TestContext.Current.CancellationToken);
 
         LogMessages.Count.ShouldBe(before, "not one of those keystrokes belongs in a log file");
 
@@ -95,12 +94,12 @@ public sealed class GlobalHotkeyLoggingTests : GlobalHotkeyServiceTestBase
         {
             foreach (var name in Enum.GetNames<KeyCode>())
             {
-                message.ShouldNotContain(name, Case.Insensitive);
+                message.ShouldNotContain(name);
             }
         }
     }
 
-    [TestMethod]
+    [Fact]
     public async Task TheBindingAndItsEdgesAreLogged_AndNothingElseIs()
     {
         await StartAsync();
@@ -119,23 +118,23 @@ public sealed class GlobalHotkeyLoggingTests : GlobalHotkeyServiceTestBase
         // The binding is named as a binding, never as the key codes it was matched from.
         foreach (var message in LogMessages)
         {
-            message.ShouldNotContain("VcSpace", Case.Insensitive);
-            message.ShouldNotContain("KeyCode", Case.Insensitive);
+            message.ShouldNotContain("VcSpace");
+            message.ShouldNotContain("KeyCode");
         }
     }
 
-    [TestMethod]
+    [Fact]
     public async Task UnmatchedModifiersAreNotLogged()
     {
         await StartAsync();
         var before = LogMessages.Count;
 
         Press(KeyCode.VcLeftControl, EventMask.LeftCtrl);
-        Press(KeyCode.VcLeftShift, CtrlShift);
+        Press(KeyCode.VcLeftShift);
         Release(KeyCode.VcLeftShift, EventMask.LeftCtrl);
         Release(KeyCode.VcLeftControl, EventMask.None);
 
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
         LogMessages.Count.ShouldBe(before);
     }
 }

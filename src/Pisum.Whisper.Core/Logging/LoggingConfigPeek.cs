@@ -14,7 +14,10 @@ using Pisum.Whisper.Core.Settings;
 /// </remarks>
 public static class LoggingConfigPeek
 {
-    public static LoggingConfig Read() => Read(SettingsStore.DefaultFilePath());
+    public static LoggingConfig Read()
+    {
+        return Read(SettingsStore.DefaultFilePath());
+    }
 
     /// <summary>Reads from an explicit file, which is how the tests avoid the real home directory.</summary>
     public static LoggingConfig Read(string settingsFilePath)

@@ -9,10 +9,10 @@ using Shouldly;
 /// it produces must parse to the key it came from. A key with no name must say so rather than
 /// return a spelling nothing else understands.
 /// </summary>
-[TestClass]
+[Trait(Traits.Category, Traits.Categories.Unit)]
 public sealed class KeyCodeMapReverseTests
 {
-    [TestMethod]
+    [Fact]
     public void EveryCanonicalName_RoundTripsToItsOwnKeyCode()
     {
         var names = KeyCodeMap.CanonicalKeyNames.ToList();
@@ -30,7 +30,7 @@ public sealed class KeyCodeMapReverseTests
         }
     }
 
-    [TestMethod]
+    [Fact]
     public void CanonicalNames_AreTheSpellingsTheSettingsFileAlreadyUses()
     {
         // The default binding change 2 writes is {"modifiers":["Ctrl","Shift"],"key":"Space"}.
@@ -42,7 +42,7 @@ public sealed class KeyCodeMapReverseTests
         pageUp.ShouldBe("PageUp");
     }
 
-    [TestMethod]
+    [Fact]
     public void AliasedKeys_ResolveToTheirPrimaryName()
     {
         KeyCodeMap.TryParseKey("Esc", out var escape).ShouldBeTrue();
@@ -58,7 +58,7 @@ public sealed class KeyCodeMapReverseTests
         minusName.ShouldBe("Minus");
     }
 
-    [TestMethod]
+    [Fact]
     public void DigitAndNumpadKeys_KeepDistinctNames()
     {
         KeyCodeMap.TryGetKeyName(KeyCode.Vc1, out var digit).ShouldBeTrue();
@@ -68,7 +68,7 @@ public sealed class KeyCodeMapReverseTests
         numpad.ShouldBe("Numpad1");
     }
 
-    [TestMethod]
+    [Fact]
     public void KeyOutsideTheVocabulary_ReportsNoName()
     {
         KeyCodeMap.TryGetKeyName(KeyCode.VcF13, out var name).ShouldBeFalse();
@@ -78,7 +78,7 @@ public sealed class KeyCodeMapReverseTests
         KeyCodeMap.TryGetKeyName(KeyCode.VcUndefined, out _).ShouldBeFalse();
     }
 
-    [TestMethod]
+    [Fact]
     public void ModifierKeys_HaveNoKeyName()
     {
         // A modifier is not a main key. Naming one here would let a recorder persist a binding

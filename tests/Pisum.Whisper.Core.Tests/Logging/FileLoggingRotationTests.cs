@@ -6,7 +6,20 @@ using Pisum.Whisper.Core.Logging;
 using Pisum.Whisper.Core.Settings;
 using Shouldly;
 
-[TestClass]
+/// <summary>
+/// The one class in the suite that must not share a CPU. <c>WritesDoNotStallTheCallingThreadWhenTheFileRolls</c>
+/// asserts a p99.9 write latency, and a latency ceiling measures the machine as much as the code:
+/// run alongside the other 52 classes it reads 2000-9000 us against its 500 us bound, and alone it
+/// reads well under it. Serialising this collection is the fix rather than relaxing the bound,
+/// because 500 us is what makes the assertion mean anything - the synchronous sink it exists to beat
+/// costs about 1700 us, so any ceiling loose enough to survive contention would also admit the sink
+/// the asynchronous wrapper replaced.
+/// </summary>
+[CollectionDefinition("wall-clock", DisableParallelization = true)]
+public sealed class WallClockCollection;
+
+[Collection("wall-clock")]
+[Trait(Traits.Category, Traits.Categories.Integration)]
 public sealed class FileLoggingRotationTests : FileLoggingTestBase
 {
     /// <summary>Writes <paramref name="events"/> lines and flushes, returning nothing but a drained sink.</summary>
@@ -23,7 +36,7 @@ public sealed class FileLoggingRotationTests : FileLoggingTestBase
         ((IDisposable) logger).Dispose();
     }
 
-    [TestMethod]
+    [Fact]
     public void TheLogFileRollsWhenItPassesTheSizeLimit()
     {
         WriteAndFlush(new FileLoggingOptions {Directory = Logs, FileSizeLimitBytes = 1024}, 50);
@@ -31,7 +44,7 @@ public sealed class FileLoggingRotationTests : FileLoggingTestBase
         LogFiles().Length.ShouldBeGreaterThan(1);
     }
 
-    [TestMethod]
+    [Fact]
     public void NoMoreThanTenLogFilesAreRetained()
     {
         // Serilog counts the active file within the limit, so ten on disk is nine rolled plus the one
@@ -41,7 +54,7 @@ public sealed class FileLoggingRotationTests : FileLoggingTestBase
         LogFiles().Length.ShouldBe(10);
     }
 
-    [TestMethod]
+    [Fact]
     public void AnExpiredActiveLogFileIsSweptBeforeTheSinkOpensIt()
     {
         // Serilog opens the log file with FileShare.Read, which excludes delete. A sweep placed after
@@ -63,7 +76,7 @@ public sealed class FileLoggingRotationTests : FileLoggingTestBase
         written.ShouldContain("Removed 1 log files older than 7 days");
     }
 
-    [TestMethod]
+    [Fact]
     public void AnUnexpiredLogFileIsKept()
     {
         Directory.CreateDirectory(Logs.Path);
@@ -81,7 +94,7 @@ public sealed class FileLoggingRotationTests : FileLoggingTestBase
         File.ReadAllText(Logs.LogFilePath).ShouldContain("RECENT CONTENT FROM AN EARLIER RUN");
     }
 
-    [TestMethod]
+    [Fact]
     public void WritesDoNotStallTheCallingThreadWhenTheFileRolls()
     {
         // The justification for the asynchronous wrapper is the roll, not throughput: closing the

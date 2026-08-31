@@ -8,12 +8,12 @@ using Shouldly;
 /// Tasks 2.1, 2.3, 2.4, 2.5 and 2.6 — the steps of the delivery and the two ways it stops early
 /// without losing the transcript.
 /// </summary>
-[TestClass]
+[Trait(Traits.Category, Traits.Categories.Unit)]
 public sealed class TextOutputSequenceTests : TextOutputTestBase
 {
     // ---- Task 2.1: read, write, wait, paste ----
 
-    [TestMethod]
+    [Fact]
     public async Task ADelivery_PutsTheTranscriptOnTheClipboardAndPastesIt()
     {
         var outcome = await Create().DeliverAsync(Transcript, CancellationToken.None);
@@ -23,7 +23,7 @@ public sealed class TextOutputSequenceTests : TextOutputTestBase
         Posted.Length.ShouldBe(4);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task AFailedPaste_ReportsTheTranscriptAsCopiedOnly()
     {
         Provider.PostEventResult = UioHookResult.ErrorSetWindowsHookEx;
@@ -33,7 +33,7 @@ public sealed class TextOutputSequenceTests : TextOutputTestBase
         outcome.ShouldBe(TextOutputOutcome.ClipboardOnly);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task AClipboardThatCannotBeRead_StillDelivers()
     {
         Clipboard.ReadFailure = new InvalidOperationException("the clipboard is held by another application");
@@ -46,7 +46,7 @@ public sealed class TextOutputSequenceTests : TextOutputTestBase
 
     // ---- Task 2.3: the trim ----
 
-    [TestMethod]
+    [Fact]
     public async Task ATranscriptEndingInANewline_ReachesTheClipboardWithoutIt()
     {
         await Create().DeliverAsync("hello world\n", CancellationToken.None);
@@ -54,7 +54,7 @@ public sealed class TextOutputSequenceTests : TextOutputTestBase
         Clipboard.Writes[0].ShouldBe("hello world");
     }
 
-    [TestMethod]
+    [Fact]
     public async Task LineBreaksBetweenWords_Survive()
     {
         await Create().DeliverAsync("  first line\nsecond line\t", CancellationToken.None);
@@ -62,7 +62,7 @@ public sealed class TextOutputSequenceTests : TextOutputTestBase
         Clipboard.Writes[0].ShouldBe("first line\nsecond line");
     }
 
-    [TestMethod]
+    [Fact]
     public async Task WhitespaceOnlyText_IsRejectedWithoutTouchingAnything()
     {
         var output = Create();
@@ -76,7 +76,7 @@ public sealed class TextOutputSequenceTests : TextOutputTestBase
 
     // ---- Task 2.4: the probe ----
 
-    [TestMethod]
+    [Fact]
     public async Task ARefusingProbe_LeavesTheTranscriptOnTheClipboardAndSendsNothing()
     {
         Clipboard.Text = "what the user had copied";
@@ -89,7 +89,7 @@ public sealed class TextOutputSequenceTests : TextOutputTestBase
         Clipboard.Text.ShouldBe(Transcript, "restoring over it would make the manual-paste advice a lie");
     }
 
-    [TestMethod]
+    [Fact]
     public async Task AnAcceptingProbe_SendsTheKeystroke()
     {
         await Create().DeliverAsync(Transcript, CancellationToken.None);
@@ -100,14 +100,14 @@ public sealed class TextOutputSequenceTests : TextOutputTestBase
 
     // ---- Task 2.5: a clipboard that cannot be written ----
 
-    [TestMethod]
+    [Fact]
     public async Task AClipboardThatCannotBeWritten_FailsTheDeliveryAndSendsNoKeystroke()
     {
         Clipboard.WriteFailure = new InvalidOperationException("the clipboard could not be emptied");
         var output = Create();
 
-        var exception = await Should.ThrowAsync<TextOutputException>(
-            () => output.DeliverAsync(Transcript, CancellationToken.None));
+        var exception =
+            await Should.ThrowAsync<TextOutputException>(() => output.DeliverAsync(Transcript, CancellationToken.None));
 
         exception.Message.ShouldNotBeNullOrWhiteSpace();
         Posted.ShouldBeEmpty();
@@ -115,7 +115,7 @@ public sealed class TextOutputSequenceTests : TextOutputTestBase
 
     // ---- Task 2.6: guard 1 ----
 
-    [TestMethod]
+    [Fact]
     public async Task AFailedPaste_RestoresNothingOverTheTranscript()
     {
         Clipboard.Text = "what the user had copied";

@@ -10,24 +10,22 @@ using Pisum.Whisper.Core.Settings;
 /// A temporary home directory and a host built the way the application builds one, so these tests
 /// exercise the registration itself rather than a copy of it.
 /// </summary>
-public abstract class FileLoggingTestBase
+public abstract class FileLoggingTestBase : IDisposable
 {
-    private string _home = string.Empty;
+    private readonly string _home = string.Empty;
 
     protected LogDirectory Logs { get; private set; } = new();
 
     protected string SettingsPath => Path.Combine(_home, ".pisum-whisper.json");
 
-    [TestInitialize]
-    public void CreateTemporaryHome()
+    protected FileLoggingTestBase()
     {
         _home = Path.Combine(Path.GetTempPath(), "pisum-whisper-tests", Guid.NewGuid().ToString("n"));
         Directory.CreateDirectory(_home);
         Logs = new LogDirectory(Path.Combine(_home, "logs"));
     }
 
-    [TestCleanup]
-    public void RemoveTemporaryHome()
+    public void Dispose()
     {
         Directory.Delete(_home, true);
     }

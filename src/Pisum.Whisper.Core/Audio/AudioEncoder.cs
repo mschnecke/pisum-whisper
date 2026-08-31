@@ -10,7 +10,9 @@ using Pisum.Whisper.Core.Settings;
 public sealed class AudioEncoder : IAudioEncoder
 {
     private readonly ILogger<AudioEncoder> _logger;
+
     private readonly Func<float[], int, byte[]> _writeOpus;
+
     private readonly Func<float[], int, byte[]> _writeWav;
 
     public AudioEncoder(ILogger<AudioEncoder> logger)
@@ -20,10 +22,9 @@ public sealed class AudioEncoder : IAudioEncoder
 
     /// <summary>Takes the writers as delegates so tests can substitute a throwing one without a
     /// speculative interface over two single-method, single-implementation writers.</summary>
-    internal AudioEncoder(
-        ILogger<AudioEncoder> logger,
-        Func<float[], int, byte[]> writeOpus,
-        Func<float[], int, byte[]> writeWav)
+    internal AudioEncoder(ILogger<AudioEncoder> logger,
+                          Func<float[], int, byte[]> writeOpus,
+                          Func<float[], int, byte[]> writeWav)
     {
         _logger = logger;
         _writeOpus = writeOpus;
@@ -60,12 +61,15 @@ public sealed class AudioEncoder : IAudioEncoder
         }
     }
 
-    private EncodedAudio EncodeAs(float[] samples, int sampleRate, AudioFormat format) => format switch
+    private EncodedAudio EncodeAs(float[] samples, int sampleRate, AudioFormat format)
     {
-        AudioFormat.Opus => new EncodedAudio(
-            _writeOpus(samples, sampleRate), EncodedAudio.OpusMimeType, AudioFormat.Opus),
-        AudioFormat.Wav => new EncodedAudio(
-            _writeWav(samples, sampleRate), EncodedAudio.WavMimeType, AudioFormat.Wav),
-        _ => throw new ArgumentOutOfRangeException(nameof(format), format, null),
-    };
+        return format switch
+        {
+            AudioFormat.Opus => new EncodedAudio(
+                _writeOpus(samples, sampleRate), EncodedAudio.OpusMimeType, AudioFormat.Opus),
+            AudioFormat.Wav => new EncodedAudio(
+                _writeWav(samples, sampleRate), EncodedAudio.WavMimeType, AudioFormat.Wav),
+            _ => throw new ArgumentOutOfRangeException(nameof(format), format, null),
+        };
+    }
 }

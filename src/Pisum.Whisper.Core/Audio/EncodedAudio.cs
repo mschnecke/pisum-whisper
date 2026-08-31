@@ -10,5 +10,6 @@ using Pisum.Whisper.Core.Settings;
 public readonly record struct EncodedAudio(byte[] Bytes, string MimeType, AudioFormat ActualFormat)
 {
     public const string OpusMimeType = "audio/ogg";
+
     public const string WavMimeType = "audio/wav";
 }

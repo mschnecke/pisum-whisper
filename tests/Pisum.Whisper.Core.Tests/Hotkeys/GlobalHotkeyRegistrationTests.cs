@@ -14,25 +14,23 @@ using Shouldly;
 /// <summary>
 /// Task 4.1 — the registration itself, exercised rather than reconstructed.
 /// </summary>
-[TestClass]
-public sealed class GlobalHotkeyRegistrationTests
+[Trait(Traits.Category, Traits.Categories.Integration)]
+public sealed class GlobalHotkeyRegistrationTests : IDisposable
 {
-    private string _home = string.Empty;
+    private readonly string _home = string.Empty;
 
-    [TestInitialize]
-    public void CreateTemporaryHome()
+    public GlobalHotkeyRegistrationTests()
     {
         _home = Path.Combine(Path.GetTempPath(), "pisum-whisper-tests", Guid.NewGuid().ToString("n"));
         Directory.CreateDirectory(_home);
     }
 
-    [TestCleanup]
-    public void RemoveTemporaryHome()
+    public void Dispose()
     {
         Directory.Delete(_home, true);
     }
 
-    [TestMethod]
+    [Fact]
     public void AllThreeRolesResolveToOneInstance()
     {
         using var host = BuildHost();
@@ -47,15 +45,15 @@ public sealed class GlobalHotkeyRegistrationTests
         hosted.ShouldBeSameAs(concrete);
     }
 
-    [TestMethod]
+    [Fact]
     public void TheRegistrationSatisfiesContainerValidation()
     {
         // The application builds its container with ValidateOnBuild, so an unsatisfiable dependency
         // here is a startup failure rather than a null reference at first use.
-        Should.NotThrow(() => BuildHost(validate: true).Dispose());
+        Should.NotThrow(() => BuildHost(true).Dispose());
     }
 
-    [TestMethod]
+    [Fact]
     public void TheServiceIsResolvedBeforeTheHookStarts()
     {
         using var host = BuildHost();
@@ -88,7 +86,7 @@ public sealed class GlobalHotkeyRegistrationTests
         // The real registration resolves the native provider and a native log source. Both are
         // replaced here so a unit test does not install a machine-wide hook.
         builder.Services.AddSingleton<ILogSource>(_ => new EmptyLogSource());
-        builder.Services.AddSingleton<IGlobalHookProvider>(_ => new TestProvider(TestThreadingMode.Simple));
+        builder.Services.AddSingleton<IGlobalHookProvider>(_ => new TestProvider());
         builder.Services.AddSingleton(provider => new GlobalHotkeyService(
             NullLogger<GlobalHotkeyService>.Instance,
             provider.GetRequiredService<SettingsStore>(),

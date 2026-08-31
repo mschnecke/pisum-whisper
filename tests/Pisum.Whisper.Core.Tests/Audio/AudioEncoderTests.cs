@@ -6,12 +6,12 @@ using Pisum.Whisper.Core.Audio;
 using Pisum.Whisper.Core.Settings;
 using Shouldly;
 
-[TestClass]
+[Trait(Traits.Category, Traits.Categories.Unit)]
 public sealed class AudioEncoderTests
 {
     private static readonly float[] Samples = [0f, 0.1f, -0.1f];
 
-    [TestMethod]
+    [Fact]
     public void Encode_WhenThePreferredWriterSucceeds_ReturnsItUntouched()
     {
         byte[] opusBytes = [1, 2, 3];
@@ -27,7 +27,7 @@ public sealed class AudioEncoderTests
         result.ActualFormat.ShouldBe(AudioFormat.Opus);
     }
 
-    [TestMethod]
+    [Fact]
     public void Encode_WhenThePreferredWriterThrows_FallsBackToTheOtherFormat()
     {
         byte[] wavBytes = [4, 5, 6];
@@ -43,7 +43,7 @@ public sealed class AudioEncoderTests
         result.ActualFormat.ShouldBe(AudioFormat.Wav);
     }
 
-    [TestMethod]
+    [Fact]
     public void Encode_WhenBothWritersThrow_RaisesAnAudioException()
     {
         var encoder = new AudioEncoder(
@@ -54,7 +54,7 @@ public sealed class AudioEncoderTests
         Should.Throw<AudioException>(() => encoder.Encode(Samples, 48_000, AudioFormat.Opus));
     }
 
-    [TestMethod]
+    [Fact]
     public void Encode_WithNoOverride_UsesTheRealWriters()
     {
         var encoder = new AudioEncoder(A.Fake<ILogger<AudioEncoder>>());

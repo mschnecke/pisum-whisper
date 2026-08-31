@@ -8,30 +8,30 @@ using Shouldly;
 /// The binding rules, exercised without a keyboard or a hook. The default binding is used
 /// throughout: Ctrl+Shift+Space.
 /// </summary>
-[TestClass]
+[Trait(Traits.Category, Traits.Categories.Unit)]
 public sealed class HotkeyMatcherTests
 {
     private const EventMask CtrlShift = EventMask.LeftCtrl | EventMask.LeftShift;
 
     private static HotkeyMatcher Matcher(HotkeyModifiers modifiers = HotkeyModifiers.Ctrl | HotkeyModifiers.Shift,
-        KeyCode key = KeyCode.VcSpace)
+                                         KeyCode key = KeyCode.VcSpace)
     {
         return new HotkeyMatcher(new HotkeyChord(modifiers, key));
     }
 
     private static MatchResult Press(HotkeyMatcher matcher, KeyCode key, EventMask mask = CtrlShift)
     {
-        return matcher.OnKeyPressed(key, mask, isSimulated: false);
+        return matcher.OnKeyPressed(key, mask, false);
     }
 
     private static MatchResult Release(HotkeyMatcher matcher, KeyCode key, EventMask mask = CtrlShift)
     {
-        return matcher.OnKeyReleased(key, mask, isSimulated: false);
+        return matcher.OnKeyReleased(key, mask, false);
     }
 
     // ---- Task 2.3: the match predicate is exact equality, not containment ----
 
-    [TestMethod]
+    [Fact]
     public void ConfiguredCombination_Matches()
     {
         var matcher = Matcher();
@@ -40,7 +40,7 @@ public sealed class HotkeyMatcherTests
         matcher.IsEngaged.ShouldBeTrue();
     }
 
-    [TestMethod]
+    [Fact]
     public void AdditionalModifier_DoesNotMatch()
     {
         var matcher = Matcher();
@@ -49,7 +49,7 @@ public sealed class HotkeyMatcherTests
         matcher.IsEngaged.ShouldBeFalse();
     }
 
-    [TestMethod]
+    [Fact]
     public void MissingModifier_DoesNotMatch()
     {
         var matcher = Matcher();
@@ -59,7 +59,7 @@ public sealed class HotkeyMatcherTests
         matcher.IsEngaged.ShouldBeFalse();
     }
 
-    [TestMethod]
+    [Fact]
     public void ModifierlessBinding_DoesNotMatchWhileAModifierIsHeld()
     {
         var matcher = Matcher(HotkeyModifiers.None, KeyCode.VcF9);
@@ -68,7 +68,7 @@ public sealed class HotkeyMatcherTests
         Press(matcher, KeyCode.VcF9, EventMask.None).Edge.ShouldBe(HotkeyEdge.Pressed);
     }
 
-    [TestMethod]
+    [Fact]
     public void RightHandModifiers_Match()
     {
         var matcher = Matcher();
@@ -77,7 +77,7 @@ public sealed class HotkeyMatcherTests
             .Edge.ShouldBe(HotkeyEdge.Pressed);
     }
 
-    [TestMethod]
+    [Fact]
     public void LockKeysAndMouseButtons_DoNotBreakTheMatch()
     {
         var matcher = Matcher();
@@ -88,7 +88,7 @@ public sealed class HotkeyMatcherTests
 
     // ---- Task 2.4: engage, coalesce auto-repeat, disengage when the chord breaks ----
 
-    [TestMethod]
+    [Fact]
     public void OnePressAndRelease_ReportsOneEdgeEach()
     {
         var matcher = Matcher();
@@ -98,7 +98,7 @@ public sealed class HotkeyMatcherTests
         matcher.IsEngaged.ShouldBeFalse();
     }
 
-    [TestMethod]
+    [Fact]
     public void AutoRepeat_ReportsExactlyOnePress()
     {
         var matcher = Matcher();
@@ -120,7 +120,7 @@ public sealed class HotkeyMatcherTests
         Release(matcher, KeyCode.VcSpace).Edge.ShouldBe(HotkeyEdge.Released);
     }
 
-    [TestMethod]
+    [Fact]
     public void ModifierReleasedFirst_EndsTheHold()
     {
         var matcher = Matcher();
@@ -130,7 +130,7 @@ public sealed class HotkeyMatcherTests
         matcher.IsEngaged.ShouldBeFalse();
     }
 
-    [TestMethod]
+    [Fact]
     public void MainKeyReleasedFirst_EndsTheHold()
     {
         var matcher = Matcher();
@@ -140,7 +140,7 @@ public sealed class HotkeyMatcherTests
         matcher.IsEngaged.ShouldBeFalse();
     }
 
-    [TestMethod]
+    [Fact]
     public void RemainingKeysReleasedAfterwards_ReportNothingFurther()
     {
         var matcher = Matcher();
@@ -151,7 +151,7 @@ public sealed class HotkeyMatcherTests
         Release(matcher, KeyCode.VcLeftControl, EventMask.None).Edge.ShouldBeNull();
     }
 
-    [TestMethod]
+    [Fact]
     public void UnrelatedModifierRelease_DoesNotEndTheHold()
     {
         var matcher = Matcher();
@@ -166,7 +166,7 @@ public sealed class HotkeyMatcherTests
         matcher.IsEngaged.ShouldBeTrue();
     }
 
-    [TestMethod]
+    [Fact]
     public void UnrelatedKey_ReportsNothing()
     {
         var matcher = Matcher();
@@ -179,7 +179,7 @@ public sealed class HotkeyMatcherTests
         matcher.IsEngaged.ShouldBeTrue("typing while holding the binding must not end the hold");
     }
 
-    [TestMethod]
+    [Fact]
     public void ReleaseWithoutPress_ReportsNothing()
     {
         var matcher = Matcher();
@@ -190,7 +190,7 @@ public sealed class HotkeyMatcherTests
 
     // ---- Task 2.5: the main key is withheld, modifiers never are ----
 
-    [TestMethod]
+    [Fact]
     public void MatchedMainKey_IsWithheldOnBothEdges()
     {
         var matcher = Matcher();
@@ -199,20 +199,20 @@ public sealed class HotkeyMatcherTests
         Release(matcher, KeyCode.VcSpace).Suppress.ShouldBeTrue();
     }
 
-    [TestMethod]
+    [Fact]
     public void ModifierKeys_AreNeverWithheld()
     {
         var matcher = Matcher();
 
         Press(matcher, KeyCode.VcLeftControl, EventMask.LeftCtrl).Suppress.ShouldBeFalse();
-        Press(matcher, KeyCode.VcLeftShift, CtrlShift).Suppress.ShouldBeFalse();
+        Press(matcher, KeyCode.VcLeftShift).Suppress.ShouldBeFalse();
 
         Press(matcher, KeyCode.VcSpace);
         Release(matcher, KeyCode.VcLeftShift, EventMask.LeftCtrl).Suppress.ShouldBeFalse();
         Release(matcher, KeyCode.VcLeftControl, EventMask.None).Suppress.ShouldBeFalse();
     }
 
-    [TestMethod]
+    [Fact]
     public void UnmatchedMainKey_IsNotWithheld()
     {
         var matcher = Matcher();
@@ -222,7 +222,7 @@ public sealed class HotkeyMatcherTests
         Release(matcher, KeyCode.VcSpace, EventMask.None).Suppress.ShouldBeFalse();
     }
 
-    [TestMethod]
+    [Fact]
     public void MainKeyRelease_IsWithheldEvenAfterAModifierEndedTheHold()
     {
         var matcher = Matcher();
@@ -236,28 +236,28 @@ public sealed class HotkeyMatcherTests
 
     // ---- Task 2.6: the application does not observe its own synthetic input ----
 
-    [TestMethod]
+    [Fact]
     public void SimulatedPress_ReportsNothingAndIsNotWithheld()
     {
         var matcher = Matcher();
 
-        matcher.OnKeyPressed(KeyCode.VcSpace, CtrlShift, isSimulated: true).ShouldBe(MatchResult.Ignore);
+        matcher.OnKeyPressed(KeyCode.VcSpace, CtrlShift, true).ShouldBe(MatchResult.Ignore);
         matcher.IsEngaged.ShouldBeFalse();
     }
 
-    [TestMethod]
+    [Fact]
     public void SimulatedRelease_DoesNotEndARealHold()
     {
         var matcher = Matcher();
         Press(matcher, KeyCode.VcSpace);
 
-        matcher.OnKeyReleased(KeyCode.VcSpace, CtrlShift, isSimulated: true).ShouldBe(MatchResult.Ignore);
+        matcher.OnKeyReleased(KeyCode.VcSpace, CtrlShift, true).ShouldBe(MatchResult.Ignore);
         matcher.IsEngaged.ShouldBeTrue();
     }
 
     // ---- Rebind and teardown, consumed by tasks 3.4 and 3.6 ----
 
-    [TestMethod]
+    [Fact]
     public void Rebind_WhileEngaged_ReportsThatAReleaseIsOwed()
     {
         var matcher = Matcher();
@@ -271,7 +271,7 @@ public sealed class HotkeyMatcherTests
         Release(matcher, KeyCode.VcSpace).Suppress.ShouldBeTrue();
     }
 
-    [TestMethod]
+    [Fact]
     public void Rebind_WhileIdle_OwesNothing()
     {
         var matcher = Matcher();
@@ -280,7 +280,7 @@ public sealed class HotkeyMatcherTests
         matcher.Chord.Key.ShouldBe(KeyCode.VcF9);
     }
 
-    [TestMethod]
+    [Fact]
     public void Rebind_ToTheSameChord_IsANoOp()
     {
         var matcher = Matcher();
@@ -291,7 +291,7 @@ public sealed class HotkeyMatcherTests
         matcher.IsEngaged.ShouldBeTrue("an unchanged binding must not interrupt a hold in progress");
     }
 
-    [TestMethod]
+    [Fact]
     public void Disengage_ReportsWhetherAReleaseIsOwed()
     {
         var matcher = Matcher();

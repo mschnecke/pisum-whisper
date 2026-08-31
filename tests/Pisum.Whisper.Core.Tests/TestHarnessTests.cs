@@ -5,10 +5,10 @@ using Shouldly;
 /// <summary>
 /// Placeholder until Core has behaviour worth testing. Its job is to prove the test stack runs.
 /// </summary>
-[TestClass]
+[Trait(Traits.Category, Traits.Categories.Unit)]
 public sealed class TestHarnessTests
 {
-    [TestMethod]
+    [Fact]
     public void HarnessRuns()
     {
         true.ShouldBeTrue();

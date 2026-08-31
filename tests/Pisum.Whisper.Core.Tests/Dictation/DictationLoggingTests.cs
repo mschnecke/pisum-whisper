@@ -7,12 +7,12 @@ using Shouldly;
 /// Task 5.3 — the logging rules, at the most verbose level there is. This component sees the user's
 /// speech and writes none of it down, and it sees no keys at all.
 /// </summary>
-[TestClass]
+[Trait(Traits.Category, Traits.Categories.Integration)]
 public sealed class DictationLoggingTests : DictationTestBase
 {
     private const string Spoken = "my password is hunter2 and the account number is 4417";
 
-    [TestMethod]
+    [Fact]
     public async Task TheTranscriptIsNeverLogged()
     {
         var orchestrator = Create();
@@ -40,7 +40,7 @@ public sealed class DictationLoggingTests : DictationTestBase
         }
     }
 
-    [TestMethod]
+    [Fact]
     public async Task AFailedDictationDoesNotLogTheTranscriptEither()
     {
         var orchestrator = Create();
@@ -59,7 +59,7 @@ public sealed class DictationLoggingTests : DictationTestBase
     /// <summary>
     /// What the log does carry: enough to tell a dictation that happened from one that did not.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public async Task TheRecordingIsDescribedByDurationAndSampleCount()
     {
         var orchestrator = Create();
@@ -76,7 +76,7 @@ public sealed class DictationLoggingTests : DictationTestBase
     /// would double the most common entries in the file — and this component has no business writing
     /// anything about a key, since it is the one that turns them into recordings.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public async Task NoKeyIsEverMentioned()
     {
         var orchestrator = Create();
@@ -96,7 +96,7 @@ public sealed class DictationLoggingTests : DictationTestBase
     /// The API key lives in settings, which this component reads on every dictation. It reads the
     /// audio format and the active preset from the same object, so the rule is worth an assertion.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public async Task NoApiKeyIsEverLogged()
     {
         Configure(settings => settings.Providers.Add(new ProviderConfig

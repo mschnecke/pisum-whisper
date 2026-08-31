@@ -8,7 +8,7 @@ using Shouldly;
 /// the command key matter in practice: the settings file defaults to <c>Cmd</c> on macOS and
 /// <c>Ctrl</c> elsewhere, and a file carried between the two must still load.
 /// </summary>
-[TestClass]
+[Trait(Traits.Category, Traits.Categories.Unit)]
 public sealed class KeyCodeMapModifierTests
 {
     private static HotkeyModifiers Parse(string name)
@@ -17,14 +17,14 @@ public sealed class KeyCodeMapModifierTests
         return modifier;
     }
 
-    [TestMethod]
+    [Fact]
     public void CtrlAndControl_ResolveToTheSameGroup()
     {
         Parse("Ctrl").ShouldBe(HotkeyModifiers.Ctrl);
         Parse("Control").ShouldBe(HotkeyModifiers.Ctrl);
     }
 
-    [TestMethod]
+    [Fact]
     public void AllFiveMetaSpellings_ResolveToTheSameGroup()
     {
         Parse("Meta").ShouldBe(HotkeyModifiers.Meta);
@@ -34,14 +34,14 @@ public sealed class KeyCodeMapModifierTests
         Parse("Command").ShouldBe(HotkeyModifiers.Meta);
     }
 
-    [TestMethod]
+    [Fact]
     public void AltAndShift_ResolveToTheirOwnGroups()
     {
         Parse("Alt").ShouldBe(HotkeyModifiers.Alt);
         Parse("Shift").ShouldBe(HotkeyModifiers.Shift);
     }
 
-    [TestMethod]
+    [Fact]
     public void Names_MatchRegardlessOfCase()
     {
         Parse("ctrl").ShouldBe(HotkeyModifiers.Ctrl);
@@ -50,7 +50,7 @@ public sealed class KeyCodeMapModifierTests
         Parse("SHIFT").ShouldBe(HotkeyModifiers.Shift);
     }
 
-    [TestMethod]
+    [Fact]
     public void UnknownModifier_ReportsFalseRatherThanThrowing()
     {
         KeyCodeMap.TryParseModifier("Hyper", out var modifier).ShouldBeFalse();
@@ -60,7 +60,7 @@ public sealed class KeyCodeMapModifierTests
         KeyCodeMap.TryParseModifier(null, out _).ShouldBeFalse();
     }
 
-    [TestMethod]
+    [Fact]
     public void ModifierNames_AreNotKeyNames()
     {
         // A binding names its modifiers separately from its key. Letting "Ctrl" resolve as a key

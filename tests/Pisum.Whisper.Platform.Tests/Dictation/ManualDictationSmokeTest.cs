@@ -2,8 +2,6 @@ namespace Pisum.Whisper.Platform.Tests.Dictation;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Pisum.Whisper.Core.Audio;
 using Pisum.Whisper.Core.Dictation;
 using Pisum.Whisper.Core.Hotkeys;
@@ -32,18 +30,20 @@ using Shouldly;
 /// five seconds after it starts.
 /// </para>
 /// </remarks>
-[TestClass]
+[Trait(Traits.Category, Traits.Categories.Manual)]
 public sealed class ManualDictationSmokeTest
 {
-    [TestMethod]
-    [Ignore("Requires a microphone, a configured API key and a desktop session; run manually")]
+    [Fact(
+        Skip = "Requires a microphone, a configured API key and a desktop session; run manually",
+        SkipUnless = nameof(ManualTests.Enabled),
+        SkipType = typeof(ManualTests))]
     public async Task SpeakingForFiveSecondsPutsTheWordsAtTheCursor()
     {
         using var host = BuildHost();
-        var hotkeys = (StubHotkeyService)host.Services.GetRequiredService<IGlobalHotkeyService>();
+        var hotkeys = (StubHotkeyService) host.Services.GetRequiredService<IGlobalHotkeyService>();
         var orchestrator = host.Services.GetRequiredService<DictationOrchestrator>();
 
-        await host.StartAsync();
+        await host.StartAsync(TestContext.Current.CancellationToken);
 
         try
         {
@@ -51,14 +51,14 @@ public sealed class ManualDictationSmokeTest
             orchestrator.State.ShouldBe(DictationState.Recording);
 
             // Speak now.
-            await Task.Delay(TimeSpan.FromSeconds(5));
+            await Task.Delay(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
             hotkeys.Release();
 
             var deadline = DateTime.UtcNow.AddMinutes(3);
             while (orchestrator.State != DictationState.Idle && DateTime.UtcNow < deadline)
             {
-                await Task.Delay(100);
+                await Task.Delay(100, TestContext.Current.CancellationToken);
             }
 
             orchestrator.State.ShouldBe(
@@ -67,7 +67,7 @@ public sealed class ManualDictationSmokeTest
         }
         finally
         {
-            await host.StopAsync();
+            await host.StopAsync(TestContext.Current.CancellationToken);
         }
 
         // What actually happened is in the log and at the cursor: check that the words you spoke are
@@ -106,11 +106,19 @@ public sealed class ManualDictationSmokeTest
 
         public HotkeyChord Chord => HotkeyChord.Default;
 
-        public Task<HotkeyCapture> CaptureAsync(CancellationToken cancellationToken) =>
-            Task.FromResult(HotkeyCapture.Cancelled);
+        public Task<HotkeyCapture> CaptureAsync(CancellationToken cancellationToken)
+        {
+            return Task.FromResult(HotkeyCapture.Cancelled);
+        }
 
-        public void Press() => Pressed?.Invoke(this, EventArgs.Empty);
+        public void Press()
+        {
+            Pressed?.Invoke(this, EventArgs.Empty);
+        }
 
-        public void Release() => Released?.Invoke(this, EventArgs.Empty);
+        public void Release()
+        {
+            Released?.Invoke(this, EventArgs.Empty);
+        }
     }
 }

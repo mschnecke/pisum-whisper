@@ -4,7 +4,7 @@ using System.Threading.Channels;
 using Pisum.Whisper.Core.Audio;
 using Shouldly;
 
-[TestClass]
+[Trait(Traits.Category, Traits.Categories.Unit)]
 public sealed class MiniAudioCaptureTests
 {
     /// <summary>
@@ -14,19 +14,19 @@ public sealed class MiniAudioCaptureTests
     /// ceiling arrives after two and a half minutes instead of eighty-one. Pinning it here makes a
     /// change to it deliberate.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public void TheCaptureRateIs48Khz()
     {
         IAudioCapture.SampleRate.ShouldBe(48_000);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task DrainAsync_ConcatenatesChunksInWriteOrder()
     {
         var channel = Channel.CreateUnbounded<float[]>();
-        await channel.Writer.WriteAsync([1f, 2f]);
-        await channel.Writer.WriteAsync([3f]);
-        await channel.Writer.WriteAsync([4f, 5f, 6f]);
+        await channel.Writer.WriteAsync([1f, 2f], TestContext.Current.CancellationToken);
+        await channel.Writer.WriteAsync([3f], TestContext.Current.CancellationToken);
+        await channel.Writer.WriteAsync([4f, 5f, 6f], TestContext.Current.CancellationToken);
         channel.Writer.Complete();
 
         var samples = await MiniAudioCapture.DrainAsync(channel.Reader);
@@ -34,7 +34,7 @@ public sealed class MiniAudioCaptureTests
         samples.ShouldBe([1f, 2f, 3f, 4f, 5f, 6f]);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task DrainAsync_WhenTheChannelCompletesWithNoChunksWritten_ReturnsEmpty()
     {
         var channel = Channel.CreateUnbounded<float[]>();

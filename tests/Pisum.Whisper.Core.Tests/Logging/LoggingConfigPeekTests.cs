@@ -3,23 +3,21 @@ namespace Pisum.Whisper.Core.Tests.Logging;
 using Pisum.Whisper.Core.Logging;
 using Shouldly;
 
-[TestClass]
-public sealed class LoggingConfigPeekTests
+[Trait(Traits.Category, Traits.Categories.Integration)]
+public sealed class LoggingConfigPeekTests : IDisposable
 {
-    private string _directory = string.Empty;
+    private readonly string _directory = string.Empty;
 
-    private string _path = string.Empty;
+    private readonly string _path = string.Empty;
 
-    [TestInitialize]
-    public void CreateTemporaryHome()
+    public LoggingConfigPeekTests()
     {
         _directory = Path.Combine(Path.GetTempPath(), "pisum-whisper-tests", Guid.NewGuid().ToString("n"));
         Directory.CreateDirectory(_directory);
         _path = Path.Combine(_directory, ".pisum-whisper.json");
     }
 
-    [TestCleanup]
-    public void RemoveTemporaryHome()
+    public void Dispose()
     {
         Directory.Delete(_directory, true);
     }
@@ -42,7 +40,7 @@ public sealed class LoggingConfigPeekTests
         }
     }
 
-    [TestMethod]
+    [Fact]
     public void Read_WithNoFile_ReturnsDefaultsAndCreatesNothing()
     {
         var config = LoggingConfigPeek.Read(_path);
@@ -53,7 +51,7 @@ public sealed class LoggingConfigPeekTests
         ShouldHaveLeftTheFileAlone(null);
     }
 
-    [TestMethod]
+    [Fact]
     public void Read_WithAValidFile_ReturnsTheConfiguredValues()
     {
         File.WriteAllText(
@@ -69,7 +67,7 @@ public sealed class LoggingConfigPeekTests
         ShouldHaveLeftTheFileAlone(before);
     }
 
-    [TestMethod]
+    [Fact]
     public void Read_WithAPartialFile_DefaultsTheRest()
     {
         File.WriteAllText(_path, """{"startWithSystem": false, "loggingConfig": {"logLevel": "warn"}}""");
@@ -83,7 +81,7 @@ public sealed class LoggingConfigPeekTests
         ShouldHaveLeftTheFileAlone(before);
     }
 
-    [TestMethod]
+    [Fact]
     public void Read_WithNoLoggingSection_ReturnsDefaults()
     {
         File.WriteAllText(_path, """{"startWithSystem": false}""");
@@ -93,7 +91,7 @@ public sealed class LoggingConfigPeekTests
         ShouldHaveLeftTheFileAlone(before);
     }
 
-    [TestMethod]
+    [Fact]
     public void Read_WithACorruptFile_ReturnsDefaultsRatherThanThrowing()
     {
         // The settings store throws over this file a moment later, with a logger that by then
@@ -105,7 +103,7 @@ public sealed class LoggingConfigPeekTests
         ShouldHaveLeftTheFileAlone(before);
     }
 
-    [TestMethod]
+    [Fact]
     public void Read_WithAnUnreadableFile_ReturnsDefaultsRatherThanThrowing()
     {
         // A directory where the file should be: unreadable in the same way on every platform.

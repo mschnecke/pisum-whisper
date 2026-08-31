@@ -1,3 +1,5 @@
+namespace Pisum.Whisper.App;
+
 using Avalonia;
 using Avalonia.Controls;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,8 +13,6 @@ using Pisum.Whisper.Core.Output;
 using Pisum.Whisper.Core.Settings;
 using Pisum.Whisper.Core.Transcription;
 using Pisum.Whisper.Platform.Output;
-
-namespace Pisum.Whisper.App;
 
 internal static class Program
 {
@@ -75,7 +75,7 @@ internal static class Program
         builder.Services.AddNativeOutput();
 
         // Last, because it consumes all four of the capabilities above. Registered as a hosted
-        // service so the host constructs it — nothing else resolves it yet — and so that its
+        // service, so the host constructs it — nothing else resolves it yet — and so that its
         // StopAsync runs on the way out: a dictation caught mid-delivery has to finish putting the
         // user's clipboard back before the process exits.
         builder.Services.AddDictationPipeline();
@@ -106,9 +106,11 @@ internal static class Program
             store.IsFirstLaunch);
     }
 
-    private static AppBuilder BuildAvaloniaApp(IServiceProvider services) =>
-        AppBuilder.Configure(() => new App(services))
+    private static AppBuilder BuildAvaloniaApp(IServiceProvider services)
+    {
+        return AppBuilder.Configure(() => new App(services))
             .UsePlatformDetect()
-            .With(new MacOSPlatformOptions { ShowInDock = false })
+            .With(new MacOSPlatformOptions {ShowInDock = false})
             .LogToTrace();
+    }
 }

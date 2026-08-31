@@ -1,11 +1,11 @@
+namespace Pisum.Whisper.App;
+
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-
-namespace Pisum.Whisper.App;
 
 /// <summary>
 /// Tray-only application shell. No window is ever shown; the process stays alive on the tray icon
@@ -16,10 +16,13 @@ public sealed class App : Application
     private static readonly Uri IdleIconUri = new("avares://Pisum.Whisper.App/Assets/tray-idle.png");
 
     private readonly ILogger<App> _logger;
+
     private TrayIcon? _trayIcon;
 
     public App(IServiceProvider services)
-        => _logger = services.GetRequiredService<ILogger<App>>();
+    {
+        _logger = services.GetRequiredService<ILogger<App>>();
+    }
 
     public override void OnFrameworkInitializationCompleted()
     {

@@ -8,10 +8,10 @@ using Shouldly;
 /// Task 3.8 — the entry point change 10's hotkey recorder uses. It reuses this observation rather
 /// than starting a second one, because libuiohook keeps one static callback per process.
 /// </summary>
-[TestClass]
+[Trait(Traits.Category, Traits.Categories.Integration)]
 public sealed class GlobalHotkeyCaptureTests : GlobalHotkeyServiceTestBase
 {
-    [TestMethod]
+    [Fact]
     public async Task Capture_ReportsTheCombinationInSettingsSpelling()
     {
         await StartAsync();
@@ -19,8 +19,8 @@ public sealed class GlobalHotkeyCaptureTests : GlobalHotkeyServiceTestBase
         var capture = Service.CaptureAsync(CancellationToken.None);
 
         Press(KeyCode.VcLeftControl, EventMask.LeftCtrl);
-        Press(KeyCode.VcLeftShift, CtrlShift);
-        Press(KeyCode.VcF9, CtrlShift);
+        Press(KeyCode.VcLeftShift);
+        Press(KeyCode.VcF9);
 
         var result = await capture;
 
@@ -30,7 +30,7 @@ public sealed class GlobalHotkeyCaptureTests : GlobalHotkeyServiceTestBase
         result.Binding.Key.ShouldBe("F9");
     }
 
-    [TestMethod]
+    [Fact]
     public async Task CapturedBinding_CompilesBackToWhatWasPressed()
     {
         await StartAsync();
@@ -44,7 +44,7 @@ public sealed class GlobalHotkeyCaptureTests : GlobalHotkeyServiceTestBase
         chord.ShouldBe(new HotkeyChord(HotkeyModifiers.Alt, KeyCode.VcF9));
     }
 
-    [TestMethod]
+    [Fact]
     public async Task ModifiersAlone_DoNotEndACapture()
     {
         await StartAsync();
@@ -60,7 +60,7 @@ public sealed class GlobalHotkeyCaptureTests : GlobalHotkeyServiceTestBase
         (await capture).Binding!.Key.ShouldBe("J");
     }
 
-    [TestMethod]
+    [Fact]
     public async Task ConfiguredBinding_IsCapturedRatherThanReportedAsAnEdge()
     {
         await StartAsync();
@@ -74,11 +74,11 @@ public sealed class GlobalHotkeyCaptureTests : GlobalHotkeyServiceTestBase
         result.Outcome.ShouldBe(HotkeyCaptureOutcome.Captured);
         result.Binding!.Key.ShouldBe("Space");
 
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
         Observed().ShouldBeEmpty("the binding must not fire while it is being re-recorded");
     }
 
-    [TestMethod]
+    [Fact]
     public async Task KeyOutsideTheVocabulary_IsReportedAsUnsupported()
     {
         await StartAsync();
@@ -92,7 +92,7 @@ public sealed class GlobalHotkeyCaptureTests : GlobalHotkeyServiceTestBase
         result.Binding.ShouldBeNull("a key that cannot be named cannot be persisted");
     }
 
-    [TestMethod]
+    [Fact]
     public async Task Cancellation_EndsTheCaptureAndResumesMatching()
     {
         await StartAsync();
@@ -110,7 +110,7 @@ public sealed class GlobalHotkeyCaptureTests : GlobalHotkeyServiceTestBase
         Observed().ShouldBe([HotkeyEdge.Pressed, HotkeyEdge.Released]);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task CaptureCompleting_ResumesMatching()
     {
         await StartAsync();
@@ -128,7 +128,7 @@ public sealed class GlobalHotkeyCaptureTests : GlobalHotkeyServiceTestBase
         Observed().ShouldBe([HotkeyEdge.Pressed, HotkeyEdge.Released]);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task StartingACaptureWhileHeld_PaysTheOwedRelease()
     {
         await StartAsync();

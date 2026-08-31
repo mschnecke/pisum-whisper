@@ -15,10 +15,10 @@ using Shouldly;
 /// <summary>
 /// Task 5.1 — what shutting down does to each state.
 /// </summary>
-[TestClass]
+[Trait(Traits.Category, Traits.Categories.Integration)]
 public sealed class DictationLifecycleTests : DictationTestBase
 {
-    [TestMethod]
+    [Fact]
     public async Task ShuttingDownStopsObservingTheHotkey()
     {
         var orchestrator = Create();
@@ -30,7 +30,7 @@ public sealed class DictationLifecycleTests : DictationTestBase
         Capture.Starts.ShouldBe(0);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task ShuttingDownWhileRecordingDiscardsTheRecording()
     {
         var orchestrator = Create();
@@ -50,7 +50,7 @@ public sealed class DictationLifecycleTests : DictationTestBase
     /// The transcription is abandoned rather than waited out — the whole point of cancelling it is
     /// that the budget could otherwise be two minutes.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public async Task ShuttingDownWhileTranscribingAbandonsItPromptly()
     {
         var orchestrator = Create(transcriptionBudget: TimeSpan.FromMinutes(5));
@@ -74,7 +74,7 @@ public sealed class DictationLifecycleTests : DictationTestBase
     /// hands ownership to the system. A <c>StopAsync</c> that cancelled without awaiting would let
     /// the process exit inside that window and destroy the clipboard permanently.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public async Task ShuttingDownWhileDeliveringWaitsForTheDeliveryToFinish()
     {
         var orchestrator = Create();
@@ -85,7 +85,7 @@ public sealed class DictationLifecycleTests : DictationTestBase
 
         var stopping = orchestrator.StopAsync(CancellationToken.None);
 
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
         stopping.IsCompleted.ShouldBeFalse("shutdown must not return while a delivery is in flight");
 
         Output.Release();
@@ -102,7 +102,7 @@ public sealed class DictationLifecycleTests : DictationTestBase
     /// The observable form of the claim is that the state has left <c>Recording</c> before the
     /// device starts closing, which is what makes every other claimant a no-op.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public async Task ShuttingDownWhileRecordingClaimsTheRecordingBeforeClosingTheDevice()
     {
         var orchestrator = Create();
@@ -127,7 +127,7 @@ public sealed class DictationLifecycleTests : DictationTestBase
     /// The other half of the claim: shutdown awaits the pipeline it read in the same lock, so a
     /// dictation that was already past the microphone is still waited for rather than abandoned.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public async Task ShuttingDownAwaitsThePipelineItObservedUnderTheLock()
     {
         var orchestrator = Create();
@@ -137,7 +137,7 @@ public sealed class DictationLifecycleTests : DictationTestBase
         await Output.Entered;
 
         var stopping = orchestrator.StopAsync(CancellationToken.None);
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
         stopping.IsCompleted.ShouldBeFalse();
 
         Output.Release();
@@ -147,7 +147,7 @@ public sealed class DictationLifecycleTests : DictationTestBase
         orchestrator.State.ShouldBe(DictationState.Idle);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task ShuttingDownWhenIdleDoesNothing()
     {
         var orchestrator = Create();
@@ -163,30 +163,28 @@ public sealed class DictationLifecycleTests : DictationTestBase
 /// <summary>
 /// Task 5.2 — the registration itself, exercised rather than reconstructed.
 /// </summary>
-[TestClass]
-public sealed class DictationRegistrationTests
+[Trait(Traits.Category, Traits.Categories.Integration)]
+public sealed class DictationRegistrationTests : IDisposable
 {
-    private string _home = string.Empty;
+    private readonly string _home = string.Empty;
 
-    [TestInitialize]
-    public void CreateTemporaryHome()
+    public DictationRegistrationTests()
     {
         _home = Path.Combine(Path.GetTempPath(), "pisum-whisper-tests", Guid.NewGuid().ToString("n"));
         Directory.CreateDirectory(_home);
     }
 
-    [TestCleanup]
-    public void RemoveTemporaryHome()
+    public void Dispose()
     {
         Directory.Delete(_home, true);
     }
 
-    [TestMethod]
+    [Fact]
     public void TheRegistrationSatisfiesContainerValidation()
     {
         // The application builds its container with ValidateOnBuild, so an unsatisfiable dependency
         // here is a startup failure rather than a null reference at the first hotkey press.
-        Should.NotThrow(() => BuildHost(validate: true).Dispose());
+        Should.NotThrow(() => BuildHost(true).Dispose());
     }
 
     /// <summary>
@@ -194,7 +192,7 @@ public sealed class DictationRegistrationTests
     /// constructor, so a second instance would be a second subscriber, and one key press would open
     /// two recordings over one microphone.
     /// </summary>
-    [TestMethod]
+    [Fact]
     public void BothRolesResolveToOneInstance()
     {
         using var host = BuildHost();
@@ -205,7 +203,7 @@ public sealed class DictationRegistrationTests
         hosted.ShouldBeSameAs(concrete);
     }
 
-    [TestMethod]
+    [Fact]
     public void TheOrchestratorStartsIdle()
     {
         using var host = BuildHost();

@@ -3,12 +3,20 @@
   <PropertyGroup>
     <IsPackable>false</IsPackable>
     <OutputType>Exe</OutputType>
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
   </PropertyGroup>
 
   <ItemGroup>
+    <AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest"/>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting"/>
-    <PackageReference Include="Microsoft.NET.Test.Sdk"/>
-    <PackageReference Include="MSTest"/>
+    <PackageReference Include="xunit.v3"/>
     <PackageReference Include="FakeItEasy"/>
     <PackageReference Include="Shouldly"/>
     <PackageReference Include="SharpHook.Testing"/>

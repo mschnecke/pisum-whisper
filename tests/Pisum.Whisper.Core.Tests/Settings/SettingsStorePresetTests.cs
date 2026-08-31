@@ -5,23 +5,21 @@ using Pisum.Whisper.Core.Settings;
 using Shouldly;
 
 /// <summary>The preset operations the settings window will drive, exercised against a real file.</summary>
-[TestClass]
-public sealed class SettingsStorePresetTests
+[Trait(Traits.Category, Traits.Categories.Integration)]
+public sealed class SettingsStorePresetTests : IDisposable
 {
-    private string _directory = string.Empty;
+    private readonly string _directory = string.Empty;
 
-    private string _path = string.Empty;
+    private readonly string _path = string.Empty;
 
-    [TestInitialize]
-    public void CreateTemporaryHome()
+    public SettingsStorePresetTests()
     {
         _directory = Path.Combine(Path.GetTempPath(), "pisum-whisper-tests", Guid.NewGuid().ToString("n"));
         Directory.CreateDirectory(_directory);
         _path = Path.Combine(_directory, ".pisum-whisper.json");
     }
 
-    [TestCleanup]
-    public void RemoveTemporaryHome()
+    public void Dispose()
     {
         Directory.Delete(_directory, true);
     }
@@ -43,7 +41,7 @@ public sealed class SettingsStorePresetTests
         return new Preset {Id = id, Name = name, SystemPrompt = prompt};
     }
 
-    [TestMethod]
+    [Fact]
     public void SavePreset_WithAnUnknownId_AppendsIt()
     {
         var store = LoadedStore();
@@ -54,7 +52,7 @@ public sealed class SettingsStorePresetTests
         NewStore().Load().Presets.ShouldContain(p => p.Id == "mine" && p.Name == "Custom");
     }
 
-    [TestMethod]
+    [Fact]
     public void SavePreset_WithAKnownId_UpdatesTheNameAndPrompt()
     {
         var store = LoadedStore();
@@ -68,7 +66,7 @@ public sealed class SettingsStorePresetTests
         store.Current.Presets.Count(p => p.Id == "mine").ShouldBe(1);
     }
 
-    [TestMethod]
+    [Fact]
     public void SavePreset_OverABuiltin_KeepsItBuiltinAndTheEditSurvivesTheNextLoad()
     {
         var store = LoadedStore();
@@ -88,7 +86,7 @@ public sealed class SettingsStorePresetTests
         reloaded.SystemPrompt.ShouldBe("My own wording.");
     }
 
-    [TestMethod]
+    [Fact]
     public void DeletePreset_RefusesABuiltinAndLeavesTheListUnchanged()
     {
         var store = LoadedStore();
@@ -101,7 +99,7 @@ public sealed class SettingsStorePresetTests
         NewStore().Load().Presets.Select(p => p.Id).ShouldBe(before);
     }
 
-    [TestMethod]
+    [Fact]
     public void DeletePreset_RefusesAnUnknownId()
     {
         var store = LoadedStore();
@@ -110,7 +108,7 @@ public sealed class SettingsStorePresetTests
             .Message.ShouldContain("nothing");
     }
 
-    [TestMethod]
+    [Fact]
     public void DeletePreset_MovesTheActivePresetToTheFirstRemainingOne()
     {
         var store = LoadedStore();
@@ -125,7 +123,7 @@ public sealed class SettingsStorePresetTests
         NewStore().Load().ActivePresetId.ShouldBe("de-transcribe");
     }
 
-    [TestMethod]
+    [Fact]
     public void DeletePreset_LeavesTheActivePresetAloneWhenAnotherIsDeleted()
     {
         var store = LoadedStore();
@@ -137,7 +135,7 @@ public sealed class SettingsStorePresetTests
         store.Current.ActivePresetId.ShouldBe("en-transcribe");
     }
 
-    [TestMethod]
+    [Fact]
     public void SetActivePreset_PersistsAnExistingId()
     {
         var store = LoadedStore();
@@ -148,7 +146,7 @@ public sealed class SettingsStorePresetTests
         NewStore().Load().ActivePresetId.ShouldBe("en-transcribe");
     }
 
-    [TestMethod]
+    [Fact]
     public void SetActivePreset_RejectsAnUnknownIdAndKeepsThePreviousOne()
     {
         var store = LoadedStore();

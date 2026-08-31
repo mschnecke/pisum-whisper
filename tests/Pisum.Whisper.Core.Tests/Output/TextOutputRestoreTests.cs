@@ -8,14 +8,14 @@ using Shouldly;
 /// Tasks 2.7, 2.8 and 2.10 — putting the user's clipboard back, and the three ways that goes wrong
 /// if it is done unguarded, unserialised, or abandoned half way.
 /// </summary>
-[TestClass]
+[Trait(Traits.Category, Traits.Categories.Unit)]
 public sealed class TextOutputRestoreTests : TextOutputTestBase
 {
     private const string Copied = "https://example.invalid/what-the-user-had-copied";
 
     // ---- Task 2.7: guards 2 and 3 ----
 
-    [TestMethod]
+    [Fact]
     public async Task ASuccessfulPaste_PutsThePreviousTextBack()
     {
         Clipboard.Text = Copied;
@@ -26,7 +26,7 @@ public sealed class TextOutputRestoreTests : TextOutputTestBase
         Clipboard.Writes.ShouldBe([Transcript, Copied]);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task AClipboardChangedDuringTheDelivery_IsLeftAlone()
     {
         Clipboard.Text = Copied;
@@ -36,7 +36,7 @@ public sealed class TextOutputRestoreTests : TextOutputTestBase
 
         // The user copies something while the transcript is still on its way into their document.
         // That copy is newer than anything this delivery saved, so it wins.
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
         Clipboard.Text = "something the user copied mid-dictation";
 
         await delivery;
@@ -45,7 +45,7 @@ public sealed class TextOutputRestoreTests : TextOutputTestBase
         Clipboard.Writes.ShouldBe([Transcript]);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task AClipboardThatHeldNoText_IsNotRestored()
     {
         // An empty clipboard, an image and a file list all read as null. Round-tripping arbitrary
@@ -58,7 +58,7 @@ public sealed class TextOutputRestoreTests : TextOutputTestBase
         Clipboard.Writes.ShouldBe([Transcript]);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task ASecondDeliverysTranscript_StandsTheFirstRestoreDown()
     {
         // The gate makes this sequential, so what is asserted is that the second delivery's write
@@ -74,7 +74,7 @@ public sealed class TextOutputRestoreTests : TextOutputTestBase
 
     // ---- Task 2.8: cancellation ----
 
-    [TestMethod]
+    [Fact]
     public async Task CancellingBetweenThePasteAndTheRestore_StillRestores_AndDoesNotWait()
     {
         Clipboard.Text = Copied;
@@ -84,7 +84,7 @@ public sealed class TextOutputRestoreTests : TextOutputTestBase
         var stopwatch = Stopwatch.StartNew();
         var delivery = output.DeliverAsync(Transcript, cancellation.Token);
 
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
         await cancellation.CancelAsync();
 
         (await delivery).ShouldBe(TextOutputOutcome.Pasted);
@@ -92,7 +92,7 @@ public sealed class TextOutputRestoreTests : TextOutputTestBase
         Clipboard.Text.ShouldBe(Copied, "the user's clipboard exists nowhere else at that moment");
     }
 
-    [TestMethod]
+    [Fact]
     public async Task CancellingBeforeTheWrite_LeavesTheClipboardUntouched()
     {
         Clipboard.Text = Copied;
@@ -101,8 +101,7 @@ public sealed class TextOutputRestoreTests : TextOutputTestBase
 
         var output = Create();
 
-        await Should.ThrowAsync<OperationCanceledException>(
-            () => output.DeliverAsync(Transcript, cancellation.Token));
+        await Should.ThrowAsync<OperationCanceledException>(() => output.DeliverAsync(Transcript, cancellation.Token));
 
         Clipboard.Text.ShouldBe(Copied);
         Clipboard.Writes.ShouldBeEmpty();
@@ -110,7 +109,7 @@ public sealed class TextOutputRestoreTests : TextOutputTestBase
 
     // ---- Task 2.10: deliveries are serialised ----
 
-    [TestMethod]
+    [Fact]
     public async Task TwoOverlappingDeliveries_LeaveTheUsersOwnTextOnTheClipboard()
     {
         // Unserialised, every guard behaves exactly as specified and the result is still wrong: the
@@ -128,7 +127,7 @@ public sealed class TextOutputRestoreTests : TextOutputTestBase
         Clipboard.Writes.ShouldBe([Transcript, Copied, "a second dictation", Copied]);
     }
 
-    [TestMethod]
+    [Fact]
     public async Task ADeliveryThatThrew_ReleasesTheGate()
     {
         var output = Create();
@@ -139,7 +138,8 @@ public sealed class TextOutputRestoreTests : TextOutputTestBase
         Clipboard.WriteFailure = null;
 
         // Without the finally this would deadlock rather than fail.
-        var outcome = await output.DeliverAsync(Transcript, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(5));
+        var outcome = await output.DeliverAsync(Transcript, CancellationToken.None)
+            .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         outcome.ShouldBe(TextOutputOutcome.Pasted);
     }

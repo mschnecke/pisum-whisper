@@ -8,6 +8,7 @@ using Pisum.Whisper.Core.Hotkeys;
 using Pisum.Whisper.Core.Settings;
 using Pisum.Whisper.Core.Tests.Logging;
 using Serilog;
+using Serilog.Core;
 using Serilog.Extensions.Logging;
 using SharpHook.Data;
 using SharpHook.Testing;
@@ -20,15 +21,17 @@ using SharpHook.Testing;
 /// The binding is written into the settings file explicitly rather than relying on the defaults,
 /// because those differ by platform and these assertions must not.
 /// </remarks>
-public abstract class GlobalHotkeyServiceTestBase
+public abstract class GlobalHotkeyServiceTestBase : IDisposable
 {
     protected const EventMask CtrlShift = EventMask.LeftCtrl | EventMask.LeftShift;
 
     private readonly RecordingSink _sink = new();
 
-    private string _home = string.Empty;
-    private SerilogLoggerFactory? _loggerFactory;
-    private Serilog.Core.Logger? _serilog;
+    private readonly string _home = string.Empty;
+
+    private readonly SerilogLoggerFactory? _loggerFactory;
+
+    private readonly Logger? _serilog;
 
     protected TestProvider Provider { get; private set; } = null!;
 
@@ -42,13 +45,12 @@ public abstract class GlobalHotkeyServiceTestBase
 
     protected string SettingsPath => Path.Combine(_home, ".pisum-whisper.json");
 
-    [TestInitialize]
-    public void CreateService()
+    protected GlobalHotkeyServiceTestBase()
     {
         _home = Path.Combine(Path.GetTempPath(), "pisum-whisper-tests", Guid.NewGuid().ToString("n"));
         Directory.CreateDirectory(_home);
 
-        WriteSettings(new AppSettings { Hotkey = Binding("Space", "Ctrl", "Shift") });
+        WriteSettings(new AppSettings {Hotkey = Binding("Space", "Ctrl", "Shift")});
 
         _serilog = new LoggerConfiguration().MinimumLevel.Verbose().WriteTo.Sink(_sink).CreateLogger();
         _loggerFactory = new SerilogLoggerFactory(_serilog);
@@ -56,7 +58,7 @@ public abstract class GlobalHotkeyServiceTestBase
         Settings = new SettingsStore(NullLogger<SettingsStore>.Instance, SettingsPath);
         Settings.Load();
 
-        Provider = new TestProvider(TestThreadingMode.Simple);
+        Provider = new TestProvider();
         Service = new GlobalHotkeyService(
             _loggerFactory.CreateLogger<GlobalHotkeyService>(),
             Settings,
@@ -67,8 +69,7 @@ public abstract class GlobalHotkeyServiceTestBase
         Service.Released += (_, _) => Record(HotkeyEdge.Released);
     }
 
-    [TestCleanup]
-    public void DisposeService()
+    public void Dispose()
     {
         Service.Dispose();
         _loggerFactory?.Dispose();
@@ -78,7 +79,7 @@ public abstract class GlobalHotkeyServiceTestBase
 
     protected static HotkeyBinding Binding(string key, params string[] modifiers)
     {
-        return new HotkeyBinding { Modifiers = [.. modifiers], Key = key };
+        return new HotkeyBinding {Modifiers = [.. modifiers], Key = key};
     }
 
     protected void WriteSettings(AppSettings settings)
@@ -86,11 +87,20 @@ public abstract class GlobalHotkeyServiceTestBase
         File.WriteAllText(SettingsPath, JsonSerializer.Serialize(settings, SettingsJsonContext.OnDisk.AppSettings));
     }
 
-    protected Task StartAsync() => Service.StartAsync(CancellationToken.None);
+    protected Task StartAsync()
+    {
+        return Service.StartAsync(CancellationToken.None);
+    }
 
-    protected void Press(KeyCode key, EventMask mask = CtrlShift) => Post(EventType.KeyPressed, key, mask);
+    protected void Press(KeyCode key, EventMask mask = CtrlShift)
+    {
+        Post(EventType.KeyPressed, key, mask);
+    }
 
-    protected void Release(KeyCode key, EventMask mask = CtrlShift) => Post(EventType.KeyReleased, key, mask);
+    protected void Release(KeyCode key, EventMask mask = CtrlShift)
+    {
+        Post(EventType.KeyReleased, key, mask);
+    }
 
     /// <summary>
     /// Posts an event and returns how long the posting thread was held. In simple threading mode the
@@ -102,7 +112,7 @@ public abstract class GlobalHotkeyServiceTestBase
         {
             Type = type,
             Mask = mask,
-            Keyboard = new KeyboardEventData { KeyCode = key },
+            Keyboard = new KeyboardEventData {KeyCode = key},
         };
 
         var stopwatch = Stopwatch.StartNew();
@@ -134,7 +144,10 @@ public abstract class GlobalHotkeyServiceTestBase
     }
 
     /// <summary>Waits for a log message containing <paramref name="fragment"/> to be written.</summary>
-    protected bool WaitForLogMessageContaining(string fragment) => _sink.WaitForMessageContaining(fragment);
+    protected bool WaitForLogMessageContaining(string fragment)
+    {
+        return _sink.WaitForMessageContaining(fragment);
+    }
 
     /// <summary>
     /// Everything logged so far. Used for assertions that something was <b>not</b> logged, which

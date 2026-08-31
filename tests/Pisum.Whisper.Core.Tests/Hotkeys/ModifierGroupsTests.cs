@@ -9,10 +9,10 @@ using Shouldly;
 /// treating <c>EventMask</c>'s group values as single bits, and comparing a raw mask that also
 /// carries the lock keys and the mouse buttons.
 /// </summary>
-[TestClass]
+[Trait(Traits.Category, Traits.Categories.Unit)]
 public sealed class ModifierGroupsTests
 {
-    [TestMethod]
+    [Fact]
     public void LeftAndRightModifiers_FoldToTheSameGroup()
     {
         ModifierGroups.FromEventMask(EventMask.LeftCtrl).ShouldBe(HotkeyModifiers.Ctrl);
@@ -25,7 +25,7 @@ public sealed class ModifierGroupsTests
         ModifierGroups.FromEventMask(EventMask.RightMeta).ShouldBe(HotkeyModifiers.Meta);
     }
 
-    [TestMethod]
+    [Fact]
     public void HasFlag_WouldHaveFailedTheRightHandCase()
     {
         // The trap this fold exists to avoid, asserted directly so it cannot creep back in:
@@ -36,25 +36,25 @@ public sealed class ModifierGroupsTests
         ModifierGroups.FromEventMask(EventMask.RightCtrl).ShouldBe(HotkeyModifiers.Ctrl);
     }
 
-    [TestMethod]
+    [Fact]
     public void LockKeys_AreDiscarded()
     {
         var mask = EventMask.LeftCtrl | EventMask.LeftShift
-                   | EventMask.CapsLock | EventMask.NumLock | EventMask.ScrollLock;
+                                      | EventMask.CapsLock | EventMask.NumLock | EventMask.ScrollLock;
 
         ModifierGroups.FromEventMask(mask).ShouldBe(HotkeyModifiers.Ctrl | HotkeyModifiers.Shift);
     }
 
-    [TestMethod]
+    [Fact]
     public void MouseButtons_AreDiscarded()
     {
         var mask = EventMask.LeftCtrl | EventMask.LeftShift
-                   | EventMask.Button1 | EventMask.Button3 | EventMask.Button5;
+                                      | EventMask.Button1 | EventMask.Button3 | EventMask.Button5;
 
         ModifierGroups.FromEventMask(mask).ShouldBe(HotkeyModifiers.Ctrl | HotkeyModifiers.Shift);
     }
 
-    [TestMethod]
+    [Fact]
     public void SimulatedFlag_IsDiscarded()
     {
         var mask = EventMask.LeftCtrl | EventMask.SimulatedEvent;
@@ -62,13 +62,13 @@ public sealed class ModifierGroupsTests
         ModifierGroups.FromEventMask(mask).ShouldBe(HotkeyModifiers.Ctrl);
     }
 
-    [TestMethod]
+    [Fact]
     public void EmptyMask_FoldsToNone()
     {
         ModifierGroups.FromEventMask(EventMask.None).ShouldBe(HotkeyModifiers.None);
     }
 
-    [TestMethod]
+    [Fact]
     public void MixedSides_FoldToOneGroupEach()
     {
         var mask = EventMask.LeftCtrl | EventMask.RightShift;

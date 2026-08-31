@@ -17,7 +17,9 @@ using SFAudioFormat = SoundFlow.Structs.AudioFormat;
 public sealed class MiniAudioCapture : IAudioCapture
 {
     private MiniAudioEngine? _engine;
+
     private AudioCaptureDevice? _device;
+
     private Channel<float[]>? _channel;
 
     public void Start()
@@ -38,7 +40,8 @@ public sealed class MiniAudioCapture : IAudioCapture
             }
 
             var deviceInfo = engine.CaptureDevices.First(d => d.IsDefault);
-            var format = new SFAudioFormat { SampleRate = IAudioCapture.SampleRate, Channels = 1, Format = SampleFormat.F32 };
+            var format = new SFAudioFormat
+                {SampleRate = IAudioCapture.SampleRate, Channels = 1, Format = SampleFormat.F32};
             var device = engine.InitializeCaptureDevice(deviceInfo, format, new MiniAudioDeviceConfig());
             var channel = Channel.CreateUnbounded<float[]>();
 

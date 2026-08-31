@@ -11,32 +11,47 @@ using Shouldly;
 /// given, and whether it arrives flagged as simulated. If either changes, the service tests would
 /// start passing for the wrong reason.
 /// </summary>
-[TestClass]
+[Trait(Traits.Category, Traits.Categories.Unit)]
 public sealed class HookProviderProbeTests
 {
-    [TestMethod]
+    [Fact]
     public async Task PostedEvent_KeepsItsMaskAndIsNotFlaggedAsSimulated()
     {
-        var provider = new TestProvider(TestThreadingMode.Simple);
+        var provider = new TestProvider();
         using var hook = new SimpleGlobalHook(provider);
 
-        KeyboardHookEventArgs? observed = null;
-        hook.KeyPressed += (_, e) => observed = e;
+        using var enabled = new ManualResetEventSlim();
+        using var dispatched = new ManualResetEventSlim();
+        hook.HookEnabled += (_, _) => enabled.Set();
 
-        var running = hook.RunAsync(GlobalHookType.Keyboard, useBackgroundThread: true);
-        while (!hook.IsRunning)
+        KeyboardHookEventArgs? observed = null;
+        hook.KeyPressed += (_, e) =>
         {
-            await Task.Delay(5);
-        }
+            observed = e;
+            dispatched.Set();
+        };
+
+        var running = hook.RunAsync(GlobalHookType.Keyboard, true);
+
+        // HookEnabled, not IsRunning. IsRunning turns true before the provider's dispatch proc is
+        // installed, and an event posted in that window is answered with Success and then dropped
+        // for good — no later wait recovers it. Sequentially the window was never hit; with the
+        // thread pool contended by parallel test classes it is, measured at 2 in 3000.
+        enabled.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken)
+            .ShouldBeTrue("the hook should have reported itself enabled");
 
         var posted = new UioHookEvent
         {
             Type = EventType.KeyPressed,
             Mask = EventMask.LeftCtrl | EventMask.LeftShift,
-            Keyboard = new KeyboardEventData { KeyCode = KeyCode.VcSpace },
+            Keyboard = new KeyboardEventData {KeyCode = KeyCode.VcSpace},
         };
 
         provider.PostEvent(ref posted).ShouldBe(UioHookResult.Success);
+
+        // And the handler has to have run before Stop, which does not wait for what is in flight.
+        dispatched.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken)
+            .ShouldBeTrue("the posted event should have reached the hook");
 
         hook.Stop();
         await running;
@@ -47,27 +62,42 @@ public sealed class HookProviderProbeTests
         observed.IsEventSimulated.ShouldBeFalse();
     }
 
-    [TestMethod]
+    [Fact]
     public async Task SuppressedEvent_IsRecordedByTheProvider()
     {
-        var provider = new TestProvider(TestThreadingMode.Simple);
+        var provider = new TestProvider();
         using var hook = new SimpleGlobalHook(provider);
 
-        hook.KeyPressed += (_, e) => e.SuppressEvent = true;
+        using var enabled = new ManualResetEventSlim();
+        using var dispatched = new ManualResetEventSlim();
+        hook.HookEnabled += (_, _) => enabled.Set();
 
-        var running = hook.RunAsync(GlobalHookType.Keyboard, useBackgroundThread: true);
-        while (!hook.IsRunning)
+        hook.KeyPressed += (_, e) =>
         {
-            await Task.Delay(5);
-        }
+            e.SuppressEvent = true;
+            dispatched.Set();
+        };
+
+        var running = hook.RunAsync(GlobalHookType.Keyboard, true);
+
+        // HookEnabled, not IsRunning. IsRunning turns true before the provider's dispatch proc is
+        // installed, and an event posted in that window is answered with Success and then dropped
+        // for good — no later wait recovers it. Sequentially the window was never hit; with the
+        // thread pool contended by parallel test classes it is, measured at 2 in 3000.
+        enabled.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken)
+            .ShouldBeTrue("the hook should have reported itself enabled");
 
         var posted = new UioHookEvent
         {
             Type = EventType.KeyPressed,
-            Keyboard = new KeyboardEventData { KeyCode = KeyCode.VcSpace },
+            Keyboard = new KeyboardEventData {KeyCode = KeyCode.VcSpace},
         };
 
         provider.PostEvent(ref posted);
+
+        // As above: Stop does not wait for an in-flight dispatch.
+        dispatched.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken)
+            .ShouldBeTrue("the posted event should have reached the hook");
 
         hook.Stop();
         await running;

@@ -8,16 +8,16 @@ using Shouldly;
 /// Tasks 3.1-3.3 — the wire shape, serialised through the source-generated context rather than
 /// reflection, so a property name that drifts fails here rather than at the API.
 /// </summary>
-[TestClass]
+[Trait(Traits.Category, Traits.Categories.Unit)]
 public sealed class GeminiWireTests
 {
-    [TestMethod]
+    [Fact]
     public void ARequestWithoutASystemInstruction_OmitsTheProperty()
     {
         var request = new GeminiRequest
         {
-            Contents = [new GeminiContent { Parts = [new GeminiPart { Text = "Respond with only: OK" }] }],
-            GenerationConfig = new GeminiGenerationConfig { Temperature = 0.1f, MaxOutputTokens = 10 },
+            Contents = [new GeminiContent {Parts = [new GeminiPart {Text = "Respond with only: OK"}]}],
+            GenerationConfig = new GeminiGenerationConfig {Temperature = 0.1f, MaxOutputTokens = 10},
         };
 
         var json = JsonSerializer.Serialize(request, GeminiJsonContext.Default.GeminiRequest);
@@ -27,14 +27,14 @@ public sealed class GeminiWireTests
         json.ShouldNotContain("inlineData");
     }
 
-    [TestMethod]
+    [Fact]
     public void APopulatedRequest_EmitsEveryPropertyGeminiExpects()
     {
         var request = new GeminiRequest
         {
             SystemInstruction = new GeminiSystemInstruction
             {
-                Parts = [new GeminiPart { Text = "Transcribe the audio." }],
+                Parts = [new GeminiPart {Text = "Transcribe the audio."}],
             },
             Contents =
             [
@@ -44,12 +44,12 @@ public sealed class GeminiWireTests
                     [
                         new GeminiPart
                         {
-                            InlineData = new GeminiInlineData { MimeType = "audio/ogg", Data = "AQID" },
+                            InlineData = new GeminiInlineData {MimeType = "audio/ogg", Data = "AQID"},
                         },
                     ],
                 },
             ],
-            GenerationConfig = new GeminiGenerationConfig { Temperature = 0.1f, MaxOutputTokens = 8192 },
+            GenerationConfig = new GeminiGenerationConfig {Temperature = 0.1f, MaxOutputTokens = 8192},
         };
 
         var json = JsonSerializer.Serialize(request, GeminiJsonContext.Default.GeminiRequest);
@@ -65,17 +65,17 @@ public sealed class GeminiWireTests
         json.ShouldNotContain("null");
     }
 
-    [TestMethod]
+    [Fact]
     public void AResponse_YieldsTheCandidateText()
     {
         const string payload = """
-            {
-              "candidates": [
-                { "content": { "parts": [ { "text": "hello world" } ], "role": "model" } }
-              ],
-              "usageMetadata": { "totalTokenCount": 42 }
-            }
-            """;
+                               {
+                                 "candidates": [
+                                   { "content": { "parts": [ { "text": "hello world" } ], "role": "model" } }
+                                 ],
+                                 "usageMetadata": { "totalTokenCount": 42 }
+                               }
+                               """;
 
         var response = JsonSerializer.Deserialize(payload, GeminiJsonContext.Default.GeminiResponse);
 
@@ -84,12 +84,12 @@ public sealed class GeminiWireTests
         response.Candidates!.Single().Content!.Parts!.Single().Text.ShouldBe("hello world");
     }
 
-    [TestMethod]
+    [Fact]
     public void AnErrorResponse_YieldsTheMessage()
     {
         const string payload = """
-            { "error": { "code": 400, "message": "API key not valid", "status": "INVALID_ARGUMENT" } }
-            """;
+                               { "error": { "code": 400, "message": "API key not valid", "status": "INVALID_ARGUMENT" } }
+                               """;
 
         var response = JsonSerializer.Deserialize(payload, GeminiJsonContext.Default.GeminiResponse);
 
@@ -98,25 +98,25 @@ public sealed class GeminiWireTests
         response.Error!.Message.ShouldBe("API key not valid");
     }
 
-    [TestMethod]
+    [Fact]
     public void AModelsResponse_YieldsNamesAndSupportedMethods()
     {
         const string payload = """
-            {
-              "models": [
-                {
-                  "name": "models/gemini-2.5-flash-lite",
-                  "displayName": "Gemini 2.5 Flash-Lite",
-                  "supportedGenerationMethods": [ "generateContent", "countTokens" ]
-                },
-                {
-                  "name": "models/embedding-001",
-                  "displayName": "Embedding 001",
-                  "supportedGenerationMethods": [ "embedContent" ]
-                }
-              ]
-            }
-            """;
+                               {
+                                 "models": [
+                                   {
+                                     "name": "models/gemini-2.5-flash-lite",
+                                     "displayName": "Gemini 2.5 Flash-Lite",
+                                     "supportedGenerationMethods": [ "generateContent", "countTokens" ]
+                                   },
+                                   {
+                                     "name": "models/embedding-001",
+                                     "displayName": "Embedding 001",
+                                     "supportedGenerationMethods": [ "embedContent" ]
+                                   }
+                                 ]
+                               }
+                               """;
 
         var response = JsonSerializer.Deserialize(payload, GeminiJsonContext.Default.GeminiModelsResponse);
 
