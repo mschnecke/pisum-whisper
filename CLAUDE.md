@@ -408,6 +408,16 @@ exception, which does not crash the process — it vanishes, leaves the state at
 ever, and the hotkey answers "Transcription In Progress" until the application is restarted. The
 `finally` is there for the state reset first and the message second.
 
+**The watchdog task is not inside that catch, and its notification is guarded for the same reason
+`Announce`'s subscriber is.** `ArmWatchdog` spawns its own `Task.Run` whose only `try` covers the
+delay, so the log-notify-`TryStopRecording` sequence after it runs unprotected: an escaping throw
+from the presenter would skip the stop entirely, leaving the recording running past its maximum with
+the watchdog already spent, and surface as an unobserved task exception rather than a failure.
+Telling the user is the optional half of that task; stopping the recording is not, so the notify
+carries its own `catch` and the stop follows it unconditionally. Anything added between the delay and
+`TryStopRecording` needs the same treatment. `DictationWatchdogTests.APresenterThatThrowsStillStopsTheRecording`
+is the guard, and it fails without the `catch` rather than merely covering it.
+
 ## The tray icon
 
 `src/Pisum.Whisper.App/App.cs` is the whole capability — no type in `Core`, no `ITrayPresenter`. The
