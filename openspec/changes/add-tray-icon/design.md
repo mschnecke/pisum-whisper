@@ -112,10 +112,21 @@ than a hedge. *From the binaries:* `Avalonia.Native.TrayIconImpl` implements
 implements `ITrayIconImpl, IDisposable` and nothing else. The property's change handler reaches a
 backend only through that interface, so on Windows the call sets a value no implementation reads.
 The guard stays because it says at the call site *why* the line exists, not because the outcome is
-in doubt. This closes what was Open Question 2. One inch is left unwalked and is worth naming:
-`MacOSProperties.TrayIconIsTemplateIconChanged` was not disassembled, so that the handler is a plain
-interface test is inference — from an interface that exists for no other purpose. Task 4.3 confirms
-it by running.
+in doubt. This closes what was Open Question 2.
+
+The inch that was left inferred — that `MacOSProperties.TrayIconIsTemplateIconChanged` merely tests
+for the interface rather than requiring it — has since been **observed**. `spikes -- tray` was
+extended to call `MacOSProperties.SetIsTemplateIcon` unguarded and run on win-x64: it set the flag,
+performed eight runtime icon swaps and exited 0, throwing nothing against a backend that does not
+implement `ITrayIconWithIsTemplateImpl`.
+
+That run also sharpens the wording. The spike reports `IsTemplateIcon set to: True` **on Windows** —
+`GetIsTemplateIcon` reads the value back, because an attached property stores itself on the
+`AvaloniaObject` like any other and only the backend's consumption of it is missing. So the accurate
+description is *stored but not consumed*, not *ignored*: reading the property back tells you what was
+asked for, never what the platform did with it. Nothing here depends on the difference, but anyone
+tempted to use it as a "did the template take effect" probe would be reading a value that is always
+what they just wrote.
 
 **One drawing per state, exported twice; every interior mark is a hole.**
 A template image is rendered from its **alpha channel alone**; colour is discarded. Interior detail
@@ -157,6 +168,24 @@ into a smudge. Idle is `#6B7A8F` after testing three slates — a deeper one die
 lighter one washes out on a light one, and this sits near the symmetric-contrast optimum at 4.4:1 on
 white and 3.7:1 on `#202020`, both clear of the 3:1 non-text floor. Recording and transcribing clear
 it on both backgrounds as drawn.
+
+The exports were then checked at the sizes the Windows backend actually renders — 16, 20 and 24 px,
+resampled from the 32 px source and reduced to their alpha silhouettes, which is the state in which
+colour contributes nothing and the one macOS sees. All three stay distinguishable at all three sizes,
+so the requirement holds; they do not hold it by equal margins, and the ranking is worth knowing
+before anyone tunes the art again:
+
+| State | At 16 px | Margin |
+|---|---|---|
+| `Recording` | one large central hole | unmistakable |
+| `Idle` | a striped bubble, though the bands land two rows / one row / two rows rather than evenly | comfortable |
+| `Transcribing` | three dots reduced to roughly one partial-alpha pixel each, reading as a speckled band rather than an ellipsis | thinnest |
+
+`Transcribing` is therefore the glyph to spend on if any of them ever needs more, and 16 px — 100%
+DPI, the commonest desktop case — is where it is thinnest. It is not confusable with either of the
+others, which is why the art ships as drawn. The measurement used GDI+ bicubic resampling rather than
+Avalonia's own `GetScaledSize` path, so it is sound for whether a mark survives at a size and is not
+a substitute for looking at a real taskbar, which task 4.1 still does.
 
 Twelve files land in `src/Pisum.Whisper.App/Assets/`: `tray-{idle,recording,transcribing}.png` at
 32x32 for Windows, `tray-{idle,recording,transcribing}Template.png` at 36x36 for macOS, and the six
@@ -253,6 +282,22 @@ What remains open is not correctness but sharpness: at the realistic 2x Retina b
 needs 34 physical px, so the 36 px source is a ~6% downsample — likely near-lossless for a two-tone
 glyph, but "likely" is the word a glance on real hardware still settles. Neither this nor the Windows
 half blocks anything.
+
+**The Windows size is settled too, and by the same method.** The first sentence above — 32x32 is the
+16 px slot at 200% DPI — was an assertion when it was written, and it is now read out of the
+assembly. `TrayIconImpl.UpdateIcon` calls `IconImpl.LoadSmallIcon(scaling)`, whose entire IL body is
+`GetScaledSize(16, scaling)` feeding a `Win32Icon` constructor — the literal `ldc.i4.s 16` is in the
+method — and the scaling comes from `TrayIconImpl.GetTaskBarMonScalingOrDefault()`. So the rendered
+sizes are 16, 20, 24 and 32 px at 100%, 125%, 150% and 200%: the 32x32 source is exact at 200%, a
+clean 2:1 downsample at 100%, and non-integer at the two middle stops.
+
+Two consequences worth having written down. The scaling is the **taskbar's** monitor's, not the
+primary's, and `FindTaskBarMonitor` together with a `WM_TASKBARCREATED` handler re-derive it when the
+taskbar moves or Explorer restarts — so a mixed-DPI desktop is the backend's problem and not this
+change's. And the static `Avalonia.Win32.IconImpl.s_taskbarIconSize`, which reads 24, is **not** the
+tray's size despite the name: the IL shows `LoadBigIcon` referencing it and `LoadSmallIcon` never
+touching it. Anyone re-deriving this from metadata alone meets that field first and comes away with
+24; it belongs to the alt-tab icon.
 
 **This change has no automated tests, and that is a real gap.** There is no
 `tests/Pisum.Whisper.App.Tests`, and `Avalonia.Headless.XUnit` is deliberately not referenced yet —
