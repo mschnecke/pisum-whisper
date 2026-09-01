@@ -7,18 +7,16 @@ reference the tray icon is the *only* recording indicator — there is no HUD an
 ## What Changes
 
 - Add an Avalonia `TrayIcon` with a `NativeMenu`: Settings, separator, Quit.
-- Two icon states, idle and recording, driven by the orchestrator's recording signal. Those updates
-  arrive on background threads, so marshal them through `Dispatcher.UIThread.Post`.
+- Three icon states — idle, recording and transcribing — driven by `DictationOrchestrator.StateChanged`.
+  Three, not two: change 8 publishes three `DictationState` values precisely so the icon need not
+  claim to be recording during the upload, which is the reference's defect. Those updates arrive on
+  background threads, so marshal them through `Dispatcher.UIThread.Post`.
 - Dynamic tooltip, `"Pisum Whisper - {active preset}"`, refreshed when the active preset changes.
-- Theme handling through `Application.Current.PlatformSettings.GetColorValues()` and its
-  `ColorValuesChanged` event to select a light or dark icon variant. One mechanism covers **both**
-  platforms, replacing the reference's direct Windows registry read of `AppsUseLightTheme`. On macOS,
-  prefer a template image and let AppKit invert it if Avalonia exposes that (spike S3).
-  **`Application`, not `TopLevel`** — this is a tray-only process that creates no `TopLevel`, which is
-  why change 7's clipboard had to become native code in `Pisum.Whisper.Platform`. Platform settings
-  are not the same case: in Avalonia 12.1.1 `PlatformSettings` is declared on `Avalonia.Application`
-  as well as on `TopLevel`, whereas `Clipboard` is declared on `TopLevel` alone. Do not conclude from
-  the clipboard's history that a native theme probe is needed here; it is not.
+- **No theme handling.** No probe, no `ColorValuesChanged` subscription, no light/dark variants.
+  macOS sets `TrayIcon.IsTemplateIcon` and lets AppKit tint the glyph — the Apple-recommended
+  treatment, and less code than probing; Avalonia 12.1.1 does expose it, undocumented. Windows
+  carries the contrast in the art instead, because every theme value Avalonia can reach reports the
+  *apps* theme while the Windows 11 taskbar follows a different key. See `design.md`.
 - Confirm the application runs correctly with no window ever shown.
 
 Reference: `W:\github-pisum-transcript\src-tauri\src\tray.rs`.
@@ -34,9 +32,9 @@ _None._
 ## Impact
 
 Depends on `add-dictation-pipeline` for the recording-state signal, and on spike S3. Unblocks
-`add-settings-window`, which the Settings menu item opens. Note that macOS `NSStatusItem` does not
-present tooltips the way Windows does; if S3 confirms this, the active preset name needs another
-home in the menu itself.
+`add-settings-window`, which the Settings menu item opens. S3 has since run on an Apple M4 and
+recorded the `NSStatusItem` tooltip as **PASS**, so the tooltip stays a tooltip and the active preset
+name does not need another home in the menu.
 
 ## Non-goals
 

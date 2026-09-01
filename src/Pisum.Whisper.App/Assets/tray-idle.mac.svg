@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <!-- Idle - transcript lines. The resting state, slate so it recedes.
+       Interior marks are HOLES (cut by the luminance mask below), not light-coloured
+       fills. That is what lets one drawing serve both platforms: the marks read against
+       the bubble whatever sits behind it, and they survive being reduced to pure alpha,
+       which is what AppKit does to a template image. The reference's
+       tray-iconTemplate.svg fills its marks #ffffff and therefore renders on macOS as a
+       featureless blob - do not copy that. -->
+  <mask id="m" maskUnits="userSpaceOnUse" x="0" y="0" width="16" height="16">
+    <rect width="16" height="16" fill="#fff"/>
+    <g fill="#000">
+    <rect x="4.3" y="3.2"  width="7.4" height="1.3" rx="0.65"/>
+    <rect x="4.3" y="5.85" width="5.2" height="1.3" rx="0.65"/>
+    <rect x="4.3" y="8.5"  width="6.4" height="1.3" rx="0.65"/>
+    </g>
+  </mask>
+  <path mask="url(#m)" fill="#000000"
+        d="M 4 1.5 H 12 A 2.5 2.5 0 0 1 14.5 4 V 9 A 2.5 2.5 0 0 1 12 11.5 H 7 L 4 14.2 L 4 11.5 A 2.5 2.5 0 0 1 1.5 9 V 4 A 2.5 2.5 0 0 1 4 1.5 Z"/>
+</svg>
