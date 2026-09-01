@@ -234,12 +234,25 @@ until change 10; Quit calls `desktop.Shutdown()` as it does today.
 
 ## Risks / Trade-offs
 
-**The three PNG sizes are provisional on macOS.** 32x32 for Windows is the 16 px slot at 200% DPI and
-matches the asset change 1 shipped. 36x36 for macOS is 18 pt at @2x, but how Avalonia sizes an
-`NSImage` built from a `WindowIcon` stream is unverified: if it takes pixel dimensions as points, 36
-asks for a 36 pt glyph in a 24 pt menu bar. `WindowIcon` also takes a single bitmap, so a proper
-multi-representation `NSImage` may not be expressible at all. Both are Open Questions; neither blocks
-the Windows half.
+**The macOS PNG size is settled; only its sharpness is still provisional.** 32x32 for Windows is the
+16 px slot at 200% DPI and matches the asset change 1 shipped. 36x36 for macOS was chosen for 18 pt at
+@2x, on the assumption that Avalonia sizes an `NSImage` built from a `WindowIcon` stream by its pixel
+dimensions — which would make 36 too large for a 24 pt menu bar. That assumption is wrong, and not by
+inference: `AvnTrayIcon::SetIcon` (`native/Avalonia.Native/src/OSX/trayicon.mm`, read from the public
+source at the pinned `12.1.1` tag) discards the source's point size entirely and rescales every icon
+to `floor([[NSFont menuFontOfSize:0] pointSize] * 1.333333)` in height, aspect-preserving the width.
+Run live on macOS 26.6.2 (arm64) — the same build issue #15 verified on — `menuFontOfSize:0` reads
+13 pt, so every tray icon this application ships, at any source pixel size, displays at **17x17 pt**,
+not whatever its PNG's pixel dimensions suggest. Loading the actual shipped `tray-idleTemplate.png`
+(36x36 px, 72 dpi per `sips`, so `NSImage.size` starts at 36x36 pt) through the identical algorithm
+confirms it: scale factor 0.472, final size 17x17 pt.
+`WindowIcon` was also confirmed to carry a single bitmap only — the loaded image exposes exactly one
+`NSBitmapImageRep` — so a multi-representation `NSImage` is indeed inexpressible through this path,
+closing that half outright rather than leaving it inferred.
+What remains open is not correctness but sharpness: at the realistic 2x Retina backing scale, 17 pt
+needs 34 physical px, so the 36 px source is a ~6% downsample — likely near-lossless for a two-tone
+glyph, but "likely" is the word a glance on real hardware still settles. Neither this nor the Windows
+half blocks anything.
 
 **This change has no automated tests, and that is a real gap.** There is no
 `tests/Pisum.Whisper.App.Tests`, and `Avalonia.Headless.XUnit` is deliberately not referenced yet —
@@ -280,9 +293,16 @@ proposal. Recorded here so change 11 inherits it as a known gap rather than disc
 
 ## Open Questions
 
-- **How does Avalonia size a macOS tray image built from a `WindowIcon` stream?** Decides whether
-  36x36 is right, and whether @2x is expressible at all. Falsified by a glyph that renders oversized,
-  clipped, or blurry in the menu bar. Needs Apple Silicon hardware; extend the existing `tray` spike.
+- ~~**How does Avalonia size a macOS tray image built from a `WindowIcon` stream?**~~ **Answered from
+  Avalonia's own OSX interop source, confirmed live on target hardware.** `AvnTrayIcon::SetIcon`
+  (`trayicon.mm`, pinned `12.1.1` tag) rescales every icon to a fixed 17x17 pt —
+  `floor(menu font pt * 1.333333)`, measured as 13 pt on macOS 26.6.2 arm64 — regardless of the
+  source's pixel size, so 36x36 does not render oversized or clipped; see *The macOS PNG size is
+  settled* above. `WindowIcon` was confirmed to attach exactly one `NSBitmapImageRep`, so a
+  multi-representation image is indeed inexpressible, not merely suspected. What's left is not this
+  question but a narrower one: whether a 36 px source downsampled to 34 physical px at 2x reads as
+  crisp — a sharpness glance, not a correctness check, small enough to fold into the appearance-mode
+  pass below rather than stand alone.
 - ~~**Is `IsTemplateIcon = true` a harmless no-op on Windows?**~~ **Answered from the binaries.**
   `Avalonia.Win32.TrayIconImpl` does not implement `ITrayIconWithIsTemplateImpl` and
   `Avalonia.Native.TrayIconImpl` does; see *macOS uses template images* above for what that leaves
@@ -297,4 +317,5 @@ proposal. Recorded here so change 11 inherits it as a known gap rather than disc
 - **Does `spikes -- tray` still reproduce under both appearance modes with the template flag set?**
   S3 left template support "unconfirmed — only tested under Light". The API half is now answered from
   the binaries — and answered twice, the second time correcting the first about which type owns the
-  accessors — but the visual result is not.
+  accessors — but the visual result is not. The macOS sizing sharpness glance above rides along on the
+  same hardware pass — one launch, two checks.
