@@ -1,14 +1,14 @@
 ## Why
 
 A tray-only process that fails before its tray icon exists is indistinguishable from one that never
-launched. Four failures do this today: an uncreatable log directory, a settings file that is not
-valid JSON (issue #20), a container that fails `ValidateOnBuild`, and a missing macOS tray asset. The
-first is the worst, because it removes the log as well — a release build then produces no output
-anywhere at all.
+launched. Three failures do this today: a settings file that is not valid JSON (issue #20), a
+container that fails `ValidateOnBuild`, and a missing macOS tray asset.
 
-Two more are not fatal but leave the hotkey dead: access to observe keys never granted, or withdrawn
-while running. Both are reported only in the settings window's Hotkey tab, which change 10's own
-remarks call "a smaller thing than telling a user who never opens this window".
+Three more leave it running but degraded, reported only where nobody looks. A log directory that
+cannot be created silences the log itself — a release build then produces no output anywhere, and the
+three above lose their fallback. Access to observe keys never granted, or withdrawn while running,
+reaches only the settings window's Hotkey tab, which change 10's own remarks call "a smaller thing
+than telling a user who never opens this window".
 
 ## What Changes
 
@@ -17,9 +17,9 @@ remarks call "a smaller thing than telling a user who never opens this window".
   and no dispatcher, which is what lets them run before either exists.
 - Guard `Program.LoadSettings`, the container build and the Avalonia start: log `Fatal`, dispose the
   logger so its asynchronous sink drains, report, exit. Issue #20's four-line fix is a strict subset.
-- Report a log-directory failure through the same reporter — the one case in which the log cannot.
-- Surface `HotkeyAvailability` other than `Available` through `add-system-integration`'s notification
-  transport, leaving the Hotkey tab banner exactly as it is.
+- Surface the degraded cases through `add-system-integration`'s notification transport rather than a
+  dialog, because they do not prevent startup: a log directory that could not be created, and
+  `HotkeyAvailability` other than `Available`. The Hotkey tab banner is unchanged.
 
 Reference: **none, which is a finding rather than an omission.** The reference returns a `Result`
 into a Tauri command called from its Svelte frontend, so it always has a webview to show the error in.
