@@ -12,7 +12,7 @@ using Pisum.Whisper.Core.Audio;
 /// </summary>
 internal sealed class GeminiProvider : ITranscriptionProvider
 {
-    internal const string DefaultModel = "gemini-2.5-flash-lite";
+    internal const string DefaultModel = GeminiDefaults.Model;
 
     /// <summary>
     /// Three attempts, two waits. The reference's <c>MAX_RETRIES = 3</c> bounds its loop, so it makes

@@ -1,0 +1,32 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Pisum.Whisper.App.Settings.ViewModels"
+             x:Class="Pisum.Whisper.App.Settings.Views.AudioView"
+             x:DataType="vm:AudioViewModel"
+             x:CompileBindings="True">
+
+    <StackPanel Margin="16" Spacing="12">
+
+        <TextBlock Text="Audio format" FontWeight="SemiBold" />
+
+        <RadioButton GroupName="AudioFormat" IsChecked="{Binding IsOpus, Mode=TwoWay}">
+            <StackPanel Spacing="2">
+                <TextBlock Text="Opus" />
+                <TextBlock Text="Compressed. Much smaller uploads, and the recommended choice."
+                           Opacity="0.7"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+        </RadioButton>
+
+        <RadioButton GroupName="AudioFormat" IsChecked="{Binding IsWav, Mode=TwoWay}">
+            <StackPanel Spacing="2">
+                <TextBlock Text="WAV" />
+                <TextBlock Text="Uncompressed. Larger uploads, and long recordings can exceed the upload limit."
+                           Opacity="0.7"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+        </RadioButton>
+
+    </StackPanel>
+
+</UserControl>

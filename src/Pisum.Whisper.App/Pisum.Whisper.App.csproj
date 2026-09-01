@@ -8,7 +8,15 @@
   <ItemGroup>
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Desktop" />
+    <!-- Pinned since change 1 and referenced by nothing until now: the tray icon never needed a
+         theme, and the settings window is the first thing in this application with controls in it. -->
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Pisum.Whisper.App.Tests" />
   </ItemGroup>
 
   <ItemGroup>

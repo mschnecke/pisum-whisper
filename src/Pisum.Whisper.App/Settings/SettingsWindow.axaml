@@ -1,0 +1,39 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Pisum.Whisper.App.Settings.ViewModels"
+        xmlns:views="using:Pisum.Whisper.App.Settings.Views"
+        x:Class="Pisum.Whisper.App.Settings.SettingsWindow"
+        x:DataType="vm:SettingsWindowViewModel"
+        x:CompileBindings="True"
+        Title="Pisum Whisper Settings"
+        Width="700"
+        Height="540"
+        MinWidth="540"
+        MinHeight="400"
+        CanResize="True"
+        CanMaximize="False"
+        WindowStartupLocation="CenterScreen"
+        RequestedThemeVariant="Light">
+
+    <TabControl x:Name="Tabs">
+        <TabItem Header="Providers">
+            <views:ProvidersView DataContext="{Binding Providers}" />
+        </TabItem>
+        <TabItem Header="Presets">
+            <views:PresetsView DataContext="{Binding Presets}" />
+        </TabItem>
+        <TabItem Header="Hotkey">
+            <views:HotkeyView DataContext="{Binding Hotkey}" />
+        </TabItem>
+        <TabItem Header="Audio">
+            <views:AudioView DataContext="{Binding Audio}" />
+        </TabItem>
+        <TabItem Header="Logging">
+            <views:LoggingView DataContext="{Binding Logging}" />
+        </TabItem>
+        <TabItem Header="General">
+            <views:GeneralView DataContext="{Binding General}" />
+        </TabItem>
+    </TabControl>
+
+</Window>

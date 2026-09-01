@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/tests/">
+    <Project Path="tests/Pisum.Whisper.App.Tests/Pisum.Whisper.App.Tests.csproj" />
     <Project Path="tests/Pisum.Whisper.Core.Tests/Pisum.Whisper.Core.Tests.csproj" />
     <Project Path="tests/Pisum.Whisper.Platform.Tests/Pisum.Whisper.Platform.Tests.csproj" />
   </Folder>

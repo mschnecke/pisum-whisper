@@ -2,6 +2,8 @@ namespace Pisum.Whisper.App;
 
 using Avalonia;
 using Avalonia.Controls;
+using Pisum.Whisper.App.Settings;
+using Pisum.Whisper.App.Settings.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -13,6 +15,7 @@ using Pisum.Whisper.Core.Output;
 using Pisum.Whisper.Core.Settings;
 using Pisum.Whisper.Core.Transcription;
 using Pisum.Whisper.Platform.Output;
+using Pisum.Whisper.Platform.Shell;
 
 internal static class Program
 {
@@ -73,6 +76,16 @@ internal static class Program
         // native half a named startup failure rather than a null reference at the first paste.
         builder.Services.AddTextOutput();
         builder.Services.AddNativeOutput();
+
+        // The settings window's Open Log Folder button, and the only thing in this application that
+        // asks the operating system to show the user a directory.
+        builder.Services.AddNativeShell();
+
+        // The settings window and the one edit-and-persist helper its six tabs share. Both are
+        // singletons: the window is created on first open and kept, and one editor is what lets the
+        // Presets tab's flush cover a draft another tab left pending.
+        builder.Services.AddSingleton<SettingsEditor>();
+        builder.Services.AddSingleton<SettingsWindowViewModel>();
 
         // Last, because it consumes all four of the capabilities above. Registered as a hosted
         // service so that its StopAsync runs on the way out: a dictation caught mid-delivery has to
