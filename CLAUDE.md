@@ -121,17 +121,20 @@ under the temp path, or builds a real DI container or generic `Host` — followi
 which is why every class deriving `DictationTestBase`, `FileLoggingTestBase` or
 `GlobalHotkeyServiceTestBase` is one: those bases create a temp home in their constructor.
 `Unit` means neither; in-memory objects and fakes only, including the Gemini tests, which drive a
-real `HttpClient` over a fake handler and never reach the network. The split is 24 / 43 / 4 classes and
-192 / 328 / 4 tests — they sum to 524, so exactly one category applies to every test.
+real `HttpClient` over a fake handler and never reach the network. The split is 24 / 54 / 4 classes and
+192 / 384 / 4 tests — they sum to 580, so exactly one category applies to every test.
 
 ```bash
 dotnet test Pisum.Whisper.slnx --filter-trait Category=Unit          # 192, no I/O at all
-dotnet test Pisum.Whisper.slnx --filter-not-trait Category=Manual    # 520, what CI should run
+dotnet test Pisum.Whisper.slnx --filter-not-trait Category=Manual    # 576, what CI should run
 ```
 
 Keep the rule mechanical when adding a class: if its constructor or its base's reaches
 `Path.GetTempPath`, `Directory.CreateDirectory`, `File.WriteAll*`, `new ServiceCollection` or
-`Host.CreateApplicationBuilder`, it is `Integration`. `TextOutputTestBase` is the one base that
+`Host.CreateApplicationBuilder`, **or writes to the real registry**, it is `Integration`.
+`WindowsAutostartTests` is the one class the last clause is for: it round-trips a private `HKCU`
+subkey it deletes in `Dispose`, which is neither a temp file nor a container and is plainly not
+`Unit`. `TextOutputTestBase` is the one base that
 is not — it builds a fake clipboard, a fake probe and a `TestProvider`, all in memory — so its four
 derived classes are `Unit`.
 
@@ -142,11 +145,19 @@ comes along with the framework but is unused.
 
 ## Spikes
 
-`spikes/Pisum.Whisper.Spikes` is deliberately outside the solution. It was kept until the macOS
-verification tracked by issue #15 was done, so that the harness could be **re-run rather than
-re-written**; #15 closed on 2026-08-28, which by the rule written here makes the harness deletable.
-It is still on disk — deleting it is a decision for whoever no longer wants the two macOS `FAIL`
-rows re-runnable, not an oversight.
+`spikes/Pisum.Whisper.Spikes` is deliberately outside the solution, so that a harness can be
+**re-run rather than re-written**. It was originally kept for the macOS verification tracked by issue
+#15, which closed on 2026-08-28 — but **it is not deletable**, and change 11 is what made that true
+again. Two of its rows are held by work that has not happened:
+
+- `toast` (S7) is the measurement the notification transport was chosen on, and change 11's task 7.3
+  requires it to be re-run on Apple Silicon. It is written to run there unchanged.
+- `notify` (S6) stays in the tree **unrun**. Its three observational questions matter again the day
+  change 12's Start-menu shortcut carries an AUMID, and the control run recorded in change 11's
+  `design.md` — a WinForms balloon beside it — is the experiment that would settle them.
+
+Deleting the harness is a decision for whoever no longer wants those two runs, and the two macOS
+`FAIL` rows, re-runnable — not an oversight.
 
 ```bash
 dotnet run --project spikes/Pisum.Whisper.Spikes -- hook       # global hook, both key edges
@@ -154,6 +165,8 @@ dotnet run --project spikes/Pisum.Whisper.Spikes -- paste      # simulated Ctrl+
 dotnet run --project spikes/Pisum.Whisper.Spikes -- audio      # capture format and rate conversion
 dotnet run --project spikes/Pisum.Whisper.Spikes -- opus       # Ogg/Opus encode + decode round trip
 dotnet run --project spikes/Pisum.Whisper.Spikes -- tray       # tray icon, tooltip, runtime swap
+dotnet run --project spikes/Pisum.Whisper.Spikes -- notify     # Shell_NotifyIcon balloons, three trials
+dotnet run --project spikes/Pisum.Whisper.Spikes -- toast      # an application-drawn notification, measured
 dotnet run --project spikes/Pisum.Whisper.Spikes -- combined   # hook + Avalonia run loop together
 dotnet run --project spikes/Pisum.Whisper.Spikes -- api <assembly> [filter]
 ```
@@ -209,7 +222,7 @@ swept by age; the console sink is `#if DEBUG` only.
 `Microsoft.Extensions.Logging` does not gate Serilog, and a minimum level put back would be a second
 gate in front of the switch that silently breaks the runtime level change.
 
-Five rules every later change is written against:
+Six rules every later change is written against:
 
 - **Never log transcript text or API key values.** Transcripts are the user's speech and the settings
   file holds API keys. Log lengths, categories and outcomes instead — the character count, not the
@@ -227,6 +240,14 @@ Five rules every later change is written against:
   than the guard, so the trace statements in the audio path are written plain.
 - **Never use Serilog's static `Log`.** It is in scope project-wide because `Core` references Serilog,
   but the configured logger is always passed explicitly.
+- **Never put a transcript, an API key or clipboard contents in a notification either.** This is the
+  three disclosure rules above applied to a surface that is wider, not narrower: what
+  `Core/Notifications/` is handed is drawn over whatever the user is presenting or screen-sharing,
+  where the log file at least needs opening. What the six call sites may say is the title and message `DictationFailure.Describe`
+  produces — safe because `TranscriptionException.Message` embeds Google's error body and
+  `IsRetryable`'s status-before-body check guarantees that is never a transcript, and because the key
+  travels in a header rather than the query string. `DictationNotificationTests` asserts it on a
+  failure path where a transcript genuinely exists, because a rule written down is not a verification.
 
 ## The global hotkey
 
@@ -387,6 +408,16 @@ exception, which does not crash the process — it vanishes, leaves the state at
 ever, and the hotkey answers "Transcription In Progress" until the application is restarted. The
 `finally` is there for the state reset first and the message second.
 
+**The watchdog task is not inside that catch, and its notification is guarded for the same reason
+`Announce`'s subscriber is.** `ArmWatchdog` spawns its own `Task.Run` whose only `try` covers the
+delay, so the log-notify-`TryStopRecording` sequence after it runs unprotected: an escaping throw
+from the presenter would skip the stop entirely, leaving the recording running past its maximum with
+the watchdog already spent, and surface as an unobserved task exception rather than a failure.
+Telling the user is the optional half of that task; stopping the recording is not, so the notify
+carries its own `catch` and the stop follows it unconditionally. Anything added between the delay and
+`TryStopRecording` needs the same treatment. `DictationWatchdogTests.APresenterThatThrowsStillStopsTheRecording`
+is the guard, and it fails without the `catch` rather than merely covering it.
+
 ## The tray icon
 
 `src/Pisum.Whisper.App/App.cs` is the whole capability — no type in `Core`, no `ITrayPresenter`. The
@@ -511,23 +542,97 @@ at `Information` *outside* that `if`. Changing the audio format therefore writes
 the default level. Pre-existing, unobservable until this window became the first caller of `Save`, and
 deliberately **not** fixed here — the fix belongs to `global-hotkey`.
 
+## Notifications and autostart
+
+`Core/Notifications/` is the policy and `App/Notifications/` is the transport, registered separately
+in the shape of `AddTextOutput` plus `AddNativeOutput`: `AddNotifications()` gives
+`INotificationService`, and `Program.cs` registers `INotificationPresenter` -> `ToastPresenter`
+inline. `INotificationService` has two named methods rather than one with a `force` flag — `Notify`
+is a failure and ignores the preference, `NotifyInformation` is chatter and respects
+`showTrayNotifications` — because someone who silences status messages still has to be told their API
+key is rejected. The preference is read from `SettingsStore.Current` **per call**, matching
+`GeminiProviderPool` and `DictationOrchestrator`; nothing subscribes to `Changed` and there is
+nothing to rebuild.
+
+**The notification is a window this application draws, and every alternative was rejected on a
+structural cost.** `CommunityToolkit.WinUI.Notifications` ships its desktop half only under
+`lib/net5.0-windows10.0.18362`, so a plain `net10.0` project resolves `lib/net5.0` and can compose a
+toast it can never show — adopting it means a `-windows` TFM, against "one `net10.0` target for every
+project", plus an AUMID from a Start-menu shortcut that does not exist until change 12.
+`Shell_NotifyIcon` needs no TFM change but does need a *second* notification icon beside Avalonia's,
+whose own is unreachable (`Avalonia.Win32.TrayIconImpl` is internal) — and spike S6 found it reaches
+no notification platform at all, so it does not even buy the Action Center persistence that was its
+one advantage. `osascript -e 'display notification'` attributes every notification to Script Editor,
+is a second implementation where drawing one is none, and is a `Process.Start` on the thread that
+owns the user's hotkey. Drawing it costs no package, no TFM, no AUMID and no dependency on change 12
+on either platform, and it is the only option a headless test can assert. The price is real and is
+paid rather than hidden: it ignores Do Not Disturb and Focus Assist, it leaves no history, and the
+appearance is ours to own.
+
+**`INotificationPresenter.Present` must not block, and that is a correctness rule.** Two of the six
+call sites — "Transcription In Progress" and the capture failure, both in `TryStartRecording` — run
+on `GlobalHotkeyService`'s dispatch loop, where the very next item may be the release edge that ends
+a hold-to-record dictation. `ToastPresenter.Present` therefore posts to `Dispatcher.UIThread` and
+returns; an implementation that waits for the window is wrong. This is the same constraint that keeps
+`TextOutput` out of a hook handler, one layer further out, and it is what disqualified `osascript`.
+It is invisible at the call site, which is why `DictationNotificationHotkeyCostTests` puts a
+one-second presenter behind a real hook and measures that the hook thread is not held.
+
+The toast is `ShowActivated = false` above all else — this application pastes at the cursor in
+whatever the user is typing in, so a notification that activates takes away the target the next
+dictation would be delivered to. `WindowDecorations` is the 12.1 name; `SystemDecorations` is
+obsolete and therefore a build failure. Placement reads `Screens.Primary`'s `WorkingArea` **and**
+`Scaling`, because `Position` is physical pixels while `Width` and `Height` are not, and the corner
+differs by platform on purpose: bottom-right stacking upward on Windows, top-right stacking downward
+on macOS. Three at once at most, a fourth closes the oldest, six seconds each with the dwell injected
+so no test waits it out, and no click handling — clicking a non-key window on macOS would make it key
+and activate an accessory application, spending exactly the focus the first sentence protects.
+`App.OnExit` closes what is still open, so a toast cannot outlive the dispatcher that owns it.
+
+**Autostart is reconciled, not toggled, and it reads before it writes.** `AutostartReconciler` is an
+`IHostedService` that compares `IAutostartService.IsEnabled()` with `Current.StartWithSystem` in
+`StartAsync` and on every `SettingsStore.Changed`, and writes only on a mismatch. Driving it from
+`GeneralViewModel`'s switch instead is the same amount of code and covers less: reconciling also
+covers the first launch, a settings file edited by hand and a registration some other tool removed,
+through one path with one test. Reading first is the fix for a mistake already in the tree —
+`GlobalHotkeyService.OnSettingsChanged` logs a rebind outside `HotkeyMatcher.Rebind`'s early return,
+and here the same shape would be a registry mutation on every save rather than a no-op. An
+`AutostartException` is caught and logged: a machine that refuses a `Run` value must not cost the
+user their dictation hotkey.
+
+Both native locations are injected, defaulting to the real ones, and that is what makes both halves
+testable — a private `HKCU` subkey on Windows, a temp directory on macOS. The macOS half writes only
+a plist and calls no `launchctl` (`launchd` reads `~/Library/LaunchAgents` at login) and no
+`SMAppService` (macOS 13 and a bundle change 12 has not built), so `MacOsAutostartTests` runs from
+Windows and only the effect on logging in needs hardware. **`Microsoft.Win32.Registry` needs no
+package reference** — the types resolve from the shared framework on `net10.0`, and the only
+diagnostics are `CA1416`, cleared by `[SupportedOSPlatform("windows")]` plus the
+`OperatingSystem.IsWindows()` guard in `AddNativeAutostart`, exactly as `WindowsClipboard` already
+does. Do not add anything to `Directory.Packages.props` for it.
+
+**The transport cannot report a failure raised before the dispatcher loop starts**, and nothing in
+this capability closes that. A corrupt settings file (issue #20) and a `ValidateOnBuild` failure both
+happen in `Main` before `StartWithClassicDesktopLifetime`, so a posted job is enqueued into a loop
+that is never started; a missing tray asset throws out of the `App` constructor. Those stay
+log-and-unwind, and so does `HotkeyAvailability.Failed`, which change 9 deferred here and change 11
+deferred again — it is a startup condition rather than a dictation failure and wants its own proposal.
+
 ## Spec-driven workflow (OpenSpec)
 
 `openspec/config.yaml` sets `schema: spec-driven`. Change proposals live in `openspec/changes/`,
 completed ones move to `openspec/changes/archive/`, and capability specs land in `openspec/specs/`.
 `openspec/ROADMAP.md` sequences the work as **12 ordered changes**, each tracked by a GitHub issue
-labelled `change:NN`. **Changes 1 through 10 are archived** and their `application-host`,
+labelled `change:NN`. **Changes 1 through 11 are archived** and their `application-host`,
 `settings-persistence`, `file-logging`, `audio-capture`, `audio-encoding`, `global-hotkey`,
-`gemini-transcription`, `text-output`, `dictation-pipeline`, `tray-icon` and `settings-window` specs
-are synced, so read every one of them from `openspec/specs/` like any other. Only changes 11
-(`add-system-integration` — `notifications` and `autostart`) and 12 (`add-packaging-ci` —
-`packaging`) are still active, and each is a lone `proposal.md`: no design, no tasks and no delta
-specs, so neither is archivable as it stands. `migrate-tests-to-xunit-v3` is archived as well; it
+`gemini-transcription`, `text-output`, `dictation-pipeline`, `tray-icon`, `settings-window`,
+`notifications` and `autostart` specs are synced, so read every one of them from `openspec/specs/`
+like any other. Only change 12 (`add-packaging-ci` — `packaging`) is still active, and it is a lone
+`proposal.md` — no design, no tasks and no delta specs — so it is not archivable as it stands. `migrate-tests-to-xunit-v3` is archived as well; it
 carries no number, by the roadmap's own rule that off-sequence work gets a section instead of one.
 
-**Changes 8 and 10 were both archived with their manual verification still open** — 8's tasks 6.1,
-6.3 and 6.4, and 10's 6.2 to 6.4. Every one of them needs a person at a machine, and the macOS ones
-need Apple Silicon with Accessibility granted. An archived change here therefore does **not** certify
+**Changes 8, 10 and 11 were all archived with their manual verification still open** — 8's tasks
+6.1, 6.3 and 6.4, 10's 6.2 to 6.4, and 11's 7.1 to 7.4. Every one of them needs a person at a
+machine, and the macOS ones need Apple Silicon with Accessibility granted. An archived change here therefore does **not** certify
 that its capability was verified on hardware: what each still owes, and the open design questions
 those runs would settle, stay in that change's archived `design.md` and are reflected nowhere under
 `openspec/specs/`. Read the archived `tasks.md` before treating a capability spec as verified

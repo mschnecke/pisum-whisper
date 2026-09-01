@@ -49,6 +49,29 @@ public sealed class DictationWatchdogTests : DictationTestBase
     }
 
     /// <summary>
+    /// Telling the user is the optional half of the watchdog; stopping the recording is not. The
+    /// notification runs before the stop and nothing outside the watchdog task would catch it, so
+    /// an unguarded throw would leave the recording running past its maximum with the watchdog
+    /// already spent — and surface as an unobserved task exception rather than a failure.
+    /// </summary>
+    [Fact]
+    public async Task APresenterThatThrowsStillStopsTheRecording()
+    {
+        var orchestrator = Create();
+        Notifications.Failure = new InvalidOperationException("the toast window would not open");
+
+        Hotkeys.Press();
+        Clock.Advance(TimeSpan.FromMinutes(10));
+        Delay.Elapse();
+        await SettleAsync(orchestrator);
+
+        Capture.Stops.ShouldBe(1);
+        Provider.Calls.ShouldBe(1);
+        Output.Calls.ShouldBe(1);
+        WaitForLog("the recording is still stopped").ShouldBeTrue();
+    }
+
+    /// <summary>
     /// A recording that ends normally leaves nothing running. The reference spawns a thread that
     /// sleeps the whole maximum on every recording and leaks one per dictation.
     /// </summary>

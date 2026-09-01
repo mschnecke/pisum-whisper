@@ -2,18 +2,22 @@ namespace Pisum.Whisper.App;
 
 using Avalonia;
 using Avalonia.Controls;
+using Pisum.Whisper.App.Notifications;
 using Pisum.Whisper.App.Settings;
 using Pisum.Whisper.App.Settings.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Pisum.Whisper.Core.Audio;
+using Pisum.Whisper.Core.Autostart;
 using Pisum.Whisper.Core.Dictation;
 using Pisum.Whisper.Core.Hotkeys;
 using Pisum.Whisper.Core.Logging;
+using Pisum.Whisper.Core.Notifications;
 using Pisum.Whisper.Core.Output;
 using Pisum.Whisper.Core.Settings;
 using Pisum.Whisper.Core.Transcription;
+using Pisum.Whisper.Platform.Autostart;
 using Pisum.Whisper.Platform.Output;
 using Pisum.Whisper.Platform.Shell;
 
@@ -77,9 +81,26 @@ internal static class Program
         builder.Services.AddTextOutput();
         builder.Services.AddNativeOutput();
 
+        // Two halves, for the third time: the reconciling is in Core and the registry key and the
+        // LaunchAgent plist are native. The reconciler is a hosted service, so the login
+        // registration is brought into agreement with the setting at startup — before Avalonia
+        // exists, which is why the first-launch flow in App has nothing left to do about it.
+        builder.Services.AddAutostart();
+        builder.Services.AddNativeAutostart();
+
         // The settings window's Open Log Folder button, and the only thing in this application that
         // asks the operating system to show the user a directory.
         builder.Services.AddNativeShell();
+
+        // And again: the forced-versus-suppressible policy is in Core, while the window it is drawn
+        // as is Avalonia and belongs here beside the tray icon. Omitting the
+        // presenter is then a startup failure naming INotificationPresenter rather than a null
+        // reference at the first error a user hits. The concrete type is registered as well so that
+        // App.OnExit can close what is still on screen without casting the interface.
+        builder.Services.AddNotifications();
+        builder.Services.AddSingleton<ToastPresenter>();
+        builder.Services.AddSingleton<INotificationPresenter>(
+            provider => provider.GetRequiredService<ToastPresenter>());
 
         // The settings window and the one edit-and-persist helper its six tabs share. Both are
         // singletons: the window is created on first open and kept, and one editor is what lets the
@@ -87,7 +108,7 @@ internal static class Program
         builder.Services.AddSingleton<SettingsEditor>();
         builder.Services.AddSingleton<SettingsWindowViewModel>();
 
-        // Last, because it consumes all four of the capabilities above. Registered as a hosted
+        // Last, because it consumes all five of the capabilities above. Registered as a hosted
         // service so that its StopAsync runs on the way out: a dictation caught mid-delivery has to
         // finish putting the user's clipboard back before the process exits. App resolves the same
         // singleton once Avalonia is up, and drives the tray icon from its StateChanged.

@@ -58,7 +58,7 @@ public sealed class SettingsStorePresetRaceTests : IDisposable
         store.Current.ShouldNotBeSameAs(before);
         before.Presets.ShouldBeSameAs(capturedPresets);
         capturedPresets.Select(preset => preset.Id).ShouldBe(capturedIds);
-        store.Current.Presets.Select(preset => preset.Id).ShouldBe([..capturedIds, "mine"]);
+        store.Current.Presets.Select(preset => preset.Id).ShouldBe([.. capturedIds, "mine"]);
     }
 
     [Fact]

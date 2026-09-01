@@ -44,7 +44,7 @@ public sealed class HotkeyViewModelTests : SettingsEditorTestBase
     {
         return new HotkeyCapture(
             HotkeyCaptureOutcome.Captured,
-            new HotkeyBinding {Modifiers = [..modifiers], Key = key});
+            new HotkeyBinding {Modifiers = [.. modifiers], Key = key});
     }
 
     // ---- Task 4.8: the recorder ----

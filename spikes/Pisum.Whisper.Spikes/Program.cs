@@ -13,6 +13,8 @@ internal static class Program
             "audio" => await AudioSpike.RunAsync(),
             "opus" => await OpusSpike.RunAsync(),
             "tray" => await TraySpike.RunAsync(),
+            "notify" => await NotifySpike.RunAsync(),
+            "toast" => await ToastSpike.RunAsync(),
             "combined" => await CombinedSpike.RunAsync(),
             _ => Usage(spike),
         };
