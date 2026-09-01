@@ -119,10 +119,21 @@ it by running.
 
 **One drawing per state, exported twice; every interior mark is a hole.**
 A template image is rendered from its **alpha channel alone**; colour is discarded. Interior detail
-must therefore be genuine transparency, not a light-coloured fill. The reference gets this wrong:
-`icons/tray-iconTemplate.svg` fills its four text lines `#ffffff` under a comment reading "pure black
-on transparent", so its macOS icon almost certainly renders as a featureless filled bubble. This
-change does not re-express that.
+must therefore be genuine transparency, not a light-coloured fill. The reference gets this wrong, and
+its own shipped assets prove it rather than merely suggesting it: `icons/tray-iconTemplate.svg` fills
+its four text lines `#ffffff` under a comment reading "pure black on transparent", and the exported
+`tray-iconTemplate.png` decodes to 205 opaque, 41 partial and 238 clear pixels across its 22x22 —
+every opaque one inside the bubble outline, with **not one interior hole**. On macOS that icon is a
+featureless filled bubble. This change does not re-express that.
+
+Its recording icon is the sharper lesson. `tray-iconTemplate-recording.svg` adds
+`<circle cx="17.5" cy="3" r="2.5" fill="#000000"/>` — a record dot drawn **black** and placed
+overlapping the bubble's top-right corner, so it merges into the same silhouette instead of reading
+as a dot. What separates recording from idle on macOS is a roughly three-pixel corner nub, and since
+the tray icon is the reference's only recording indicator — no HUD, no sound — that nub is its entire
+macOS recording feedback. The general rule is the one both mistakes break: a mark that is neither a
+hole nor clear of the body carries nothing through the alpha reduction, whichever colour it is drawn
+in. White inside the bubble vanishes; black overlapping the bubble vanishes just as completely.
 
 Drawing the marks as holes is what lets one geometry serve both platforms, and it is the same
 property that removes the Windows theme probe: a hole reads against the bubble whatever colour is
@@ -276,11 +287,13 @@ proposal. Recorded here so change 11 inherits it as a known gap rather than disc
   `Avalonia.Win32.TrayIconImpl` does not implement `ITrayIconWithIsTemplateImpl` and
   `Avalonia.Native.TrayIconImpl` does; see *macOS uses template images* above for what that leaves
   open, which is the change handler's body and nothing else.
-- **Does the reference's macOS template icon in fact render as a featureless blob?** The white-fill
-  reading of `tray-iconTemplate.svg` is certain; that it produces a solid bubble follows from how
-  AppKit renders template images and has not been observed. It changes nothing here — the rule this
-  change follows is right either way — but it is the kind of claim worth confirming before it is
-  repeated.
+- ~~**Does the reference's macOS template icon in fact render as a featureless blob?**~~ **Answered
+  from the shipped assets, without a Mac.** It does — and so does its recording icon, for a second
+  and different reason. The alpha channels of `tray-iconTemplate.png` and
+  `tray-iconTemplate-recording.png` were decoded and carry no interior hole at all; see *One drawing
+  per state* above for the pixel counts and the black-dot finding. A template image has no input but
+  its alpha, so a solid alpha channel is a solid glyph and no observation could differ. What stays
+  unobserved is only the pixels on a real menu bar, which nothing else feeds.
 - **Does `spikes -- tray` still reproduce under both appearance modes with the template flag set?**
   S3 left template support "unconfirmed — only tested under Light". The API half is now answered from
   the binaries — and answered twice, the second time correcting the first about which type owns the
