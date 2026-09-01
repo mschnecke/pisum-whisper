@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Pisum.Whisper.Core.Audio;
 using Pisum.Whisper.Core.Hotkeys;
+using Pisum.Whisper.Core.Notifications;
 using Pisum.Whisper.Core.Output;
 using Pisum.Whisper.Core.Settings;
 using Pisum.Whisper.Core.Transcription;
@@ -25,7 +26,15 @@ using Pisum.Whisper.Core.Transcription;
 /// <para>
 /// <b>The transcript is never logged</b>, at any level, per the rules in <c>CLAUDE.md</c>. Character
 /// counts, categories, outcomes and elapsed times are. Hotkey edges are not logged here either:
-/// <see cref="GlobalHotkeyService"/> already writes one line per edge at <c>Information</c>.
+/// <see cref="GlobalHotkeyService"/> already writes one line per edge at <c>Information</c>. The
+/// same rule covers the notifications below, and more strictly: a notification is drawn over
+/// whatever the user is presenting, so the five titles and messages here carry no transcript, no
+/// API key and no clipboard contents.
+/// </para>
+/// <para>
+/// <b>Nothing on the notification path may block.</b> Two of the five calls below run in a hotkey
+/// handler, so <see cref="INotificationPresenter.Present"/> posts and returns rather than waiting
+/// for a window — the same rule as the paragraph above, one layer further out.
 /// </para>
 /// </remarks>
 public sealed class DictationOrchestrator : IHostedService, IDisposable
@@ -84,6 +93,8 @@ public sealed class DictationOrchestrator : IHostedService, IDisposable
 
     private readonly ITextOutput _output;
 
+    private readonly INotificationService _notifications;
+
     private readonly TimeSpan _minimumDuration;
 
     private readonly TimeSpan _debounceWindow;
@@ -132,8 +143,9 @@ public sealed class DictationOrchestrator : IHostedService, IDisposable
                                  IAudioCapture capture,
                                  IAudioEncoder encoder,
                                  ITranscriptionProvider provider,
-                                 ITextOutput output)
-        : this(logger, hotkeys, settings, capture, encoder, provider, output, null)
+                                 ITextOutput output,
+                                 INotificationService notifications)
+        : this(logger, hotkeys, settings, capture, encoder, provider, output, notifications, null)
     {
     }
 
@@ -154,6 +166,7 @@ public sealed class DictationOrchestrator : IHostedService, IDisposable
                                    IAudioEncoder encoder,
                                    ITranscriptionProvider provider,
                                    ITextOutput output,
+                                   INotificationService notifications,
                                    TimeSpan? minimumDuration = null,
                                    TimeSpan? debounceWindow = null,
                                    TimeSpan? transcriptionBudget = null,
@@ -167,6 +180,7 @@ public sealed class DictationOrchestrator : IHostedService, IDisposable
         _encoder = encoder;
         _provider = provider;
         _output = output;
+        _notifications = notifications;
         _minimumDuration = minimumDuration ?? DefaultMinimumDuration;
         _debounceWindow = debounceWindow ?? DefaultDebounceWindow;
         _transcriptionBudget = transcriptionBudget ?? DefaultTranscriptionBudget;
@@ -353,13 +367,16 @@ public sealed class DictationOrchestrator : IHostedService, IDisposable
             if (_state == DictationState.Transcribing)
             {
                 // The second guard, and the only one that says anything: the user pressed the key
-                // and is owed an explanation for nothing happening. Change 11 makes this a
-                // notification; today it is a log line.
+                // and is owed an explanation for nothing happening.
                 _logger.LogInformation(
                     "The hotkey was pressed while a transcription is in progress; no recording was "
                     + "started. {Title}: {Message}",
                     InProgressTitle,
                     InProgressMessage);
+
+                // Status rather than failure, so it respects ShowTrayNotifications. This runs on the
+                // hotkey's dispatch loop, which is why the presenter may not block.
+                _notifications.NotifyInformation(InProgressTitle, InProgressMessage);
 
                 return;
             }
@@ -380,6 +397,7 @@ public sealed class DictationOrchestrator : IHostedService, IDisposable
                 // The state does not move, so the next press tries again.
                 var (title, message) = DictationFailure.Describe(exception);
                 _logger.LogError(exception, "The recording could not be started. {Title}: {Message}", title, message);
+                _notifications.Notify(title, message);
                 return;
             }
 
@@ -471,6 +489,10 @@ public sealed class DictationOrchestrator : IHostedService, IDisposable
         {
             var (title, message) = DictationFailure.Describe(exception);
             _logger.LogError(exception, "The dictation failed. {Title}: {Message}", title, message);
+
+            // Forced. The shutdown filter above has already taken "the user quit" out of this path,
+            // so everything reaching here is a failure the user is owed.
+            _notifications.Notify(title, message);
         }
         finally
         {
@@ -516,6 +538,11 @@ public sealed class DictationOrchestrator : IHostedService, IDisposable
                 "The dictation was delivered to the clipboard only. {Title}: {Message}",
                 PasteFailedTitle,
                 PasteFailedMessage);
+
+            // Forced despite being logged at Information and despite not being a failure of the
+            // dictation: the transcript is on the clipboard and nothing else will tell the user that
+            // a manual paste is now theirs to do.
+            _notifications.Notify(PasteFailedTitle, PasteFailedMessage);
         }
     }
 
@@ -587,12 +614,16 @@ public sealed class DictationOrchestrator : IHostedService, IDisposable
                 return;
             }
 
+            var message = $"Maximum recording duration ({seconds} sec) reached. Transcribing…";
+
             _logger.LogInformation(
                 "The recording reached the {Seconds} s maximum and was stopped automatically. "
                 + "{Title}: {Message}",
                 seconds,
                 AutoStoppedTitle,
-                $"Maximum recording duration ({seconds} sec) reached. Transcribing…");
+                message);
+
+            _notifications.NotifyInformation(AutoStoppedTitle, message);
 
             TryStopRecording();
         });

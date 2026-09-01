@@ -8,9 +8,11 @@ using Avalonia.Themes.Fluent;
 using Avalonia.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Pisum.Whisper.App.Notifications;
 using Pisum.Whisper.App.Settings;
 using Pisum.Whisper.App.Settings.ViewModels;
 using Pisum.Whisper.Core.Dictation;
+using Pisum.Whisper.Core.Notifications;
 using Pisum.Whisper.Core.Settings;
 
 /// <summary>
@@ -25,6 +27,11 @@ using Pisum.Whisper.Core.Settings;
 /// </remarks>
 public sealed class App : Application
 {
+    /// <summary>The reference's own wording (<c>lib.rs:588</c>), for this application's name.</summary>
+    private const string WelcomeTitle = "Welcome to Pisum Whisper!";
+
+    private const string WelcomeMessage = "Please configure an AI provider to get started.";
+
     private readonly IServiceProvider _services;
     private readonly ILogger<App> _logger;
 
@@ -88,9 +95,51 @@ public sealed class App : Application
             // and not at post time: that puts the seed in the same queue at the same priority as
             // every real transition, so it can only ever lose to something newer.
             Dispatcher.UIThread.Post(() => ApplyState(dictation.State));
+
+            ShowFirstLaunch(_settings, _services.GetRequiredService<INotificationService>(), ShowSettings);
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>
+    /// The first-launch flow: say the application is running and needs configuring, then put the
+    /// window it is pointing at on screen.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// It lives here rather than in <c>Program.LoadSettings</c>, where
+    /// <see cref="SettingsStore.IsFirstLaunch"/> is first known, because it shows a window and
+    /// <c>Program</c> runs before Avalonia exists.
+    /// </para>
+    /// <para>
+    /// <b>The order matters.</b> The welcome points at the window, so it is raised before the window
+    /// is shown rather than landing on top of it.
+    /// </para>
+    /// <para>
+    /// The reference does a third thing here — enabling autostart (<c>lib.rs:583</c>) — and this
+    /// deliberately does not. <c>AutostartReconciler</c> has already reconciled the setting in its
+    /// <c>StartAsync</c>, which covers the first launch and every later one through one path.
+    /// </para>
+    /// <para>
+    /// Static and taking its three collaborators, so the flow is assertable without constructing an
+    /// <see cref="App"/> — whose constructor opens tray assets and whose initialisation registers a
+    /// native tray icon, neither of which a headless platform provides.
+    /// </para>
+    /// </remarks>
+    internal static void ShowFirstLaunch(SettingsStore settings,
+                                         INotificationService notifications,
+                                         Action showSettings)
+    {
+        if (!settings.IsFirstLaunch)
+        {
+            return;
+        }
+
+        // Forced: a user who has never opened the settings window has never turned notifications
+        // off either, but this is the one message the application cannot afford to have suppressed.
+        notifications.Notify(WelcomeTitle, WelcomeMessage);
+        showSettings();
     }
 
     private static WindowIcon LoadIcon(string name)
@@ -263,6 +312,10 @@ public sealed class App : Application
         {
             _services.GetRequiredService<SettingsEditor>().FlushAsync().GetAwaiter().GetResult();
         }
+
+        // A notification is a window on this dispatcher, and the dispatcher stops the moment this
+        // returns. Closing them here is what keeps one from outliving the loop that owns it.
+        _services.GetRequiredService<ToastPresenter>().CloseAll();
 
         // The tray icon owns a native handle. Releasing it here is what lets an immediate relaunch
         // succeed rather than find the previous icon still registered.
