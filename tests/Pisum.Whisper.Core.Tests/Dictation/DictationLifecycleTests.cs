@@ -7,8 +7,10 @@ using Microsoft.Extensions.Logging;
 using Pisum.Whisper.Core.Audio;
 using Pisum.Whisper.Core.Dictation;
 using Pisum.Whisper.Core.Hotkeys;
+using Pisum.Whisper.Core.Notifications;
 using Pisum.Whisper.Core.Output;
 using Pisum.Whisper.Core.Settings;
+using Pisum.Whisper.Core.Tests.Notifications;
 using Pisum.Whisper.Core.Transcription;
 using Shouldly;
 
@@ -228,13 +230,15 @@ public sealed class DictationRegistrationTests : IDisposable
             provider.GetRequiredService<ILogger<SettingsStore>>(),
             Path.Combine(_home, ".pisum-whisper.json")));
 
-        // Fakes for the five capabilities this one consumes, so the test is about this registration
-        // rather than about theirs — and so that nothing here opens a microphone or a hook.
+        // Fakes for the six capabilities this one consumes, so the test is about this registration
+        // rather than about theirs — and so that nothing here opens a microphone, a hook or a window.
         builder.Services.AddSingleton<IGlobalHotkeyService, FakeHotkeyService>();
         builder.Services.AddSingleton<IAudioCapture, FakeAudioCapture>();
         builder.Services.AddSingleton<IAudioEncoder, FakeAudioEncoder>();
         builder.Services.AddSingleton<ITranscriptionProvider, FakeTranscriptionProvider>();
         builder.Services.AddSingleton<ITextOutput, FakeTextOutput>();
+        builder.Services.AddNotifications();
+        builder.Services.AddSingleton<INotificationPresenter, FakeNotificationPresenter>();
 
         builder.Services.AddDictationPipeline();
 

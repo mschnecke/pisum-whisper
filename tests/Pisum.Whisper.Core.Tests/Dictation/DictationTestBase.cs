@@ -2,8 +2,10 @@ namespace Pisum.Whisper.Core.Tests.Dictation;
 
 using Microsoft.Extensions.Logging;
 using Pisum.Whisper.Core.Dictation;
+using Pisum.Whisper.Core.Notifications;
 using Pisum.Whisper.Core.Settings;
 using Pisum.Whisper.Core.Tests.Logging;
+using Pisum.Whisper.Core.Tests.Notifications;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
@@ -41,6 +43,13 @@ public abstract class DictationTestBase : IDisposable
     protected FakeTranscriptionProvider Provider { get; } = new();
 
     protected FakeTextOutput Output { get; } = new();
+
+    /// <summary>
+    /// Everything the user was shown. The real <see cref="NotificationService"/> sits in front of
+    /// it, so the forced-versus-suppressible policy is exercised rather than stubbed out — which is
+    /// what lets a test flip <c>ShowTrayNotifications</c> and assert on the difference.
+    /// </summary>
+    protected FakeNotificationPresenter Notifications { get; } = new();
 
     protected FakeClock Clock { get; } = new();
 
@@ -110,6 +119,7 @@ public abstract class DictationTestBase : IDisposable
             Encoder,
             Provider,
             Output,
+            new NotificationService(Settings, Notifications),
             minimumDuration ?? TimeSpan.FromMilliseconds(50),
             debounceWindow ?? TimeSpan.FromMilliseconds(200),
             transcriptionBudget ?? TimeSpan.FromMinutes(5),
