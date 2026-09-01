@@ -122,11 +122,11 @@ which is why every class deriving `DictationTestBase`, `FileLoggingTestBase` or
 `GlobalHotkeyServiceTestBase` is one: those bases create a temp home in their constructor.
 `Unit` means neither; in-memory objects and fakes only, including the Gemini tests, which drive a
 real `HttpClient` over a fake handler and never reach the network. The split is 24 / 54 / 4 classes and
-192 / 383 / 4 tests — they sum to 579, so exactly one category applies to every test.
+192 / 384 / 4 tests — they sum to 580, so exactly one category applies to every test.
 
 ```bash
 dotnet test Pisum.Whisper.slnx --filter-trait Category=Unit          # 192, no I/O at all
-dotnet test Pisum.Whisper.slnx --filter-not-trait Category=Manual    # 575, what CI should run
+dotnet test Pisum.Whisper.slnx --filter-not-trait Category=Manual    # 576, what CI should run
 ```
 
 Keep the rule mechanical when adding a class: if its constructor or its base's reaches

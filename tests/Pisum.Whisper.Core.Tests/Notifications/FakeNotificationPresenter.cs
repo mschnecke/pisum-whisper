@@ -22,11 +22,19 @@ public sealed class FakeNotificationPresenter : INotificationPresenter
 
     public int Count => Presented.Count;
 
+    /// <summary>When set, presenting throws — a transport whose window will not open.</summary>
+    public Exception? Failure { get; set; }
+
     public void Present(string title, string message)
     {
         lock (_gate)
         {
             _presented.Add((title, message));
+        }
+
+        if (Failure is { } failure)
+        {
+            throw failure;
         }
     }
 }

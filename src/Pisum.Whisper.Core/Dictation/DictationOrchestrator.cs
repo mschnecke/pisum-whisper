@@ -623,7 +623,22 @@ public sealed class DictationOrchestrator : IHostedService, IDisposable
                 AutoStoppedTitle,
                 message);
 
-            _notifications.NotifyInformation(AutoStoppedTitle, message);
+            try
+            {
+                _notifications.NotifyInformation(AutoStoppedTitle, message);
+            }
+            catch (Exception exception)
+            {
+                // The presenter runs arbitrary code and nothing outside this task would catch it, so
+                // an escaping exception would skip the `TryStopRecording` below: the recording would
+                // run on past its maximum with the watchdog already spent, and the throw would
+                // surface as an unobserved task exception. Telling the user is the optional half of
+                // this task; stopping the recording is not. Same wedge as `Announce` closes.
+                _logger.LogError(
+                    exception,
+                    "The notification presenter threw while reporting the automatic stop; "
+                    + "the recording is still stopped.");
+            }
 
             TryStopRecording();
         });

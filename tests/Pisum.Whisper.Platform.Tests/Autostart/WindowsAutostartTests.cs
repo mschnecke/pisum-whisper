@@ -40,7 +40,7 @@ public sealed class WindowsAutostartTests : IDisposable
             return;
         }
 
-        Registry.CurrentUser.DeleteSubKeyTree(_subKey, throwOnMissingSubKey: false);
+        Registry.CurrentUser.DeleteSubKeyTree(_subKey, false);
     }
 
     [Fact(

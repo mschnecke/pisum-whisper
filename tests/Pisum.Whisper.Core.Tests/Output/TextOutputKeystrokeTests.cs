@@ -14,7 +14,7 @@ public sealed class TextOutputKeystrokeTests : TextOutputTestBase
     [Fact]
     public async Task TheWindowsSelection_SendsCtrlV()
     {
-        await Create(false).DeliverAsync(Transcript, CancellationToken.None);
+        await Create().DeliverAsync(Transcript, CancellationToken.None);
 
         Posted.ShouldBe(
         [

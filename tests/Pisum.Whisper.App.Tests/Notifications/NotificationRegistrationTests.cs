@@ -103,8 +103,8 @@ public sealed class NotificationRegistrationTests : IDisposable
 
         builder.Services.AddNotifications();
         builder.Services.AddSingleton<ToastPresenter>();
-        builder.Services.AddSingleton<INotificationPresenter>(
-            provider => provider.GetRequiredService<ToastPresenter>());
+        builder.Services.AddSingleton<INotificationPresenter>(provider =>
+            provider.GetRequiredService<ToastPresenter>());
 
         return builder.Build();
     }

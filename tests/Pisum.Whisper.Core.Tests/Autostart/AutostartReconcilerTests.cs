@@ -59,7 +59,7 @@ public sealed class AutostartReconcilerTests : IDisposable
     [Fact]
     public async Task TheRegistrationIsCreatedWhenTheSettingIsOnAndNothingIsRegistered()
     {
-        Configure(startWithSystem: true);
+        Configure(true);
         _autostart.Registered = false;
 
         await StartAsync();
@@ -72,7 +72,7 @@ public sealed class AutostartReconcilerTests : IDisposable
     [Fact]
     public async Task TheRegistrationIsRemovedWhenTheSettingIsOffAndOneExists()
     {
-        Configure(startWithSystem: false);
+        Configure(false);
         _autostart.Registered = true;
 
         await StartAsync();
@@ -92,7 +92,7 @@ public sealed class AutostartReconcilerTests : IDisposable
     [InlineData(false)]
     public async Task NothingIsWrittenWhenTheSettingAndTheRegistrationAgree(bool enabled)
     {
-        Configure(startWithSystem: enabled);
+        Configure(enabled);
         _autostart.Registered = enabled;
 
         await StartAsync();
@@ -108,13 +108,13 @@ public sealed class AutostartReconcilerTests : IDisposable
     [Fact]
     public async Task TheRegistrationIsReconciledAgainWhenSettingsAreSaved()
     {
-        Configure(startWithSystem: false);
+        Configure(false);
         _autostart.Registered = false;
 
         await StartAsync();
         _autostart.Writes.ShouldBe(0);
 
-        Configure(startWithSystem: true);
+        Configure(true);
 
         _autostart.Registered.ShouldBeTrue();
         _autostart.Enables.ShouldBe(1);
@@ -127,7 +127,7 @@ public sealed class AutostartReconcilerTests : IDisposable
     [Fact]
     public async Task ARegistrationRemovedElsewhereIsRestoredOnTheNextStart()
     {
-        Configure(startWithSystem: true);
+        Configure(true);
         _autostart.Registered = true;
 
         await StartAsync();
@@ -149,7 +149,7 @@ public sealed class AutostartReconcilerTests : IDisposable
     [Fact]
     public async Task AFailureIsLoggedAndTheApplicationStillStarts()
     {
-        Configure(startWithSystem: true);
+        Configure(true);
         _autostart.Failure = new AutostartException("the key is locked by policy");
 
         await Should.NotThrowAsync(StartAsync);
@@ -161,14 +161,14 @@ public sealed class AutostartReconcilerTests : IDisposable
     [Fact]
     public async Task StoppingUnsubscribes()
     {
-        Configure(startWithSystem: true);
+        Configure(true);
         _autostart.Registered = true;
 
         var reconciler = Reconciler();
         await reconciler.StartAsync(CancellationToken.None);
         await reconciler.StopAsync(CancellationToken.None);
 
-        Configure(startWithSystem: false);
+        Configure(false);
 
         _autostart.Writes.ShouldBe(0);
     }

@@ -2,6 +2,7 @@ namespace Pisum.Whisper.App.Tests.Settings;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Pisum.Whisper.App.Settings;
 using Pisum.Whisper.App.Settings.ViewModels;
 using Pisum.Whisper.Core.Hotkeys;
@@ -80,7 +81,7 @@ public sealed class SettingsWindowRegistrationTests : IDisposable
         builder.Services.AddFileLogging(
             new FileLoggingOptions {Directory = new LogDirectory(Path.Combine(_home, "logs"))}, out _);
         builder.Services.AddSingleton(provider => new SettingsStore(
-            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<SettingsStore>>(),
+            provider.GetRequiredService<ILogger<SettingsStore>>(),
             Path.Combine(_home, ".pisum-whisper.json")));
         builder.Services.AddGeminiTranscription();
         builder.Services.AddGlobalHotkey();

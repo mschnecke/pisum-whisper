@@ -97,7 +97,7 @@ public sealed class DictationNotificationHotkeyCostTests : IDisposable
 
             // No minimum duration: the two edges below are posted back to back on one thread, and
             // the real 50 ms would discard that as a brush before it ever reached Transcribing.
-            minimumDuration: TimeSpan.Zero);
+            TimeSpan.Zero);
     }
 
     public void Dispose()

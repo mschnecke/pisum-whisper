@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Pisum.Whisper.App.Settings;
 using Pisum.Whisper.App.Settings.ViewModels;
 using Pisum.Whisper.App.Tests.Settings;
+using Pisum.Whisper.Core.Settings;
 using Pisum.Whisper.Core.Transcription;
 using Shouldly;
 
@@ -31,7 +32,7 @@ public sealed class ProviderModelListTests : SettingsEditorTestBase
     private void Listing(string apiKey, params GeminiModel[] models)
     {
         A.CallTo(() => _probe.ListModelsAsync(apiKey, A<CancellationToken>._))
-            .Returns<IReadOnlyList<GeminiModel>>(models);
+            .Returns(models);
     }
 
     [Fact]
@@ -153,7 +154,7 @@ public sealed class ProviderModelListTests : SettingsEditorTestBase
     public async Task ChoosingAModel_ReachesTheDraft()
     {
         var settings = Store.CloneCurrent();
-        settings.Providers.Add(new Core.Settings.ProviderConfig {Id = "one", ApiKey = "AIza-one"});
+        settings.Providers.Add(new ProviderConfig {Id = "one", ApiKey = "AIza-one"});
         Store.Save(settings);
 
         Listing("AIza-one", Flash, Pro);
