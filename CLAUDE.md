@@ -10,7 +10,8 @@ Pisum.Whisper.slnx
 ├── src/Pisum.Whisper.Platform    the OS-specific surface (the clipboard and paste probes today)
 ├── src/Pisum.Whisper.App         Avalonia tray shell and the composition root
 ├── tests/Pisum.Whisper.Core.Tests
-└── tests/Pisum.Whisper.Platform.Tests   native registration, and the manual clipboard round trip
+├── tests/Pisum.Whisper.Platform.Tests   native registration, and the manual clipboard round trip
+└── tests/Pisum.Whisper.App.Tests        the settings window, on Avalonia.Headless.XUnit
 
 spikes/Pisum.Whisper.Spikes       throwaway; NOT in the solution — see "Spikes" below
 ```
@@ -120,12 +121,12 @@ under the temp path, or builds a real DI container or generic `Host` — followi
 which is why every class deriving `DictationTestBase`, `FileLoggingTestBase` or
 `GlobalHotkeyServiceTestBase` is one: those bases create a temp home in their constructor.
 `Unit` means neither; in-memory objects and fakes only, including the Gemini tests, which drive a
-real `HttpClient` over a fake handler and never reach the network. The split is 23 / 26 / 4 classes and
-189 / 179 / 4 tests — they sum to 372, so exactly one category applies to every test.
+real `HttpClient` over a fake handler and never reach the network. The split is 24 / 43 / 4 classes and
+192 / 328 / 4 tests — they sum to 524, so exactly one category applies to every test.
 
 ```bash
-dotnet test Pisum.Whisper.slnx --filter-trait Category=Unit          # 189, no I/O at all
-dotnet test Pisum.Whisper.slnx --filter-not-trait Category=Manual    # 368, what CI should run
+dotnet test Pisum.Whisper.slnx --filter-trait Category=Unit          # 192, no I/O at all
+dotnet test Pisum.Whisper.slnx --filter-not-trait Category=Manual    # 520, what CI should run
 ```
 
 Keep the rule mechanical when adding a class: if its constructor or its base's reaches
@@ -515,13 +516,18 @@ deliberately **not** fixed here — the fix belongs to `global-hotkey`.
 `openspec/config.yaml` sets `schema: spec-driven`. Change proposals live in `openspec/changes/`,
 completed ones move to `openspec/changes/archive/`, and capability specs land in `openspec/specs/`.
 `openspec/ROADMAP.md` sequences the work as **12 ordered changes**, each tracked by a GitHub issue
-labelled `change:NN`. Changes 1 through 7 and change 9 are archived and their `application-host`,
-`settings-persistence`, `file-logging`, `audio-capture`, `audio-encoding`, `global-hotkey`,
-`gemini-transcription`, `text-output` and `tray-icon` specs are synced, so read them from
-`openspec/specs/` like any other. Change 8 is implemented but still open — its verification needs
-hardware — so `dictation-pipeline` is only in its change folder, and the sequence archived out of
-order as a result; the macOS verification change 1 left unfinished was tracked by issue #15 rather
-than by an open change, and closed on 2026-08-28. Drive
+labelled `change:NN`. Changes 1 through 7, change 9 and change 10 are archived and their
+`application-host`, `settings-persistence`, `file-logging`, `audio-capture`, `audio-encoding`,
+`global-hotkey`, `gemini-transcription`, `text-output`, `tray-icon` and `settings-window` specs are
+synced, so read them from `openspec/specs/` like any other. Change 8 is implemented but still open —
+its verification needs hardware — so `dictation-pipeline` is only in its change folder, and the
+sequence archived out of order as a result. **Change 10 was archived with its tasks 6.2 to 6.4 still
+open**, which is the same hardware wait that is keeping change 8 open; the two were decided
+differently rather than by a rule, so neither is a precedent for the next change that reaches this
+state. An archive therefore does not certify that a capability was verified — what change 10 still
+owes is the macOS pass, and the two open questions it would settle are in that change's archived
+`design.md` rather than anywhere under `openspec/specs/`. The macOS verification change 1 left
+unfinished was tracked by issue #15 rather than by an open change, and closed on 2026-08-28. Drive
 the workflow with the `/opsx:*` commands (`explore`, `propose`, `apply`, `sync`, `archive`); the
 backing skills are in `.claude/skills/openspec-*`. The bottom of `openspec/config.yaml` carries the
 project context and the per-artifact rules, and both are **live, not the commented-out template**:
