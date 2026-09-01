@@ -435,7 +435,24 @@ not that it looks good.
 - **Does a toast draw over a full-screen macOS application, or does it need
   `NSWindowCollectionBehavior`?** Avalonia may not expose the behaviour, in which case notifications
   are simply not seen in full screen — acceptable, and worth knowing rather than discovering.
-- **Should `spikes -- notify` still be run?** Its three observational answers would settle whether
-  `Shell_NotifyIcon` shows anything at all on Windows 11, but the option is rejected on grounds the
-  spike has already established — a second icon, and no notification-platform record. The spike stays
-  in the tree because the question returns the moment change 12 ships a shortcut with an AUMID.
+- ~~**Should `spikes -- notify` still be run?**~~ **Not pursued, deliberately — this is closed as a
+  decision, not as an answer.** Its three observational questions are still unanswered and
+  `Shell_NotifyIcon` may or may not draw anything on Windows 11. That was left unsettled because the
+  option is rejected on grounds the spike had already established: it needs a second notification
+  icon beside Avalonia's, and it reaches no notification platform, so even its best case is worse
+  than the measured S7 result on every axis except Do Not Disturb.
+
+  **Three attempts to answer it without a person failed, and the third is the one worth knowing
+  about.** The notification database showed no handler and no row. Enumerating visible top-level
+  windows before and during a run showed nothing new. That second result looked like an answer and is
+  not one: a control run of `System.Windows.Forms.NotifyIcon.ShowBalloonTip` — an independent
+  implementation of the same API — was **equally invisible** to the same detector, while an ordinary
+  Notepad window was caught immediately. The instrument is blind to whatever a balloon is, so "no new
+  window" measures the detector rather than the balloon.
+
+  That control is the useful residue for change 12, when a Start-menu shortcut carrying an AUMID makes
+  this live again. Run the WinForms balloon beside `spikes -- notify`: if the WinForms one appears and
+  the spike's do not, the spike's struct or flags are wrong; if neither appears, Windows 11 does not
+  surface these at all and the transport is dead regardless of the AUMID. Until then the spike stays
+  in the tree unrun, and `CLAUDE.md`'s claim that the spikes harness is deletable is false while it
+  does.
