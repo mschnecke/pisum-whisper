@@ -74,13 +74,11 @@ migration ran before change 9 rather than whenever it became convenient.
 
 ## Artifact status
 
-Changes **1-10** are implemented and archived under `openspec/changes/archive/`, with their
+Changes **1-11** are implemented and archived under `openspec/changes/archive/`, with their
 `application-host`, `settings-persistence`, `file-logging`, `audio-capture`, `audio-encoding`,
-`global-hotkey`, `gemini-transcription`, `text-output`, `dictation-pipeline`, `tray-icon` and
-`settings-window` specs synced into `openspec/specs/`. Change **11** has all four artifacts and is
-implemented; it is not archived yet, because its four verification tasks need a person at a machine
-and two of them need Apple Silicon. Change **12** has `proposal.md` only; its `specs`, `design` and
-`tasks` are written when its turn comes.
+`global-hotkey`, `gemini-transcription`, `text-output`, `dictation-pipeline`, `tray-icon`,
+`settings-window`, `notifications` and `autostart` specs synced into `openspec/specs/`. Change **12**
+has `proposal.md` only; its `specs`, `design` and `tasks` are written when its turn comes.
 
 **Changes 8, 9, 10 and 11 all carry unchecked verification tasks**, which is a departure from how
 1-7 were closed and is recorded here rather than left to be discovered. Change 8 owes tasks 6.1, 6.3
@@ -89,7 +87,7 @@ macOS half. Change 9 owes 4.1 to 4.3 — the win-x64 pass by hand, the osx-arm64
 `spikes -- tray` run under both macOS appearance modes, whose Windows half is done and recorded in
 that change's `design.md`. Change 10 owes 6.2 to 6.4. Change 11 owes 7.1 to 7.4 — the win-x64 pass,
 the osx-arm64 pass, the `spikes -- toast` re-run on macOS, and the two open questions in its
-`design.md` that need running rather than reasoning. Three of those four changes are archived anyway,
+`design.md` that need running rather than reasoning. All four of those changes are archived anyway,
 so **an archived change here does not certify that its capability was verified on hardware**. The
 macOS half of all of it is one Apple Silicon sitting and should be done in one pass.
 

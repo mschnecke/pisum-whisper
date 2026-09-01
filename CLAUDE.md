@@ -612,19 +612,17 @@ deferred again — it is a startup condition rather than a dictation failure and
 `openspec/config.yaml` sets `schema: spec-driven`. Change proposals live in `openspec/changes/`,
 completed ones move to `openspec/changes/archive/`, and capability specs land in `openspec/specs/`.
 `openspec/ROADMAP.md` sequences the work as **12 ordered changes**, each tracked by a GitHub issue
-labelled `change:NN`. **Changes 1 through 10 are archived** and their `application-host`,
+labelled `change:NN`. **Changes 1 through 11 are archived** and their `application-host`,
 `settings-persistence`, `file-logging`, `audio-capture`, `audio-encoding`, `global-hotkey`,
-`gemini-transcription`, `text-output`, `dictation-pipeline`, `tray-icon` and `settings-window` specs
-are synced, so read every one of them from `openspec/specs/` like any other. Only changes 11
-(`add-system-integration` — `notifications` and `autostart`) and 12 (`add-packaging-ci` —
-`packaging`) are still active. Change 11 has all four artifacts and is implemented, with only its
-four manual verification tasks outstanding; change 12 is still a lone `proposal.md` — no design, no
-tasks and no delta specs — so it is not archivable as it stands. `migrate-tests-to-xunit-v3` is archived as well; it
+`gemini-transcription`, `text-output`, `dictation-pipeline`, `tray-icon`, `settings-window`,
+`notifications` and `autostart` specs are synced, so read every one of them from `openspec/specs/`
+like any other. Only change 12 (`add-packaging-ci` — `packaging`) is still active, and it is a lone
+`proposal.md` — no design, no tasks and no delta specs — so it is not archivable as it stands. `migrate-tests-to-xunit-v3` is archived as well; it
 carries no number, by the roadmap's own rule that off-sequence work gets a section instead of one.
 
-**Changes 8 and 10 were both archived with their manual verification still open** — 8's tasks 6.1,
-6.3 and 6.4, and 10's 6.2 to 6.4. Every one of them needs a person at a machine, and the macOS ones
-need Apple Silicon with Accessibility granted. An archived change here therefore does **not** certify
+**Changes 8, 10 and 11 were all archived with their manual verification still open** — 8's tasks
+6.1, 6.3 and 6.4, 10's 6.2 to 6.4, and 11's 7.1 to 7.4. Every one of them needs a person at a
+machine, and the macOS ones need Apple Silicon with Accessibility granted. An archived change here therefore does **not** certify
 that its capability was verified on hardware: what each still owes, and the open design questions
 those runs would settle, stay in that change's archived `design.md` and are reflected nowhere under
 `openspec/specs/`. Read the archived `tasks.md` before treating a capability spec as verified
