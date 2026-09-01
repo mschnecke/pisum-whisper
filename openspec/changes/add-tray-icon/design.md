@@ -64,6 +64,24 @@ what is known.
 *Alternative rejected:* two icons plus a state-bearing tooltip. It hides the distinction behind a
 hover, on the one platform where a tray icon is most often glanced at and least often hovered.
 
+**The state-to-icon map is an exhaustive switch expression, and it needs `CS8524` suppressed to be
+one.** The point of writing the map as a switch expression with no discard arm is that a fourth
+`DictationState` becomes a build failure here rather than a silent fall-through to the idle
+appearance. What the task list did not anticipate is that the bare three-arm form does not build
+*today*: `CS8524` — "not exhaustive **involving an unnamed enum value**", `(DictationState)3` — is
+reported for every arm-complete enum switch expression, because an enum variable can hold a value no
+member names, and `TreatWarningsAsErrors` turns it into an error.
+
+The obvious fix is the wrong one. Adding `_ => throw new ArgumentOutOfRangeException(...)` clears
+`CS8524` and clears `CS8509` with it, which is the diagnostic that would have caught the fourth
+state — so it buys a build at the cost of exactly the guarantee the switch was written for, moving
+that failure from compile time to a runtime path nobody exercises. A local
+`#pragma warning disable CS8524` clears only the unnamed-value case. That the two are genuinely
+separable was confirmed rather than assumed: in a scratch project with `TreatWarningsAsErrors` on,
+`CS8524` suppressed and one of four named values left uncovered, the build fails `CS8509`. Nothing
+casts an integer into `DictationState`; the only values that reach the map are the three the
+orchestrator publishes.
+
 **No theme handling, on either platform.**
 There is no theme probe, no `ColorValuesChanged` subscription, no `ActualThemeVariantChanged`
 subscription, and no light/dark asset variants. The two platforms reach that outcome differently and

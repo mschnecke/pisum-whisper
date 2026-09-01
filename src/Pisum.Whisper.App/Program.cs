@@ -75,9 +75,9 @@ internal static class Program
         builder.Services.AddNativeOutput();
 
         // Last, because it consumes all four of the capabilities above. Registered as a hosted
-        // service, so the host constructs it — nothing else resolves it yet — and so that its
-        // StopAsync runs on the way out: a dictation caught mid-delivery has to finish putting the
-        // user's clipboard back before the process exits.
+        // service so that its StopAsync runs on the way out: a dictation caught mid-delivery has to
+        // finish putting the user's clipboard back before the process exits. App resolves the same
+        // singleton once Avalonia is up, and drives the tray icon from its StateChanged.
         builder.Services.AddDictationPipeline();
 
         try

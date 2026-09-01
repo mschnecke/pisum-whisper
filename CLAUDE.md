@@ -386,6 +386,50 @@ exception, which does not crash the process — it vanishes, leaves the state at
 ever, and the hotkey answers "Transcription In Progress" until the application is restarted. The
 `finally` is there for the state reset first and the message second.
 
+## The tray icon
+
+`src/Pisum.Whisper.App/App.cs` is the whole capability — no type in `Core`, no `ITrayPresenter`. The
+mapping is a switch over three enum values and one string interpolation, and this file is its only
+consumer.
+
+**There are three icons because there are three `DictationState` values.** Collapsing them
+reproduces the reference's defect either way round: `Transcribing → recording` is precisely what
+`tray::set_recording_state(false)` after the paste does, an icon claiming to record throughout the
+upload, while `Transcribing → idle` tells a user in toggle mode that nothing is happening right
+before the hotkey answers "Transcription In Progress". The third value costs nothing to publish —
+the orchestrator must already tell the two apart to interpret a press — so collapsing it here would
+be work spent discarding what is known. The map is an exhaustive `switch` expression so a fourth
+state fails the build; it carries a local `#pragma warning disable CS8524` for the *unnamed* enum
+value, and **must not** be given a `_ =>` arm instead: that clears `CS8509` too and moves the fourth
+state from a compile error to a runtime one.
+
+**There is no theme handling on either platform** — no probe, no `ColorValuesChanged`, no light/dark
+variants. macOS delegates to AppKit through `MacOSProperties.SetIsTemplateIcon(trayIcon, true)`;
+note the owning type, because `TrayIcon` has no such member and looking there and finding nothing
+reads as "Avalonia does not expose this", which is the trap an earlier draft of the design fell into.
+Windows carries the contrast in the art instead: every theme value Avalonia can reach reports the
+*apps* theme, while the Windows 11 taskbar follows `SystemUsesLightTheme`, so neither available route
+picks the right background under "Custom" mode.
+
+**Every interior mark is a hole, not a light-coloured fill.** A template image is rendered from its
+alpha channel alone, so white inside the bubble vanishes and a black dot overlapping the bubble
+merges into the same silhouette — both are mistakes the reference's shipped assets actually make.
+Drawing the marks as holes is also what lets one geometry serve both platforms and what removes the
+Windows theme probe, since a hole reads against the bubble whatever is behind it.
+
+**`host.StopAsync` runs after the Avalonia loop has returned**, so the tray's release line is *not*
+the last thing in the log — `DictationOrchestrator.StopAsync`'s lines, the clipboard restore among
+them, follow it, and that is change 8's `StopAsync`-awaits requirement working rather than a leak.
+The corollary is that `OnExit`'s unsubscribe is cheap insurance, not the invariant it resembles: a
+shutdown `Idle` is posted into a dispatcher nobody pumps and never arrives at all. What actually
+covers the narrow case — a pipeline task announcing between the Quit click and the loop stopping —
+is `_trayIcon = null` and the null check in the handler, so keep both.
+
+Icons are loaded once in the constructor, not per state change, and both event subscriptions are
+marshalled through `Dispatcher.UIThread.Post`, which preserves order at equal priority so a fast
+dictation's `Idle` cannot overtake its own `Transcribing`. The tooltip names the active preset and
+**never** its `SystemPrompt`.
+
 ## Spec-driven workflow (OpenSpec)
 
 `openspec/config.yaml` sets `schema: spec-driven`. Change proposals live in `openspec/changes/`,

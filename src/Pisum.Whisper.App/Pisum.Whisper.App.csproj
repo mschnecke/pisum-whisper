@@ -18,6 +18,9 @@
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
+    <!-- The .win.svg / .mac.svg sources the PNGs are exported from. Nothing reads them at runtime,
+         so keeping them out of the assembly saves ~7 KB of resource. -->
+    <AvaloniaResource Remove="Assets\*.svg" />
   </ItemGroup>
 
 </Project>
