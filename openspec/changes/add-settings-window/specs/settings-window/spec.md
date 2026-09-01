@@ -150,6 +150,12 @@ directly; the built-ins are the two the application falls back to and cannot be 
 - **WHEN** the user adds a preset with a name and a prompt
 - **THEN** it appears in the list and can be activated
 
+#### Scenario: A preset is offered with a blank name or a blank prompt
+- **WHEN** the user attempts to add or save a preset whose name or whose prompt is empty or only
+  whitespace
+- **THEN** it is not saved
+- **AND** a preset with an empty prompt never becomes selectable
+
 #### Scenario: A preset is edited
 - **WHEN** the user edits a preset's name or prompt
 - **THEN** the change is kept, including for a built-in preset
@@ -172,6 +178,10 @@ at least one modifier, SHALL let the attempt be abandoned, and SHALL warn when t
 is one the operating system is likely to claim. A hotkey typed as text is a hotkey the user cannot be
 sure their keyboard produces; a hotkey with no modifier makes the key unusable everywhere else.
 
+Recording SHALL NOT outlive the user's attention to it. While a combination is being recorded the
+configured hotkey does not work, so a recorder left open is a dictation tool with no way to start a
+dictation, and it says nothing about being in that state.
+
 #### Scenario: A combination is recorded
 - **WHEN** the user starts recording and presses a modifier together with a key
 - **THEN** that combination becomes the hotkey, and the window shows it
@@ -183,6 +193,11 @@ sure their keyboard produces; a hotkey with no modifier makes the key unusable e
 #### Scenario: Recording is abandoned
 - **WHEN** the user presses Escape while recording
 - **THEN** recording stops and the hotkey is left as it was
+
+#### Scenario: The window loses focus while recording
+- **WHEN** the user starts recording and then switches to another application
+- **THEN** recording stops and the hotkey is left as it was
+- **AND** the configured hotkey starts a dictation again
 
 #### Scenario: An unnameable key is pressed
 - **WHEN** the user presses a key the application cannot record

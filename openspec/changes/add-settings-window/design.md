@@ -122,6 +122,46 @@ exactly two methods: `void Edit(Action<AppSettings> edit)` and `Task FlushAsync(
   following `GeminiProviderPool`'s retry delay and `DictationOrchestrator`'s injected clock. No test
   waits 400 ms of real time.
 
+#### The draft is a new object every window, so an edit finds its target by id
+
+This is the consequence of cloning that is easiest to get wrong, and it produces a bug that looks
+intermittent rather than a failure that points at itself. `Save(draft)` assigns `Current = draft`, so
+the authoritative object graph is **replaced** on each commit rather than mutated:
+
+```
+  window opens          first Edit           commit             next Edit
+       |                     |                  |                   |
+  read Current          pending =           Current =           pending =
+     graph A            Clone(A) = B        B  (A dead)         Clone(B) = C
+       |                     |                                      |
+  VM captures            edits land in B                       edits land in C
+  ProviderConfig
+  from graph A  -------------------------------------------------------> writes to A
+                                                                         LOST
+```
+
+A view model that holds its `ProviderConfig` and closes over it — the obvious way to write it —
+mutates a graph nothing will ever save. Nothing throws; the edit is simply gone, and only for entries
+touched after a commit.
+
+So: **an `Edit` delegate locates its target inside the `AppSettings` it is handed, by `Id`, and never
+through a captured reference.** It bites exactly the two collections. `s.LoggingConfig.LogLevel` and
+`s.Hotkey` are reached by property path and are correct by construction; `Providers` and `Presets`
+are not.
+
+The lookup must also **tolerate a missing id**. Edits queue in order against one draft, so within a
+single quiet window this is reachable:
+
+```
+  Edit(type into provider X's key box)  --> applied to the draft
+  Edit(remove provider X)               --> applied to the draft
+  Edit(type into provider X's key box)  --> X is no longer there
+```
+
+`FirstOrDefault` and return, never `First`. A `First` here throws on a pooled thread inside the
+commit, which becomes an unobserved task exception — the disappearing-failure shape
+`DictationOrchestrator`'s `try`/`catch`/`finally` exists to prevent.
+
 `Edit` is called on the UI thread; the commit runs on a pooled thread when the delay completes. That
 is safe because the commit touches only `SettingsStore`, and the two `Changed` subscribers that could
 care — the tray tooltip and the icon — already marshal through `Dispatcher.UIThread.Post`, because
@@ -203,6 +243,15 @@ needs and a tray icon never did.
 tray-only, but a *visible window* that cannot be found in the taskbar or with Alt+Tab is worse than
 the taskbar entry it would avoid.
 
+**`IClassicDesktopStyleApplicationLifetime.MainWindow` is never assigned.** It is null today and
+stays null. Assigning the settings window to it is the natural thing to write when creating a window,
+and under `ShutdownMode.OnExplicitShutdown` it is harmless — which is precisely why it has to be
+written down. It couples the application's lifetime to this window's, invisibly, and the coupling
+only becomes a defect when someone later changes the shutdown mode and discovers that closing
+settings quits the application. The rule is the same shape as change 9's "do not answer `CS8524`
+with a `_ =>` arm": a line that looks harmless today because a *different* setting is currently
+holding it up.
+
 ### 5. Reaching the window from the tray
 
 Two entry points, both landing in the same method:
@@ -272,6 +321,26 @@ before calling the store**. One line per command, and a unit test per command as
 Activating a preset is also what finally proves the `tray-icon` spec's *The active preset changes*
 scenario, which change 9 shipped and could not exercise because nothing called `Save`.
 
+**A preset with a blank name or a blank prompt is refused, and the refusal lives in the view model.**
+`SettingsStore` validates nothing — there is no `IsNullOrWhiteSpace` and no `ArgumentException`
+anywhere in it — so `SavePreset` will happily store a preset with an empty `SystemPrompt`, which then
+becomes selectable and is what gets sent to Gemini as the instruction for the user's speech. The Add
+and Save commands are therefore disabled while either field is blank, exactly as the reference does
+it (`disabled={!newName.trim() || !newPrompt.trim()}`).
+
+The guard is deliberately **not** added to `SettingsStore.SavePreset`, even though `DeletePreset`'s
+existing `SettingsException` for a built-in sets a precedent for putting invariants there. Doing so
+would change `settings-persistence` behaviour, and this change's proposal declares no modified
+capabilities; widening it to two capabilities for a guard the UI already makes unreachable is not
+worth the blast radius. The residue — that a future non-UI caller of `SavePreset` could still store a
+blank preset — is recorded here with `settings-persistence` as its owner rather than left to be
+discovered.
+
+**An enabled provider with an empty API key is allowed through**, as in the reference. It is not an
+oversight: `GeminiProviderPool` already reports it as a `Configuration` failure with a message naming
+the problem, which is a better diagnosis than a disabled control that does not say why. Recorded so
+it is not "fixed" later without knowing it was chosen.
+
 ### 8. The hotkey recorder
 
 `IGlobalHotkeyService.CaptureAsync` does the capturing: it suspends normal matching, waits for one
@@ -300,8 +369,29 @@ disabled and a banner names the state whenever `Availability != Available`. This
 than the "Rendering `HotkeyAvailability.Failed`" item change 9 deferred to change 11: it is a disabled
 button rather than a notification, and it exists to prevent a hang rather than to inform.
 
-The capture's `CancellationTokenSource` is cancelled when the user clicks Cancel and when the window
-hides, so no capture outlives the UI that started it.
+**An open capture is a dead hotkey, so it is cancelled when the window loses focus.** `CaptureAsync`
+suspends normal matching for as long as the capture is open — that is its documented contract — so a
+user who clicks Change and then wanders off with the window still open has silently disabled their
+hotkey for the rest of the session, with nothing saying so. The reference does not have this problem
+for a reason that does not transfer: its recorder is a focused DOM element, so it dies when focus
+moves. Ours is a global hook that does not care about focus.
+
+The capture's `CancellationTokenSource` is therefore cancelled on **three** events: the user clicking
+Cancel, the window hiding, and the window being deactivated. Deactivation is `Deactivated`, which is
+declared on `Avalonia.Controls.WindowBase` and inherited by `Window` — it is not on `Window` itself
+and it carries no XML documentation, so looking for it on `Window` and finding nothing reads as
+"Avalonia does not expose this", which is the same trap change 9 recorded for
+`MacOSProperties.SetIsTemplateIcon`. Verified from the assembly with `spikes -- api Avalonia.Controls
+Avalonia.Controls.WindowBase`, which reports `event EventHandler Activated` and
+`event EventHandler Deactivated`.
+
+Cancelling on deactivation costs the user nothing: recording a global combination requires the window
+to be frontmost anyway, and re-entering the recorder is one click.
+
+One more return value the view model must not misread: `CaptureAsync` answers a **concurrent** call
+with `HotkeyCapture.Cancelled` immediately, because only one capture may be open at a time. A second
+Change click while already recording is therefore indistinguishable from the user cancelling unless
+the view model tracks that it is already recording and does not start a second capture.
 
 Conflicts: `ConflictDetector.ConflictsWithSystemHotkey` is consulted after a successful capture and
 its result shown as a warning banner. It warns and never blocks — the table is a heuristic mixing
@@ -426,6 +516,15 @@ anything constructing a real `SettingsStore` over a temp file is `Integration`.
 - **This is the largest single change in the sequence** and the first with meaningful UI. Six tabs is
   six chances to apply the debounce, the clone and the flush rules inconsistently; the task list keeps
   each tab's code and its tests in one task for that reason.
+- **Every save will log a hotkey rebind that did not happen.** `HotkeyMatcher.Rebind` correctly
+  early-returns when the new chord equals the old one, but `GlobalHotkeyService.OnSettingsChanged`
+  logs `"Hotkey rebound to {Binding}."` at `Information` *outside* that `if`
+  (`GlobalHotkeyService.cs:368`). Changing the audio format will therefore write a line claiming the
+  hotkey was rebound, at the default log level, into the file this window's own Open Log Folder
+  button opens. It is pre-existing and has been unobservable until now only because nothing called
+  `Save` — this change is what makes it visible. It is **not fixed here**: the fix is two lines in
+  `Core/Hotkeys/`, which would make `global-hotkey` a modified capability and widen a proposal that
+  declares none. Owner: `global-hotkey`, as a follow-up.
 
 ## Open Questions
 
