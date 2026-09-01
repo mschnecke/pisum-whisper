@@ -345,6 +345,27 @@ exchange for shipping notifications at all before change 12. The mitigations tha
 notifications are rare, five of the six are failures the user needs, and `ShowTrayNotifications`
 already silences the two that are not.
 
+**The transport cannot report a failure raised before the dispatcher loop starts, and that is the
+second cost of this decision.** A native notification is posted from anywhere; a window this
+application draws needs `StartWithClassicDesktopLifetime` to be pumping a queue, and the earliest
+startup failures happen before it is ever called:
+
+| Failure | When | Reportable by a toast |
+|---|---|---|
+| A corrupt settings file (issue #20) | `Program.LoadSettings`, before `host.Start()` | **No** — `Main` unwinds and the loop is never started, so a posted job is enqueued into nothing |
+| `builder.Build()` fails `ValidateOnBuild` | before `host.Start()` | **No** — same, and this one is already logged `Fatal` |
+| The hotkey grant is refused on macOS | `host.Start()` | Only if `Present` is safe from a pooled thread — see *Open Questions* |
+| A tray asset is missing on macOS | the `App` constructor | **No** — `AssetLoader.Open` throws before the loop runs |
+| Anything after initialisation | running | Yes |
+
+This resolves a question issue #20 leaves open. That issue suggests surfacing the corrupt-settings
+failure as a notification and says the decision "probably belongs with `add-system-integration`" — it
+does, and the answer is that it cannot be done with this transport. Its fix is the log-`Fatal`,
+dispose, rethrow it proposes and nothing more. **Startup failures being invisible to the user is
+therefore a real gap that this change does not close**, alongside the `HotkeyAvailability.Failed`
+case change 9 deferred here and this change deferred again; both want a proposal that is about
+startup rather than about dictation.
+
 **Nothing here has run on macOS.** Avalonia's own source says `ShowActivated: false` reaches
 `[Window orderFront:Window]` with no `makeKeyAndOrderFront` and no `ActivateApplication`, which by
 Apple's definition changes neither the key nor the main window — but that is reading, not running.
@@ -379,16 +400,35 @@ not that it looks good.
 
 ## Open Questions
 
-- **Can a notification be raised before Avalonia's platform is initialised, and what happens if it
-  is?** The orchestrator's hotkey handlers are armed at `host.Start()`, which is before
+- **What happens when `Present` touches `Dispatcher.UIThread` from a pooled thread before Avalonia is
+  initialised?** The orchestrator's hotkey handlers are armed at `host.Start()`, before
   `StartWithClassicDesktopLifetime`, and `App.cs` already acknowledges that window as real — its
   seeded `ApplyState` exists precisely because "a hotkey pressed during Avalonia's platform
   initialisation opens a recording this icon would otherwise misreport". A capture-start failure in
-  that window would call `Present`. The expectation is that `Dispatcher.UIThread.Post` queues the job
-  and it runs when the loop starts, showing the toast a moment late, which is correct behaviour; what
-  is not confirmed is whether touching `Dispatcher.UIThread` that early binds it correctly. One
-  headless test and one deliberate early call answer it. If it does not hold, `ToastPresenter` drops
-  notifications until `App` signals readiness, and the first one is lost rather than the process.
+  that window calls `Present`, and `GlobalHotkeyService` raises its events from its channel dispatch
+  loop, so that call arrives **on a pooled thread**.
+
+  An earlier draft of this question predicted a late toast and called that correct behaviour. Read at
+  the pinned `12.1.1` tag, that is the wrong thing to worry about. `Dispatcher`'s constructor sets
+  `_thread = Thread.CurrentThread` — readonly, assigned once — then `s_uiThread ??= this` under the
+  comment *"The first created dispatcher becomes 'UI thread one'"*, and when no platform
+  implementation is available it falls back to `new ManagedDispatcherImpl(null)` **silently**, with no
+  warning. `ReplaceImplementation` can swap the implementation in later, but it cannot change
+  `_thread`, and it throws if `impl.CurrentThreadIsLoopThread` is false. So the risk is not a late
+  notification: it is that the first `Dispatcher` is constructed on a thread-pool thread that has
+  since gone back to the pool, and stays the process's `UIThread` for good.
+
+  Avalonia 12's dispatcher rework (`AvaloniaUI/Avalonia#18586`, `#18686`) made it legal to use
+  `Dispatcher.UIThread` **from `Main`** before initialising Avalonia. From `Main` — the main thread.
+  The pooled-thread case is the one no guidance covers and the one this change creates.
+  `ToastPresenter`'s *construction* is safe either way: it is built with the orchestrator at
+  `host.Start()` and touches the dispatcher only inside `Present`.
+
+  Task 7.4 settles it, and the check must post **from a pooled thread**; posting from the main thread
+  exercises the case that already works and would return a false pass. If it does not hold,
+  `ToastPresenter` drops notifications until `App` signals readiness — the first one is lost rather
+  than the process, which is the same trade the table in *Risks* already accepts for everything
+  earlier than `host.Start()`.
 - **Does `ShowInTaskbar = false` also keep the toast out of the alt-tab list on Windows?** Exclusion
   needs `WS_EX_TOOLWINDOW`, and whether Avalonia sets it for a decorationless non-taskbar window was
   not measured. A toast in alt-tab is a blemish, not a defect; a glance during the S7 run settles it.
