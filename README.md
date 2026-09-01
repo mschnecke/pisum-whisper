@@ -9,18 +9,23 @@ local Whisper inference is out of scope.
 
 ## Status
 
-Under construction, and **not yet usable**. Work is sequenced as twelve ordered changes in
-[`openspec/ROADMAP.md`](openspec/ROADMAP.md); changes 1 through 7 of 12 have landed, which means the
-solution builds and starts as a tray-only process with a Quit menu, reads its settings from
+Under construction. Work is sequenced as twelve ordered changes in
+[`openspec/ROADMAP.md`](openspec/ROADMAP.md); changes 1 through 9 of 12 have landed, which means the
+solution builds and starts as a tray-only process, reads its settings from
 `~/.pisum-whisper.json`, creating that file on first run and repairing it when it has gone stale,
 writes a rolling log to `~/.pisum-whisper/logs/`, can capture microphone audio and encode it to Opus
 or WAV, can transcribe that audio with Gemini — retried, with a round-robin key pool and categorised
 failures — observes the configured global hotkey, both edges of it, withheld from whatever
-application has focus and re-bindable without a restart, and can deliver a transcript at the cursor
-through the clipboard and a synthetic paste.
+application has focus and re-bindable without a restart, can deliver a transcript at the cursor
+through the clipboard and a synthetic paste, and wires all of that into one dictation: hold the
+hotkey to record, release to transcribe and paste, with the tray icon reporting which of idle,
+recording and transcribing it is in.
 
-What is missing is the wiring between those parts. The hotkey does not yet start a recording and no
-recording yet reaches Gemini; that is change 8. There is no settings UI, which is change 10.
+Two things qualify that. **No dictation has yet been run end to end by hand** on either platform —
+that is the first open verification task of change 8, and until it passes the pipeline is complete
+in code rather than demonstrated. And there is no settings UI: settings are edited by hand in
+`~/.pisum-whisper.json` and read at launch, and the tray's Settings entry logs and does nothing
+until change 10. Notifications, autostart and packaging are changes 11 and 12.
 
 macOS is **partly verified**. Change 1's spikes were re-run on an Apple M4 (macOS 26.6.2) under
 [issue #15](https://github.com/mschnecke/pisum-whisper/issues/15), now closed: the global hook, its
@@ -51,9 +56,11 @@ dotnet run --project src/Pisum.Whisper.App
 ```
 
 The app has **no window**. It starts as a tray icon — on Windows 11 a newly registered icon is
-placed in the *hidden* overflow, so click the `^` chevron in the notification area to see it. Right
-click it for Quit. `dotnet run` will not return until you quit, which is expected for a tray process
-rather than a hang.
+placed in the *hidden* overflow, so click the `^` chevron in the notification area to see it.
+Hovering names the active preset; right clicking offers Settings and Quit. The icon takes a
+different shape for each of idle, recording and transcribing, so a glance says whether the
+application is listening, uploading, or waiting for the hotkey. `dotnet run` will not return until
+you quit, which is expected for a tray process rather than a hang.
 
 To build for a specific runtime, name the project rather than the solution (a `.slnx` cannot be
 built for a single RID):

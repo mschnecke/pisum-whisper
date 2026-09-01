@@ -386,19 +386,79 @@ exception, which does not crash the process — it vanishes, leaves the state at
 ever, and the hotkey answers "Transcription In Progress" until the application is restarted. The
 `finally` is there for the state reset first and the message second.
 
+## The tray icon
+
+`src/Pisum.Whisper.App/App.cs` is the whole capability — no type in `Core`, no `ITrayPresenter`. The
+mapping is a switch over three enum values and one string interpolation, and this file is its only
+consumer.
+
+**There are three icons because there are three `DictationState` values.** Collapsing them
+reproduces the reference's defect either way round: `Transcribing → recording` is precisely what
+`tray::set_recording_state(false)` after the paste does, an icon claiming to record throughout the
+upload, while `Transcribing → idle` tells a user in toggle mode that nothing is happening right
+before the hotkey answers "Transcription In Progress". The third value costs nothing to publish —
+the orchestrator must already tell the two apart to interpret a press — so collapsing it here would
+be work spent discarding what is known. The map is an exhaustive `switch` expression so a fourth
+state fails the build; it carries a local `#pragma warning disable CS8524` for the *unnamed* enum
+value, and **must not** be given a `_ =>` arm instead: that clears `CS8509` too and moves the fourth
+state from a compile error to a runtime one.
+
+**There is no theme handling on either platform** — no probe, no `ColorValuesChanged`, no light/dark
+variants. macOS delegates to AppKit through `MacOSProperties.SetIsTemplateIcon(trayIcon, true)`;
+note the owning type, because `TrayIcon` has no such member and looking there and finding nothing
+reads as "Avalonia does not expose this", which is the trap an earlier draft of the design fell into.
+Windows carries the contrast in the art instead: every theme value Avalonia can reach reports the
+*apps* theme, while the Windows 11 taskbar follows `SystemUsesLightTheme`, so neither available route
+picks the right background under "Custom" mode.
+
+**Every interior mark is a hole, not a light-coloured fill.** A template image is rendered from its
+alpha channel alone, so white inside the bubble vanishes and a black dot overlapping the bubble
+merges into the same silhouette — both are mistakes the reference's shipped assets actually make.
+Drawing the marks as holes is also what lets one geometry serve both platforms and what removes the
+Windows theme probe, since a hole reads against the bubble whatever is behind it.
+
+**`host.StopAsync` runs after the Avalonia loop has returned**, so the tray's release line is *not*
+the last thing in the log — `DictationOrchestrator.StopAsync`'s lines, the clipboard restore among
+them, follow it, and that is change 8's `StopAsync`-awaits requirement working rather than a leak.
+The corollary is that `OnExit`'s unsubscribe is cheap insurance, not the invariant it resembles: a
+shutdown `Idle` is posted into a dispatcher nobody pumps and never arrives at all. What actually
+covers the narrow case — a pipeline task announcing between the Quit click and the loop stopping —
+is `_trayIcon = null` and the null check in the handler, so keep both.
+
+Icons are loaded once in the constructor, not per state change, and both event subscriptions are
+marshalled through `Dispatcher.UIThread.Post`, which preserves order at equal priority so a fast
+dictation's `Idle` cannot overtake its own `Transcribing`. The tooltip names the active preset and
+**never** its `SystemPrompt`.
+
+**`App/Assets/` holds four files per state and only one of them is loaded.** The runtime pair is
+`tray-<state>.png` and `tray-<state>Template.png`, chosen by a single `OperatingSystem.IsMacOS()`
+that appends the `Template` suffix for the whole set at once — that suffix is AppKit's own naming
+convention, so keep it. Beside each pair sit the `.win.svg` and `.mac.svg` the PNGs are exported
+from; they are the editable source and nothing reads them at runtime, which is why
+`Pisum.Whisper.App.csproj` follows its `<AvaloniaResource Include="Assets\**" />` with a `Remove`
+for `Assets\*.svg`. Edit the SVG, re-export the PNG. Export both halves of a pair: only the running
+platform's variant is opened, so a forgotten `Template` export leaves Windows building and passing
+while macOS throws out of `AssetLoader.Open` in the constructor — on hardware a Windows machine
+cannot reach.
+
 ## Spec-driven workflow (OpenSpec)
 
 `openspec/config.yaml` sets `schema: spec-driven`. Change proposals live in `openspec/changes/`,
 completed ones move to `openspec/changes/archive/`, and capability specs land in `openspec/specs/`.
 `openspec/ROADMAP.md` sequences the work as **12 ordered changes**, each tracked by a GitHub issue
-labelled `change:NN`. Changes 1 through 7 are archived and their `application-host`,
+labelled `change:NN`. Changes 1 through 7 and change 9 are archived and their `application-host`,
 `settings-persistence`, `file-logging`, `audio-capture`, `audio-encoding`, `global-hotkey`,
-`gemini-transcription` and `text-output` specs are synced, so read them from `openspec/specs/` like
-any other; the macOS verification change 1 left unfinished was tracked by issue #15 rather than by
-an open change, and closed on 2026-08-28. Drive
+`gemini-transcription`, `text-output` and `tray-icon` specs are synced, so read them from
+`openspec/specs/` like any other. Change 8 is implemented but still open — its verification needs
+hardware — so `dictation-pipeline` is only in its change folder, and the sequence archived out of
+order as a result; the macOS verification change 1 left unfinished was tracked by issue #15 rather
+than by an open change, and closed on 2026-08-28. Drive
 the workflow with the `/opsx:*` commands (`explore`, `propose`, `apply`, `sync`, `archive`); the
-backing skills are in `.claude/skills/openspec-*`. Project context and per-artifact rules can be
-filled in at the bottom of `openspec/config.yaml` (all commented out today).
+backing skills are in `.claude/skills/openspec-*`. The bottom of `openspec/config.yaml` carries the
+project context and the per-artifact rules, and both are **live, not the commented-out template**:
+`proposal`, `design` and `tasks` each have rules, `specs` deliberately has none, and the `openspec`
+CLI is not installed on this machine — so `/opsx:archive` and `/opsx:sync` are run by reading the
+change folder directly, and a spec sync is the no-rules case either way.
 
 **A commit that only touches `openspec/` must say so in its subject line.** A proposal's *What
 Changes* section is a list of imperatives — "Replace `MSTest` with `xunit.v3`", "Rewrite the
