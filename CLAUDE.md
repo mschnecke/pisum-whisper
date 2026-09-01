@@ -430,19 +430,35 @@ marshalled through `Dispatcher.UIThread.Post`, which preserves order at equal pr
 dictation's `Idle` cannot overtake its own `Transcribing`. The tooltip names the active preset and
 **never** its `SystemPrompt`.
 
+**`App/Assets/` holds four files per state and only one of them is loaded.** The runtime pair is
+`tray-<state>.png` and `tray-<state>Template.png`, chosen by a single `OperatingSystem.IsMacOS()`
+that appends the `Template` suffix for the whole set at once — that suffix is AppKit's own naming
+convention, so keep it. Beside each pair sit the `.win.svg` and `.mac.svg` the PNGs are exported
+from; they are the editable source and nothing reads them at runtime, which is why
+`Pisum.Whisper.App.csproj` follows its `<AvaloniaResource Include="Assets\**" />` with a `Remove`
+for `Assets\*.svg`. Edit the SVG, re-export the PNG. Export both halves of a pair: only the running
+platform's variant is opened, so a forgotten `Template` export leaves Windows building and passing
+while macOS throws out of `AssetLoader.Open` in the constructor — on hardware a Windows machine
+cannot reach.
+
 ## Spec-driven workflow (OpenSpec)
 
 `openspec/config.yaml` sets `schema: spec-driven`. Change proposals live in `openspec/changes/`,
 completed ones move to `openspec/changes/archive/`, and capability specs land in `openspec/specs/`.
 `openspec/ROADMAP.md` sequences the work as **12 ordered changes**, each tracked by a GitHub issue
-labelled `change:NN`. Changes 1 through 7 are archived and their `application-host`,
+labelled `change:NN`. Changes 1 through 7 and change 9 are archived and their `application-host`,
 `settings-persistence`, `file-logging`, `audio-capture`, `audio-encoding`, `global-hotkey`,
-`gemini-transcription` and `text-output` specs are synced, so read them from `openspec/specs/` like
-any other; the macOS verification change 1 left unfinished was tracked by issue #15 rather than by
-an open change, and closed on 2026-08-28. Drive
+`gemini-transcription`, `text-output` and `tray-icon` specs are synced, so read them from
+`openspec/specs/` like any other. Change 8 is implemented but still open — its verification needs
+hardware — so `dictation-pipeline` is only in its change folder, and the sequence archived out of
+order as a result; the macOS verification change 1 left unfinished was tracked by issue #15 rather
+than by an open change, and closed on 2026-08-28. Drive
 the workflow with the `/opsx:*` commands (`explore`, `propose`, `apply`, `sync`, `archive`); the
-backing skills are in `.claude/skills/openspec-*`. Project context and per-artifact rules can be
-filled in at the bottom of `openspec/config.yaml` (all commented out today).
+backing skills are in `.claude/skills/openspec-*`. The bottom of `openspec/config.yaml` carries the
+project context and the per-artifact rules, and both are **live, not the commented-out template**:
+`proposal`, `design` and `tasks` each have rules, `specs` deliberately has none, and the `openspec`
+CLI is not installed on this machine — so `/opsx:archive` and `/opsx:sync` are run by reading the
+change folder directly, and a spec sync is the no-rules case either way.
 
 **A commit that only touches `openspec/` must say so in its subject line.** A proposal's *What
 Changes* section is a list of imperatives — "Replace `MSTest` with `xunit.v3`", "Rewrite the

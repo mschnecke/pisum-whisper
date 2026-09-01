@@ -12,7 +12,8 @@ global hotkey (hold or toggle) -> mic capture -> Opus/WAV encode
   -> clipboard + synthetic Ctrl+V / Cmd+V at the cursor
 ```
 
-plus a tray icon with idle and recording states, a settings window, rolling file logging, and autostart.
+plus a tray icon with idle, recording and transcribing states, a settings window, rolling file
+logging, and autostart.
 
 ## Dependency graph
 
@@ -73,13 +74,22 @@ migration ran before change 9 rather than whenever it became convenient.
 
 ## Artifact status
 
-Changes **1-7** are implemented and archived under `openspec/changes/archive/`, with their
-`application-host`, `settings-persistence`, `file-logging`, `audio-capture`, `audio-encoding`,
-`global-hotkey`, `gemini-transcription` and `text-output` specs synced into `openspec/specs/`.
+Changes **1-7** and change **9** are implemented and archived under `openspec/changes/archive/`,
+with their `application-host`, `settings-persistence`, `file-logging`, `audio-capture`,
+`audio-encoding`, `global-hotkey`, `gemini-transcription`, `text-output` and `tray-icon` specs
+synced into `openspec/specs/`.
 Change **8** has all four artifacts and is implemented; it is not archived yet, because three
 verification tasks need hardware — a microphone and a configured key for the end-to-end run and the
-budget measurement, and an Apple Silicon host for the macOS half. Changes **9-12** have
+budget measurement, and an Apple Silicon host for the macOS half. Changes **10-12** have
 `proposal.md` only; their `specs`, `design` and `tasks` are written when their turn comes.
+
+Change **9 is archived with its three verification tasks unchecked**, which is a departure from how
+1-7 were closed and is recorded here rather than left to be discovered. Task 4.1 is the win-x64
+pass by hand, 4.2 the osx-arm64 pass, and 4.3 the `spikes -- tray` run under both macOS appearance
+modes; 4.3's Windows half is done and recorded in the change's `design.md`. So the capability is
+built, specified and synced, but the only part of it observed running is the spike. The macOS half
+of that debt is the same Apple Silicon sitting that change 8's row above is waiting on, and the two
+should be done together.
 
 This is deliberate. The four spikes in change 1 can invalidate design decisions downstream — if
 SharpHook cannot report key release, or miniaudio cannot resample, the affected designs change rather
