@@ -38,6 +38,20 @@ public sealed class GeminiProviderTests
     }
 
     [Fact]
+    public async Task TheFallbackModel_IsTheOneTheSettingsWindowNames()
+    {
+        // GeminiProvider is internal behind the pool, so the settings window reads the same string
+        // from GeminiDefaults. One home for it, asserted here rather than assumed.
+        var handler = new StubHttpMessageHandler().Respond(HttpStatusCode.OK, TranscriptBody);
+
+        await Provider(handler).TranscribeAsync(Audio, "Transcribe.", CancellationToken.None);
+
+        GeminiProvider.DefaultModel.ShouldBe(GeminiDefaults.Model);
+        handler.Requests.Single().RequestUri!.AbsoluteUri
+            .ShouldEndWith($"models/{GeminiDefaults.Model}:generateContent");
+    }
+
+    [Fact]
     public async Task TheRequest_CarriesTheAudioAndThePromptGeminiExpects()
     {
         var handler = new StubHttpMessageHandler().Respond(HttpStatusCode.OK, TranscriptBody);

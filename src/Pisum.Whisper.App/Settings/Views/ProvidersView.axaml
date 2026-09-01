@@ -1,0 +1,95 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Pisum.Whisper.App.Settings.ViewModels"
+             xmlns:tr="using:Pisum.Whisper.Core.Transcription"
+             x:Class="Pisum.Whisper.App.Settings.Views.ProvidersView"
+             x:DataType="vm:ProvidersViewModel"
+             x:CompileBindings="True">
+
+  <DockPanel Margin="16">
+
+    <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,12">
+      <TextBlock Text="Gemini API keys" FontWeight="SemiBold" />
+      <TextBlock Text="Each enabled key is tried in turn, so a second key is a fallback for the first."
+                 Opacity="0.7"
+                 TextWrapping="Wrap" />
+    </StackPanel>
+
+    <Button DockPanel.Dock="Bottom"
+            Content="Add provider"
+            HorizontalAlignment="Left"
+            Margin="0,12,0,0"
+            Command="{Binding AddCommand}" />
+
+    <ScrollViewer>
+      <ItemsControl ItemsSource="{Binding Entries}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="vm:ProviderEntryViewModel">
+            <Border BorderBrush="#20000000"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Padding="12"
+                    Margin="0,0,0,8">
+              <StackPanel Spacing="8">
+
+                <DockPanel>
+                  <Button DockPanel.Dock="Right"
+                          Content="Remove"
+                          Command="{Binding $parent[ItemsControl].((vm:ProvidersViewModel)DataContext).RemoveCommand}"
+                          CommandParameter="{Binding}" />
+                  <CheckBox IsChecked="{Binding Enabled, Mode=TwoWay}" Content="Enabled" />
+                </DockPanel>
+
+                <StackPanel Spacing="4">
+                  <TextBlock Text="API key" />
+                  <DockPanel>
+                    <ToggleButton DockPanel.Dock="Right"
+                                  Margin="8,0,0,0"
+                                  Content="Show"
+                                  IsChecked="{Binding IsKeyRevealed, Mode=TwoWay}" />
+                    <TextBox x:Name="ApiKeyBox"
+                             Text="{Binding ApiKey, Mode=TwoWay}"
+                             PasswordChar="*"
+                             RevealPassword="{Binding IsKeyRevealed}"
+                             PlaceholderText="Paste a Gemini API key" />
+                  </DockPanel>
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Model" />
+                  <DockPanel>
+                    <Button DockPanel.Dock="Right"
+                            Margin="8,0,0,0"
+                            Content="Refresh"
+                            Command="{Binding RefreshModelsCommand}" />
+                    <ComboBox x:Name="ModelBox"
+                              HorizontalAlignment="Stretch"
+                              ItemsSource="{Binding Models}"
+                              SelectedItem="{Binding SelectedModel, Mode=TwoWay}"
+                              IsEnabled="{Binding HasApiKey}">
+                      <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="tr:GeminiModel">
+                          <TextBlock Text="{Binding DisplayName}" />
+                        </DataTemplate>
+                      </ComboBox.ItemTemplate>
+                    </ComboBox>
+                  </DockPanel>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="Test Connection" Command="{Binding TestConnectionCommand}" />
+                  <TextBlock Text="{Binding TestResult}"
+                             VerticalAlignment="Center"
+                             TextWrapping="Wrap" />
+                </StackPanel>
+
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+
+  </DockPanel>
+
+</UserControl>

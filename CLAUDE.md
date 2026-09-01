@@ -441,6 +441,75 @@ platform's variant is opened, so a forgotten `Template` export leaves Windows bu
 while macOS throws out of `AssetLoader.Open` in the constructor — on hardware a Windows machine
 cannot reach.
 
+## The settings window
+
+`src/Pisum.Whisper.App/Settings/` is the whole capability — the window, one `SettingsEditor`, six
+views and nine view models. Nothing of it is in `Core`, following change 9's precedent; the two
+exceptions are contracts rather than presentation, `Core/Shell/ISystemShell.cs` and
+`Core/Transcription/GeminiDefaults.cs`.
+
+**The live-apply fan-out already existed, and this change adds no re-application step.** Change 3
+hot-swaps the log level, change 6 rebinds the hotkey matcher, change 9 refreshes the tray tooltip,
+and `GeminiProviderPool` and `DictationOrchestrator` read `SettingsStore.Current` per use. All of it
+was dead code until this window became the first runtime caller of `Save`. In particular **the
+provider pool is still never rebuilt**: `TranscribeAsync` snapshots the enabled entries once per call
+so a save mid-transcription cannot change the set between fallback attempts, and a rebuild driven
+from `Changed` would reintroduce exactly that race.
+
+**Edits go to a clone and are written after 400 ms of quiet.** `SettingsEditor.Edit` applies the
+change to a draft taken from `SettingsStore.CloneCurrent()` and restarts a timer; the commit calls
+`Save`. Binding the views to `SettingsStore.Current` instead would be simpler and would make a
+half-typed API key visible to a dictation already in flight, because the pool reads `Current` at
+transcribe time — the user would authenticate with the prefix. It also costs one file write per
+pasted key rather than 39, and one `Changed` rather than 39. The delay is injected, so no test waits
+400 ms.
+
+**The clone forces an edit-by-id invariant, and breaking it fails silently.** `Save` assigns
+`Current = draft`, so the graph is replaced on every commit: a delegate that closes over a
+`ProviderConfig` or a `Preset` writes into a graph nothing will ever save, and the edit vanishes with
+no exception. Every delegate looks its target up inside the `AppSettings` it is handed, with
+`FirstOrDefault` and **never** `First` — a removal and a keystroke can land in the same quiet window,
+and a `First` there throws on the pooled commit thread as an unobserved task exception.
+
+**Every Presets command awaits `FlushAsync` first.** That tab writes through
+`SettingsStore.SavePreset`, `DeletePreset` and `SetActivePreset` rather than through the editor,
+because those encode rules the view model must not duplicate. They also replace `Current`, so a draft
+cloned *before* a preset was added would be saved *after* it and would silently delete it. One line
+per command, one test per command. `SettingsEditorTests.AStaleDraftNeverRevertsAPresetWrittenThroughTheStore`
+is the regression guard for the whole clone decision.
+
+**Three recorder rules are the view model's, not `CaptureAsync`'s.** A capture with no modifier is
+refused and recording continues; a captured **bare Escape** is the cancel — read from the capture
+rather than from a key event, because both the hook and the focused window see the keystroke in no
+guaranteed order, so `Ctrl+Escape` stays bindable; and Change is disabled with a banner whenever
+`Availability != Available`, because with `Failed` the returned task never completes and the UI would
+sit on "Press a key combination..." for ever. The capture is cancelled on Cancel, on the window
+hiding **and on the window being deactivated** — an open capture suspends matching process-wide, so a
+user who clicks Change and wanders off has silently disabled their hotkey. `Deactivated` is declared
+on `WindowBase`, not on `Window`.
+
+**Hide-on-close is conditional on `WindowCloseReason`.** Only `WindowClosing` is cancelled and turned
+into `Hide()`; `ApplicationShutdown` and `OSShutdown` are let through, or Quit could not close an open
+window and the process would hang on it. `MainWindow` is deliberately never assigned — harmless today
+only because `ShutdownMode.OnExplicitShutdown` is holding it up, and it would couple the
+application's lifetime to this window the day someone changes that.
+
+**`[AvaloniaFact]` tests serialize on one dispatcher** regardless of the suite's parallel-by-class, so
+`tests/Pisum.Whisper.App.Tests` is slower per test than the other two and the parallelism notes above
+do not apply to it. Isolation stays at the default `PerTest`: `PerAssembly` documents itself as unsafe
+for tests touching global state, which a settings window backed by a file-writing singleton is. The
+assembly declares `[assembly: AvaloniaTestApplication(typeof(TestAppBuilder))]`, and `TestAppBuilder`
+builds a bare `Application` with only `FluentTheme` — it cannot point at `App`, whose constructor takes
+an `IServiceProvider` and whose initialisation resolves an orchestrator and registers a tray icon.
+`WindowInternals` reaches `Window.HandleClosing` and `WindowBase.HandleDeactivated` by reflection,
+because those are the callbacks the platform makes and there is no public route to either.
+
+**Every save logs a hotkey rebind that did not happen.** `HotkeyMatcher.Rebind` early-returns when the
+chord is unchanged, but `GlobalHotkeyService.OnSettingsChanged` logs `"Hotkey rebound to {Binding}."`
+at `Information` *outside* that `if`. Changing the audio format therefore writes a misleading line at
+the default level. Pre-existing, unobservable until this window became the first caller of `Save`, and
+deliberately **not** fixed here — the fix belongs to `global-hotkey`.
+
 ## Spec-driven workflow (OpenSpec)
 
 `openspec/config.yaml` sets `schema: spec-driven`. Change proposals live in `openspec/changes/`,

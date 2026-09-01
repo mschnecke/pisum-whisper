@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Pisum.Whisper.App.Settings.ViewModels"
+             x:Class="Pisum.Whisper.App.Settings.Views.LoggingView"
+             x:DataType="vm:LoggingViewModel"
+             x:CompileBindings="True">
+
+  <ScrollViewer>
+    <StackPanel Margin="16" Spacing="16">
+
+      <StackPanel Spacing="4">
+        <TextBlock Text="Log level" FontWeight="SemiBold" />
+        <ComboBox Width="160"
+                  HorizontalAlignment="Left"
+                  ItemsSource="{Binding LogLevels}"
+                  SelectedItem="{Binding LogLevel, Mode=TwoWay}" />
+        <TextBlock Text="Applies immediately." Opacity="0.7" TextWrapping="Wrap" />
+      </StackPanel>
+
+      <StackPanel Spacing="4">
+        <TextBlock Text="Maximum log file size (MB)" FontWeight="SemiBold" />
+        <TextBox x:Name="MaxFileSizeBox"
+                 Width="120"
+                 HorizontalAlignment="Left"
+                 Text="{Binding MaxFileSizeMb, Mode=TwoWay}" />
+        <TextBlock Text="Between 1 and 100. Takes effect the next time the application starts."
+                   Opacity="0.7"
+                   TextWrapping="Wrap" />
+      </StackPanel>
+
+      <StackPanel Spacing="4">
+        <TextBlock Text="Keep logs for (days)" FontWeight="SemiBold" />
+        <TextBox x:Name="RetentionDaysBox"
+                 Width="120"
+                 HorizontalAlignment="Left"
+                 Text="{Binding RetentionDays, Mode=TwoWay}" />
+        <TextBlock Text="Between 1 and 365. Takes effect the next time the application starts."
+                   Opacity="0.7"
+                   TextWrapping="Wrap" />
+      </StackPanel>
+
+      <StackPanel Spacing="6">
+        <TextBlock Text="Log files" FontWeight="SemiBold" />
+        <SelectableTextBlock Text="{Binding LogDirectoryPath}" TextWrapping="Wrap" />
+        <Button Content="Open Log Folder"
+                HorizontalAlignment="Left"
+                Command="{Binding OpenLogFolderCommand}" />
+        <TextBlock Text="{Binding OpenFailure}"
+                   IsVisible="{Binding OpenFailure, Converter={x:Static ObjectConverters.IsNotNull}}"
+                   Foreground="#B3261E"
+                   TextWrapping="Wrap" />
+      </StackPanel>
+
+    </StackPanel>
+  </ScrollViewer>
+
+</UserControl>

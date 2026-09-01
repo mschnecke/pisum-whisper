@@ -4,9 +4,12 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform;
+using Avalonia.Themes.Fluent;
 using Avalonia.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Pisum.Whisper.App.Settings;
+using Pisum.Whisper.App.Settings.ViewModels;
 using Pisum.Whisper.Core.Dictation;
 using Pisum.Whisper.Core.Settings;
 
@@ -36,6 +39,11 @@ public sealed class App : Application
     private DictationOrchestrator? _dictation;
     private TrayIcon? _trayIcon;
 
+    // Created on first open and kept, so a partly typed entry and the selected tab survive a hide.
+    // Not created at startup: constructing six views and their view models would sit between launch
+    // and the tray icon appearing, for a window most sessions never open.
+    private SettingsWindow? _settingsWindow;
+
     public App(IServiceProvider services)
     {
         _services = services;
@@ -47,6 +55,12 @@ public sealed class App : Application
         _idleIcon = LoadIcon($"tray-idle{suffix}");
         _recordingIcon = LoadIcon($"tray-recording{suffix}");
         _transcribingIcon = LoadIcon($"tray-transcribing{suffix}");
+
+        // The settings window needs a theme and the tray icon never did, which is why
+        // Avalonia.Themes.Fluent has been pinned and unreferenced since change 1. The window pins
+        // ThemeVariant.Light on itself; FluentTheme would otherwise follow the OS and turn the
+        // no-dark-theme non-goal into an untested dark theme.
+        Styles.Add(new FluentTheme());
     }
 
     public override void OnFrameworkInitializationCompleted()
@@ -102,10 +116,7 @@ public sealed class App : Application
     private TrayIcon CreateTrayIcon(IClassicDesktopStyleApplicationLifetime desktop)
     {
         var settingsItem = new NativeMenuItem("Settings");
-        settingsItem.Click += (_, _) =>
-        {
-            _logger.LogDebug("Settings chosen; there is no settings window yet.");
-        };
+        settingsItem.Click += (_, _) => ShowSettings();
 
         var quit = new NativeMenuItem("Quit");
         quit.Click += (_, _) =>
@@ -127,6 +138,11 @@ public sealed class App : Application
             IsVisible = true,
         };
 
+        // Change 9 deferred this to change 10. Whether it fires on macOS when a Menu is attached is
+        // open question 1: if it does not, the menu item is the entry point there and nothing else
+        // changes.
+        trayIcon.Clicked += (_, _) => ShowSettings();
+
         if (OperatingSystem.IsMacOS())
         {
             // Where this application's macOS theme handling lives: AppKit renders a template image
@@ -139,6 +155,31 @@ public sealed class App : Application
         }
 
         return trayIcon;
+    }
+
+    /// <summary>
+    /// Brings the settings window up, creating it the first time it is asked for.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>Activate</c> is not optional: a hidden window shown while another application has focus can
+    /// come up behind it.
+    /// </para>
+    /// <para>
+    /// <c>IClassicDesktopStyleApplicationLifetime.MainWindow</c> is deliberately never assigned. It is
+    /// null today and stays null. Assigning it is the natural thing to write here and is harmless
+    /// <em>only</em> because <c>ShutdownMode.OnExplicitShutdown</c> is holding it up; it silently
+    /// couples the application's lifetime to this window, and the coupling surfaces as "closing
+    /// settings quits the application" the day someone changes the shutdown mode.
+    /// </para>
+    /// </remarks>
+    private void ShowSettings()
+    {
+        _settingsWindow ??= new SettingsWindow(_services.GetRequiredService<SettingsWindowViewModel>());
+
+        _settingsWindow.Show();
+        _settingsWindow.Activate();
+        _logger.LogDebug("Settings window shown.");
     }
 
     private void OnDictationStateChanged(object? sender, DictationState state)
@@ -214,6 +255,13 @@ public sealed class App : Application
         if (_settings is not null)
         {
             _settings.Changed -= OnSettingsChanged;
+        }
+
+        // Whatever the user last typed, before the process goes. This and the flush on hide are the
+        // two that bound the debounce's worst case to a killed process rather than an ordinary quit.
+        if (_settingsWindow is not null)
+        {
+            _services.GetRequiredService<SettingsEditor>().FlushAsync().GetAwaiter().GetResult();
         }
 
         // The tray icon owns a native handle. Releasing it here is what lets an immediate relaunch

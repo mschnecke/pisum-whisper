@@ -94,11 +94,32 @@ public sealed class SettingsStore
     }
 
     /// <summary>Persists <paramref name="settings"/>, adopts them as the cache, and notifies subscribers.</summary>
+    /// <remarks>
+    /// The store <b>adopts</b> what it is handed: the caller gives up the object, because
+    /// <see cref="Current"/> becomes it and every reader in the process then holds it.
+    /// </remarks>
     public void Save(AppSettings settings)
     {
         Write(settings);
         Current = settings;
         Changed?.Invoke(this, settings);
+    }
+
+    /// <summary>
+    /// A deep copy of <see cref="Current"/>, taken by round-tripping it through the on-disk
+    /// serializer.
+    /// </summary>
+    /// <remarks>
+    /// It lives here because this class already owns that context, and round-tripping rather than
+    /// hand-copying guarantees the copy is exactly what a save would write — a field the on-disk
+    /// context cannot carry is then a defect the clone exposes rather than one it hides. Callers
+    /// mutate the copy and hand it back to <see cref="Save"/>, so a reader on another thread sees
+    /// the old graph or the new one and never a graph being changed underneath it.
+    /// </remarks>
+    public AppSettings CloneCurrent()
+    {
+        var json = JsonSerializer.Serialize(Current, SettingsJsonContext.OnDisk.AppSettings);
+        return JsonSerializer.Deserialize(json, SettingsJsonContext.OnDisk.AppSettings) ?? new AppSettings();
     }
 
     /// <summary>
@@ -108,10 +129,21 @@ public sealed class SettingsStore
     /// </summary>
     public void SavePreset(Preset preset)
     {
-        var existing = Current.Presets.FirstOrDefault(candidate => candidate.Id == preset.Id);
+        var settings = CloneCurrent();
+
+        var existing = settings.Presets.FirstOrDefault(candidate => candidate.Id == preset.Id);
         if (existing is null)
         {
-            Current.Presets.Add(preset);
+            // A copy, not the caller's instance. Inserting the instance would leave the caller
+            // holding a reference into the published graph, which is the identity hazard the clone
+            // exists to remove, reintroduced through the back door.
+            settings.Presets.Add(new Preset
+            {
+                Id = preset.Id,
+                Name = preset.Name,
+                SystemPrompt = preset.SystemPrompt,
+                IsBuiltin = preset.IsBuiltin,
+            });
         }
         else
         {
@@ -119,31 +151,35 @@ public sealed class SettingsStore
             existing.SystemPrompt = preset.SystemPrompt;
         }
 
-        Save(Current);
+        Save(settings);
     }
 
     /// <summary>Deletes a user preset, moving the active preset off it if it was the active one.</summary>
     /// <exception cref="SettingsException">No preset has this id, or the preset is built-in.</exception>
     public void DeletePreset(string id)
     {
-        var preset = Current.Presets.FirstOrDefault(candidate => candidate.Id == id)
-                     ?? throw new SettingsException($"No preset with id '{id}' exists.");
+        // Validated against the published graph and before anything is mutated, so a refusal leaves
+        // Current referentially untouched and raises no Changed.
+        var existing = Current.Presets.FirstOrDefault(candidate => candidate.Id == id)
+                       ?? throw new SettingsException($"No preset with id '{id}' exists.");
 
-        if (preset.IsBuiltin)
+        if (existing.IsBuiltin)
         {
             throw new SettingsException($"The built-in preset '{id}' cannot be deleted.");
         }
 
-        Current.Presets.Remove(preset);
+        var settings = CloneCurrent();
+        var preset = settings.Presets.First(candidate => candidate.Id == id);
+        settings.Presets.Remove(preset);
 
         // Deliberately the first remaining preset, not the first built-in that Load falls back to:
         // deleting the active preset should land on its neighbor, not jump back to the default.
-        if (Current.ActivePresetId == id && Current.Presets.Count > 0)
+        if (settings.ActivePresetId == id && settings.Presets.Count > 0)
         {
-            Current.ActivePresetId = Current.Presets[0].Id;
+            settings.ActivePresetId = settings.Presets[0].Id;
         }
 
-        Save(Current);
+        Save(settings);
     }
 
     /// <summary>Switches the active preset.</summary>
@@ -155,8 +191,9 @@ public sealed class SettingsStore
             throw new SettingsException($"No preset with id '{id}' exists.");
         }
 
-        Current.ActivePresetId = id;
-        Save(Current);
+        var settings = CloneCurrent();
+        settings.ActivePresetId = id;
+        Save(settings);
     }
 
     private AppSettings Read()

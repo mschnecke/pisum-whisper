@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <OutputType>Exe</OutputType>
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting"/>
+    <PackageReference Include="xunit.v3"/>
+    <PackageReference Include="Avalonia.Headless.XUnit"/>
+    <PackageReference Include="FakeItEasy"/>
+    <PackageReference Include="Shouldly"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Pisum.Whisper.App\Pisum.Whisper.App.csproj"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Linked rather than reimplemented: RecordingSink is internal to Pisum.Whisper.Core.Tests, so
+         a project reference would not expose it, and one test project referencing another is worse
+         than either alternative. Linking keeps the two copies from drifting, so the logging-rule
+         tests here assert against the same sink the other suites use. -->
+    <Compile Include="..\Pisum.Whisper.Core.Tests\Logging\RecordingSink.cs" Link="Logging\RecordingSink.cs"/>
+  </ItemGroup>
+
+</Project>

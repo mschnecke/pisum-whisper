@@ -14,6 +14,7 @@
     <PackageVersion Include="Avalonia" Version="12.1.1" />
     <PackageVersion Include="Avalonia.Desktop" Version="12.1.1" />
     <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.1" />
+    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
   </ItemGroup>
 
   <!-- Proven by the change 1 spikes; first referenced by changes 4, 6 and 7. Pinned here so the
@@ -36,8 +37,13 @@
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
   </ItemGroup>
 
+  <!-- The xunit.v3 pin is load-bearing. Avalonia.Headless.XUnit 12.1.1 is compiled against
+       xunit.v3 3.2.2 and declares xunit.v3.extensibility.core [3.2.2, ) - an open upper bound, so
+       nothing stops NuGet resolving 4.0.0 against a major the package was not built for. Moving it
+       breaks the settings window's headless tests rather than anything here. -->
   <ItemGroup Label="Tests">
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
+    <PackageVersion Include="Avalonia.Headless.XUnit" Version="12.1.1" />
     <PackageVersion Include="FakeItEasy" Version="9.0.1" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
     <PackageVersion Include="SharpHook.Testing" Version="8.0.0" />

@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Pisum.Whisper.App.Settings.ViewModels"
+             x:Class="Pisum.Whisper.App.Settings.Views.HotkeyView"
+             x:DataType="vm:HotkeyViewModel"
+             x:CompileBindings="True">
+
+  <StackPanel Margin="16" Spacing="16">
+
+    <Border Background="#1AB3261E"
+            CornerRadius="4"
+            Padding="12"
+            IsVisible="{Binding UnavailableBanner, Converter={x:Static ObjectConverters.IsNotNull}}">
+      <TextBlock x:Name="UnavailableBanner" Text="{Binding UnavailableBanner}" TextWrapping="Wrap" />
+    </Border>
+
+    <StackPanel Spacing="4">
+      <TextBlock Text="Hotkey" FontWeight="SemiBold" />
+      <TextBlock x:Name="BindingText" Text="{Binding Binding}" FontSize="18" />
+      <TextBlock Text="Hold this combination to dictate, or press it once in toggle mode."
+                 Opacity="0.7"
+                 TextWrapping="Wrap" />
+    </StackPanel>
+
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button Content="Change" Command="{Binding StartRecordingCommand}" />
+      <Button Content="Cancel" Command="{Binding CancelRecordingCommand}" />
+    </StackPanel>
+
+    <TextBlock x:Name="RecorderMessage"
+               Text="{Binding Message}"
+               IsVisible="{Binding Message, Converter={x:Static ObjectConverters.IsNotNull}}"
+               TextWrapping="Wrap" />
+
+    <Border Background="#1AF57C00"
+            CornerRadius="4"
+            Padding="12"
+            IsVisible="{Binding ConflictsWithSystemHotkey}">
+      <TextBlock x:Name="ConflictWarning"
+                 Text="This combination is one the operating system usually claims, so it may not reach Pisum Whisper reliably."
+                 TextWrapping="Wrap" />
+    </Border>
+
+  </StackPanel>
+
+</UserControl>
