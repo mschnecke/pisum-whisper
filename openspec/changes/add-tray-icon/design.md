@@ -187,13 +187,31 @@ pointless posts — tidiness that happens to be free, not the invariant it looks
 
 The consequence for verification is the part that bites: `StopAsync` runs after `OnExit`, so log
 lines — the clipboard restore among them — **do** appear after the tray's release line, and that is
-change 8's `StopAsync`-awaits requirement working, not a leak. Task 3.3 asserts their presence.
+change 8's `StopAsync`-awaits requirement working, not a leak. Task 3.4 asserts their presence.
 
 **`App` becomes the orchestrator's first consumer.**
 It resolves `DictationOrchestrator` from `IServiceProvider` in `OnFrameworkInitializationCompleted`,
 which runs after `host.Start()`, so the singleton exists. `Program.cs` currently comments that the
 orchestrator is registered as a hosted service so the host constructs it, "nothing else resolves it
 yet" — that comment stops being true here and is updated with it.
+
+**The first icon is read, not assumed.**
+The tray does not come up hard-coded to `Idle`. `Program.cs` runs `host.Start()` before Avalonia's
+run loop, and `DictationOrchestrator` subscribes to the hotkey in its **constructor** — its
+`StartAsync` is `Task.CompletedTask` — so the orchestrator is armed the moment the container builds
+it, well before `OnFrameworkInitializationCompleted` exists to subscribe to anything. The gap is the
+tail of `host.Start()` plus the whole of Avalonia's platform initialisation, and a hotkey pressed
+inside it opens a recording the tray then misreports as idle for the length of that dictation.
+
+Short, and self-correcting at the next transition, so it is worth one line and not more: after both
+subscriptions are in place, `Post` an update that reads `DictationOrchestrator.State` **inside the
+callback** rather than capturing it at post time. Reading in the callback is what makes it a seed
+instead of a race — it travels the same queue as every real transition at the same priority, so it
+cannot overwrite a fresher state posted while it waited. `State` takes the orchestrator's own lock,
+so reading it from the UI thread is safe.
+*Alternative rejected:* read `State` first, assign `Icon` directly, then subscribe. That inverts the
+race rather than removing it — a transition landing between the read and the subscription is lost for
+good, where an ordered seed can only ever lose to something newer, which is the outcome wanted.
 
 **The tooltip is `"Pisum Whisper - {active preset name}"`,** refreshed on `SettingsStore.Changed`,
 matching the reference's `set_tray_tooltip`. It does not carry the state: the icon does that, and a
