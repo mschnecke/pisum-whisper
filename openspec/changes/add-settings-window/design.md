@@ -313,10 +313,14 @@ three operations the reference reaches through IPC — `SavePreset`, `DeletePres
 (`SettingsException`), a deleted active preset moves to its neighbour rather than back to the
 default, and a built-in's edited name and prompt survive the next load's merge.
 
-Those three methods mutate `SettingsStore.Current` in place and save it. That is the one place
-Decision 2's clone can go wrong: a pending draft cloned *before* a preset was added would be saved
-*after* it, and would silently delete it. So **every Presets command awaits `SettingsEditor.FlushAsync`
-before calling the store**. One line per command, and a unit test per command asserting it.
+Those three methods write `SettingsStore.Current` and save it. That is the one place Decision 2's
+clone can go wrong: a pending draft cloned *before* a preset was added would be saved *after* it, and
+would silently delete it. So **every Presets command awaits `SettingsEditor.FlushAsync` before calling
+the store**. One line per command, and a unit test per command asserting it.
+
+This rule survives the race fix below and is not made redundant by it. Making the store clone
+internally stops a *reader* being disturbed; it does nothing about a stale draft held by the editor,
+which is a lost-update between two writers. Both rules are needed, for different reasons.
 
 Activating a preset is also what finally proves the `tray-icon` spec's *The active preset changes*
 scenario, which change 9 shipped and could not exercise because nothing called `Save`.
@@ -328,18 +332,91 @@ becomes selectable and is what gets sent to Gemini as the instruction for the us
 and Save commands are therefore disabled while either field is blank, exactly as the reference does
 it (`disabled={!newName.trim() || !newPrompt.trim()}`).
 
-The guard is deliberately **not** added to `SettingsStore.SavePreset`, even though `DeletePreset`'s
-existing `SettingsException` for a built-in sets a precedent for putting invariants there. Doing so
-would change `settings-persistence` behaviour, and this change's proposal declares no modified
-capabilities; widening it to two capabilities for a guard the UI already makes unreachable is not
-worth the blast radius. The residue — that a future non-UI caller of `SavePreset` could still store a
-blank preset — is recorded here with `settings-persistence` as its owner rather than left to be
-discovered.
+The guard is **not** added to `SettingsStore.SavePreset`, even though `DeletePreset`'s existing
+`SettingsException` for a built-in sets a precedent for putting invariants there. The original reason
+was scope — it would have made `settings-persistence` a second capability for a guard the UI already
+makes unreachable — and **that reason no longer holds**: the race fix below opens
+`settings-persistence` anyway. What is left is a weaker but still sufficient argument: the disabled
+command is the behaviour the user experiences, a throw would need a `try` around a UI command that
+can never fire it, and the store guard would be dead code from this application's point of view.
+
+The residue is unchanged and is recorded rather than left to be discovered: a future non-UI caller of
+`SavePreset` can still store a preset with an empty `SystemPrompt`, which would then be sent to
+Gemini as the instruction for a user's speech. Owner: `settings-persistence`. Now that this change
+already modifies that capability, moving the guard down is a smaller step than it was when this
+paragraph was first written, and is worth revisiting rather than inheriting this reasoning
+unexamined.
 
 **An enabled provider with an empty API key is allowed through**, as in the reference. It is not an
 oversight: `GeminiProviderPool` already reports it as a `Configuration` failure with a message naming
 the problem, which is a better diagnosis than a disabled control that does not say why. Recorded so
 it is not "fixed" later without knowing it was chosen.
+
+#### Routing the Presets tab around the editor exposes a race, and this change closes it
+
+The three store methods mutate `SettingsStore.Current`'s object graph **in place** —
+`Current.Presets.Add(...)`, `Current.Presets.Remove(...)`, `Current.ActivePresetId = ...`. Meanwhile
+`DictationOrchestrator.ActiveSystemPrompt` resolves the prompt on the pipeline thread with
+
+```csharp
+settings.Presets.First(preset => preset.Id == settings.ActivePresetId).SystemPrompt
+```
+
+which is a LINQ enumeration of that same `List<Preset>`. Adding or removing a preset bumps the list's
+version and the enumeration throws `InvalidOperationException`. There is a second window in the same
+few lines: `DeletePreset` removes the preset *before* reassigning `ActivePresetId`, so a read landing
+between the two gets `First`'s other exception — no matching element.
+
+```
+  UI thread (Presets tab)                pipeline thread (transcribing)
+  -----------------------                -----------------------------
+  DeletePreset("mine")
+    Current.Presets.Remove(p)  --------> ActiveSystemPrompt(Current)
+      List._version++                      Presets.First(...)  --> throws
+    if (ActivePresetId == id)
+      ActivePresetId = Presets[0].Id
+    Save(Current)
+```
+
+The asymmetry is exact, and it is created by Decision 7's own routing: every other tab goes through
+`SettingsEditor`, which clones and then *replaces* `Current` by reference assignment, so a reader
+holds a stable graph nobody is writing to. The Presets tab is the one path that deliberately bypasses
+the editor — for good reasons — and it is therefore the one path that mutates a graph a reader may
+hold.
+
+`ActiveSystemPrompt`'s comment says it needs no fallback because `Load` repairs a dangling
+`ActivePresetId`. That was true when it was written: `Load` is the only thing that could dangle one.
+This change introduces a runtime route to the same state.
+
+**The fix is to make the three preset operations clone-mutate-save**, so that `Current` is replaced
+exactly once per operation and never modified while it is published:
+
+```csharp
+var settings = CloneCurrent();
+// ... mutate `settings`, which nothing else can reach ...
+Save(settings);          // one reference assignment; readers see old or new, never in between
+```
+
+It closes both failure modes together, it needs no lock, and it reuses the `CloneCurrent` that task
+1.7 adds for the editor anyway. It is why this change declares `settings-persistence` as a modified
+capability, which the proposal previously said it had none of.
+
+Two details the implementation has to get right. **Validation runs before the clone is published, not
+after** — `DeletePreset`'s `SettingsException` for a built-in and `SetActivePreset`'s for an unknown
+id must leave `Current` untouched and raise no `Changed`, which falls out of mutating a clone but
+would not survive a naive reordering. And **the add path must insert a copy of the caller's `Preset`,
+not the caller's instance**: inserting the instance leaves the caller holding a reference into the
+published graph, which is Decision 2's identity hazard reintroduced through the back door. The update
+path already copies, since it assigns `Name` and `SystemPrompt` onto the existing preset.
+
+The same discipline is why `Save(AppSettings)` is documented as *adopting* what it is handed: the
+caller gives up the object. `SettingsEditor` already honours this by nulling its pending draft at the
+commit.
+
+This does not make `SettingsStore` thread-safe, and does not claim to. Two concurrent *writers* still
+race — last one wins, and one write is lost. What it guarantees is that a **reader** is never
+disturbed by a writer, which is the case that costs a user their dictation. The window is the only
+writer in the application.
 
 ### 8. The hotkey recorder
 
@@ -497,6 +574,17 @@ anything constructing a real `SettingsStore` over a temp file is `Integration`.
   public constant is the smaller change. (Decision 10.)
 - **`AvaloniaTestIsolationLevel.PerAssembly`.** Faster, and it documents itself as unsafe for tests
   touching global state. (Decision 11.)
+- **Snapshotting the preset list inside `ActiveSystemPrompt` instead of fixing the writer.** It would
+  stop that one reader throwing, and leave every other reader of `Current` — `App.TooltipFor` scans
+  the same list — to be found one at a time. Fixing the single writer covers all of them. (Decision 7.)
+- **Locking `SettingsStore`.** A lock would have to be taken by every reader on every read, including
+  the two on the dictation path, to protect against a writer that runs a handful of times per
+  session. Replacing the graph makes the reads free. (Decision 7.)
+- **Leaving the race and recording it as a risk.** The first option considered, on the grounds that
+  it costs one dictation and the pipeline already catches everything. Rejected because toggle mode
+  makes it ordinary rather than exotic: start recording, open settings to adjust a preset, press the
+  hotkey to stop, and the transcription runs for seconds while the user is in the Presets tab — which
+  is exactly the loop someone iterating on a prompt performs. (Decision 7.)
 
 ## Risks / Trade-offs
 
@@ -523,8 +611,10 @@ anything constructing a real `SettingsStore` over a temp file is `Integration`.
   hotkey was rebound, at the default log level, into the file this window's own Open Log Folder
   button opens. It is pre-existing and has been unobservable until now only because nothing called
   `Save` — this change is what makes it visible. It is **not fixed here**: the fix is two lines in
-  `Core/Hotkeys/`, which would make `global-hotkey` a modified capability and widen a proposal that
-  declares none. Owner: `global-hotkey`, as a follow-up.
+  `Core/Hotkeys/`, which would make `global-hotkey` a **third** capability for this change, after
+  `settings-window` and the `settings-persistence` modification the race fix requires. The line
+  between the two is severity, not tidiness: the race loses a dictation the user has already spoken,
+  and this writes a misleading sentence in a log file. Owner: `global-hotkey`, as a follow-up.
 
 ## Open Questions
 

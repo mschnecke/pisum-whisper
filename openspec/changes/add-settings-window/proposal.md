@@ -42,7 +42,12 @@ Reference: `W:\github-pisum-transcript\src\components\` and the window block of 
 - `settings-window`: all application settings are viewable and editable in a window reachable from the tray, applying immediately.
 
 ### Modified Capabilities
-_None._
+- `settings-persistence`: the cached settings are **replaced** on every write rather than mutated in
+  place, so a preset edit cannot disturb a component reading settings on another thread. The three
+  preset operations are the only writers that mutate the cached graph, and this change is the first
+  thing that calls them at runtime — with a settings window open during a dictation, adding or
+  deleting a preset can invalidate the enumeration the transcription path uses to resolve the active
+  preset's prompt, and lose the dictation.
 
 ## Impact
 
