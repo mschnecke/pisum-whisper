@@ -13,7 +13,7 @@ using Pisum.Whisper.Core.Shell;
 /// button that opens that directory.
 /// </summary>
 /// <remarks>
-/// The level applies immediately, through the level switch change 3 registered. The size and the
+/// The level applies immediately, through level switch change 3 registered. The size and the
 /// retention do not: both are read in <c>AddFileLogging</c>, before the container exists, so they
 /// take effect at the next launch — and the view says so. Saying it is not decoration, because every
 /// other field in this window applying instantly teaches the user that they all do.
@@ -77,7 +77,7 @@ public sealed partial class LoggingViewModel : ObservableObject
     /// Opens the log directory in the operating system's file browser.
     /// </summary>
     /// <remarks>
-    /// A failure is reported beside the button and nothing else happens: a file browser that will not
+    /// A failure is reported beside the button, and nothing else happens: a file browser that will not
     /// start is no reason for the window to stop working.
     /// </remarks>
     [RelayCommand]

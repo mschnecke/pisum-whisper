@@ -10,7 +10,7 @@ using Pisum.Whisper.Core.Settings;
 /// The two choices are exposed as a pair of booleans because that is what a radio button binds to.
 /// They are views of one field rather than two pieces of state, so they cannot disagree.
 /// </remarks>
-public sealed partial class AudioViewModel : ObservableObject
+public sealed class AudioViewModel : ObservableObject
 {
     private readonly SettingsEditor _editor;
 

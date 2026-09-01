@@ -11,8 +11,8 @@ using Pisum.Whisper.Core.Settings;
 /// <remarks>
 /// <see cref="StartWithSystem"/> and <see cref="ShowTrayNotifications"/> persist and nothing consumes
 /// them yet. They ship anyway because <see cref="AppSettings.StartWithSystem"/> already defaults to
-/// <c>true</c> in a file no autostart code reads: the untruth exists whether or not the toggle does,
-/// and the toggle at least lets the user record what they want before the code that honours it lands.
+/// <c>true</c> in a file no autostart code reads: the untruth exists whether the toggle does,
+/// and the toggle at least lets the user record what they want before the code that honors it lands.
 /// </remarks>
 public sealed partial class GeneralViewModel : ObservableObject
 {

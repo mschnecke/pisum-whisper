@@ -5,74 +5,74 @@
              x:DataType="vm:PresetsViewModel"
              x:CompileBindings="True">
 
-  <Grid Margin="16" ColumnDefinitions="220,12,*">
+    <Grid Margin="16" ColumnDefinitions="220,12,*">
 
-    <DockPanel Grid.Column="0">
-      <TextBlock DockPanel.Dock="Top" Text="Presets" FontWeight="SemiBold" Margin="0,0,0,8" />
-      <ListBox x:Name="PresetList"
-               ItemsSource="{Binding Presets}"
-               SelectedItem="{Binding Selected, Mode=TwoWay}">
-        <ListBox.ItemTemplate>
-          <DataTemplate x:DataType="vm:PresetEntryViewModel">
-            <StackPanel Spacing="2">
-              <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-              <StackPanel Orientation="Horizontal" Spacing="4">
-                <Border Background="#1A6750A4"
-                        CornerRadius="3"
-                        Padding="4,1"
-                        IsVisible="{Binding IsBuiltin}">
-                  <TextBlock Text="Built-in" FontSize="10" />
-                </Border>
-                <Border Background="#1A006D3B"
-                        CornerRadius="3"
-                        Padding="4,1"
-                        IsVisible="{Binding IsActive}">
-                  <TextBlock Text="Active" FontSize="10" />
-                </Border>
-              </StackPanel>
+        <DockPanel Grid.Column="0">
+            <TextBlock DockPanel.Dock="Top" Text="Presets" FontWeight="SemiBold" Margin="0,0,0,8" />
+            <ListBox x:Name="PresetList"
+                     ItemsSource="{Binding Presets}"
+                     SelectedItem="{Binding Selected, Mode=TwoWay}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:PresetEntryViewModel">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <Border Background="#1A6750A4"
+                                        CornerRadius="3"
+                                        Padding="4,1"
+                                        IsVisible="{Binding IsBuiltin}">
+                                    <TextBlock Text="Built-in" FontSize="10" />
+                                </Border>
+                                <Border Background="#1A006D3B"
+                                        CornerRadius="3"
+                                        Padding="4,1"
+                                        IsVisible="{Binding IsActive}">
+                                    <TextBlock Text="Active" FontSize="10" />
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </DockPanel>
+
+        <ScrollViewer Grid.Column="2">
+            <StackPanel Spacing="16">
+
+                <StackPanel Spacing="8" IsVisible="{Binding Selected, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="Selected preset" FontWeight="SemiBold" />
+                    <TextBox x:Name="SelectedNameBox" Text="{Binding Selected.Name, Mode=TwoWay}" />
+                    <TextBox x:Name="SelectedPromptBox"
+                             Text="{Binding Selected.SystemPrompt, Mode=TwoWay}"
+                             AcceptsReturn="True"
+                             TextWrapping="Wrap"
+                             Height="180" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Save" Command="{Binding SaveCommand}" />
+                        <Button Content="Activate" Command="{Binding ActivateCommand}" />
+                        <Button Content="Delete"
+                                Command="{Binding DeleteCommand}"
+                                IsVisible="{Binding Selected.CanDelete, FallbackValue=False}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Spacing="8">
+                    <TextBlock Text="New preset" FontWeight="SemiBold" />
+                    <TextBox x:Name="NewNameBox"
+                             Text="{Binding NewName, Mode=TwoWay}"
+                             PlaceholderText="Name" />
+                    <TextBox x:Name="NewPromptBox"
+                             Text="{Binding NewSystemPrompt, Mode=TwoWay}"
+                             PlaceholderText="What the model should do with the dictation"
+                             AcceptsReturn="True"
+                             TextWrapping="Wrap"
+                             Height="100" />
+                    <Button Content="Add preset" HorizontalAlignment="Left" Command="{Binding AddCommand}" />
+                </StackPanel>
+
             </StackPanel>
-          </DataTemplate>
-        </ListBox.ItemTemplate>
-      </ListBox>
-    </DockPanel>
+        </ScrollViewer>
 
-    <ScrollViewer Grid.Column="2">
-      <StackPanel Spacing="16">
-
-        <StackPanel Spacing="8" IsVisible="{Binding Selected, Converter={x:Static ObjectConverters.IsNotNull}}">
-          <TextBlock Text="Selected preset" FontWeight="SemiBold" />
-          <TextBox x:Name="SelectedNameBox" Text="{Binding Selected.Name, Mode=TwoWay}" />
-          <TextBox x:Name="SelectedPromptBox"
-                   Text="{Binding Selected.SystemPrompt, Mode=TwoWay}"
-                   AcceptsReturn="True"
-                   TextWrapping="Wrap"
-                   Height="180" />
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <Button Content="Save" Command="{Binding SaveCommand}" />
-            <Button Content="Activate" Command="{Binding ActivateCommand}" />
-            <Button Content="Delete"
-                    Command="{Binding DeleteCommand}"
-                    IsVisible="{Binding Selected.CanDelete, FallbackValue=False}" />
-          </StackPanel>
-        </StackPanel>
-
-        <StackPanel Spacing="8">
-          <TextBlock Text="New preset" FontWeight="SemiBold" />
-          <TextBox x:Name="NewNameBox"
-                   Text="{Binding NewName, Mode=TwoWay}"
-                   PlaceholderText="Name" />
-          <TextBox x:Name="NewPromptBox"
-                   Text="{Binding NewSystemPrompt, Mode=TwoWay}"
-                   PlaceholderText="What the model should do with the dictation"
-                   AcceptsReturn="True"
-                   TextWrapping="Wrap"
-                   Height="100" />
-          <Button Content="Add preset" HorizontalAlignment="Left" Command="{Binding AddCommand}" />
-        </StackPanel>
-
-      </StackPanel>
-    </ScrollViewer>
-
-  </Grid>
+    </Grid>
 
 </UserControl>

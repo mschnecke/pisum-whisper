@@ -158,18 +158,20 @@ public sealed class SettingsStore
     /// <exception cref="SettingsException">No preset has this id, or the preset is built-in.</exception>
     public void DeletePreset(string id)
     {
-        // Validated against the published graph and before anything is mutated, so a refusal leaves
-        // Current referentially untouched and raises no Changed.
-        var existing = Current.Presets.FirstOrDefault(candidate => candidate.Id == id)
-                       ?? throw new SettingsException($"No preset with id '{id}' exists.");
+        // Validated on the clone, and before anything is saved, so a refusal leaves Current
+        // referentially untouched and raises no Changed. One lookup rather than two: validating
+        // against Current and then re-finding the id in a clone taken afterwards lets a write
+        // landing between the two reads turn the second lookup into a throw.
+        var settings = CloneCurrent();
 
-        if (existing.IsBuiltin)
+        var preset = settings.Presets.FirstOrDefault(candidate => candidate.Id == id)
+                     ?? throw new SettingsException($"No preset with id '{id}' exists.");
+
+        if (preset.IsBuiltin)
         {
             throw new SettingsException($"The built-in preset '{id}' cannot be deleted.");
         }
 
-        var settings = CloneCurrent();
-        var preset = settings.Presets.First(candidate => candidate.Id == id);
         settings.Presets.Remove(preset);
 
         // Deliberately the first remaining preset, not the first built-in that Load falls back to:

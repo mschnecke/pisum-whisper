@@ -5,48 +5,48 @@
              x:DataType="vm:GeneralViewModel"
              x:CompileBindings="True">
 
-  <ScrollViewer>
-    <StackPanel Margin="16" Spacing="16">
+    <ScrollViewer>
+        <StackPanel Margin="16" Spacing="16">
 
-      <StackPanel Spacing="8">
-        <TextBlock Text="Recording mode" FontWeight="SemiBold" />
-        <RadioButton GroupName="RecordingMode" IsChecked="{Binding IsHoldToRecord, Mode=TwoWay}">
-          <StackPanel Spacing="2">
-            <TextBlock Text="Hold to record" />
-            <TextBlock Text="Recording runs for as long as the hotkey is held."
-                       Opacity="0.7"
-                       TextWrapping="Wrap" />
-          </StackPanel>
-        </RadioButton>
-        <RadioButton GroupName="RecordingMode" IsChecked="{Binding IsToggle, Mode=TwoWay}">
-          <StackPanel Spacing="2">
-            <TextBlock Text="Toggle" />
-            <TextBlock Text="One press starts the recording and the next one ends it."
-                       Opacity="0.7"
-                       TextWrapping="Wrap" />
-          </StackPanel>
-        </RadioButton>
-      </StackPanel>
+            <StackPanel Spacing="8">
+                <TextBlock Text="Recording mode" FontWeight="SemiBold" />
+                <RadioButton GroupName="RecordingMode" IsChecked="{Binding IsHoldToRecord, Mode=TwoWay}">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="Hold to record" />
+                        <TextBlock Text="Recording runs for as long as the hotkey is held."
+                                   Opacity="0.7"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </RadioButton>
+                <RadioButton GroupName="RecordingMode" IsChecked="{Binding IsToggle, Mode=TwoWay}">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="Toggle" />
+                        <TextBlock Text="One press starts the recording and the next one ends it."
+                                   Opacity="0.7"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </RadioButton>
+            </StackPanel>
 
-      <StackPanel Spacing="4">
-        <TextBlock Text="Maximum recording length (seconds)" FontWeight="SemiBold" />
-        <TextBox Width="120"
-                 HorizontalAlignment="Left"
-                 Text="{Binding MaxRecordingDurationSecs, Mode=TwoWay}" />
-        <TextBlock Text="Between 10 and 3600. A recording that reaches this length is stopped and transcribed."
-                   Opacity="0.7"
-                   TextWrapping="Wrap" />
-      </StackPanel>
+            <StackPanel Spacing="4">
+                <TextBlock Text="Maximum recording length (seconds)" FontWeight="SemiBold" />
+                <TextBox Width="120"
+                         HorizontalAlignment="Left"
+                         Text="{Binding MaxRecordingDurationSecs, Mode=TwoWay}" />
+                <TextBlock Text="Between 10 and 3600. A recording that reaches this length is stopped and transcribed."
+                           Opacity="0.7"
+                           TextWrapping="Wrap" />
+            </StackPanel>
 
-      <StackPanel Spacing="8">
-        <TextBlock Text="Startup and notifications" FontWeight="SemiBold" />
-        <CheckBox IsChecked="{Binding StartWithSystem, Mode=TwoWay}"
-                  Content="Start Pisum Whisper when I sign in" />
-        <CheckBox IsChecked="{Binding ShowTrayNotifications, Mode=TwoWay}"
-                  Content="Show notifications from the tray icon" />
-      </StackPanel>
+            <StackPanel Spacing="8">
+                <TextBlock Text="Startup and notifications" FontWeight="SemiBold" />
+                <CheckBox IsChecked="{Binding StartWithSystem, Mode=TwoWay}"
+                          Content="Start Pisum Whisper when I sign in" />
+                <CheckBox IsChecked="{Binding ShowTrayNotifications, Mode=TwoWay}"
+                          Content="Show notifications from the tray icon" />
+            </StackPanel>
 
-    </StackPanel>
-  </ScrollViewer>
+        </StackPanel>
+    </ScrollViewer>
 
 </UserControl>

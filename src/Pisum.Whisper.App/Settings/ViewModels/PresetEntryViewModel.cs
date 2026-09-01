@@ -10,7 +10,7 @@ using Pisum.Whisper.Core.Settings;
 /// Like <see cref="ProviderEntryViewModel"/> it holds an <see cref="Id"/> and never a
 /// <see cref="Preset"/> out of the published graph. This tab writes through
 /// <c>SettingsStore</c> rather than <see cref="SettingsEditor"/>, but the reason is the same: every
-/// write replaces the graph.
+/// writing replaces the graph.
 /// </remarks>
 public sealed partial class PresetEntryViewModel : ObservableObject
 {

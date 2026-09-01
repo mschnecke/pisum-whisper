@@ -15,25 +15,25 @@
         WindowStartupLocation="CenterScreen"
         RequestedThemeVariant="Light">
 
-  <TabControl x:Name="Tabs">
-    <TabItem Header="Providers">
-      <views:ProvidersView DataContext="{Binding Providers}" />
-    </TabItem>
-    <TabItem Header="Presets">
-      <views:PresetsView DataContext="{Binding Presets}" />
-    </TabItem>
-    <TabItem Header="Hotkey">
-      <views:HotkeyView DataContext="{Binding Hotkey}" />
-    </TabItem>
-    <TabItem Header="Audio">
-      <views:AudioView DataContext="{Binding Audio}" />
-    </TabItem>
-    <TabItem Header="Logging">
-      <views:LoggingView DataContext="{Binding Logging}" />
-    </TabItem>
-    <TabItem Header="General">
-      <views:GeneralView DataContext="{Binding General}" />
-    </TabItem>
-  </TabControl>
+    <TabControl x:Name="Tabs">
+        <TabItem Header="Providers">
+            <views:ProvidersView DataContext="{Binding Providers}" />
+        </TabItem>
+        <TabItem Header="Presets">
+            <views:PresetsView DataContext="{Binding Presets}" />
+        </TabItem>
+        <TabItem Header="Hotkey">
+            <views:HotkeyView DataContext="{Binding Hotkey}" />
+        </TabItem>
+        <TabItem Header="Audio">
+            <views:AudioView DataContext="{Binding Audio}" />
+        </TabItem>
+        <TabItem Header="Logging">
+            <views:LoggingView DataContext="{Binding Logging}" />
+        </TabItem>
+        <TabItem Header="General">
+            <views:GeneralView DataContext="{Binding General}" />
+        </TabItem>
+    </TabControl>
 
 </Window>

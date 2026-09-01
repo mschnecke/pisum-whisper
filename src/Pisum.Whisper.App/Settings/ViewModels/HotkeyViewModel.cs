@@ -13,7 +13,7 @@ using Pisum.Whisper.Core.Settings;
 /// <remarks>
 /// <para>
 /// <see cref="IGlobalHotkeyService.CaptureAsync"/> does the capturing. Three rules it deliberately
-/// leaves to its caller live here: a capture with no modifier is refused and recording continues; a
+/// leaves to its caller live here: a capture with no modifier is refused, and recording continues; a
 /// captured bare <c>Escape</c> is the cancel — read from the capture rather than from a key event,
 /// because both the hook and the focused window see the keystroke in no guaranteed order; and
 /// <see cref="HotkeyCaptureOutcome.KeyNotSupported"/> is rendered as a message with recording still
@@ -27,7 +27,7 @@ using Pisum.Whisper.Core.Settings;
 /// </para>
 /// <para>
 /// Nothing about a key is logged but the accepted chord and the outcome. This view model sits on the
-/// one code path that observes every key on the machine, and the window's own Open Log Folder button
+/// one-code path that observes every key on the machine, and the window's own Open Log Folder button
 /// puts the log file one click away.
 /// </para>
 /// </remarks>
@@ -79,28 +79,29 @@ public sealed partial class HotkeyViewModel : ObservableObject
     /// </summary>
     /// <remarks>
     /// With <see cref="HotkeyAvailability.Failed"/> a capture would never complete, so the recorder
-    /// would sit on "Press a key combination..." for ever. This is what stops that, and it is a
+    /// would sit on "Press a key combination..." forever. This is what stops that, and it is a
     /// smaller thing than telling a user who never opens this window.
     /// </remarks>
-    public string? UnavailableBanner => Availability switch
-    {
-        HotkeyAvailability.Available => null,
-        HotkeyAvailability.NotStarted =>
-            "Keys are not being observed yet, so a new combination cannot be recorded.",
-        HotkeyAvailability.PermissionNotGranted =>
-            "Pisum Whisper has not been allowed to observe keys system-wide. Grant it accessibility "
-            + "access and start the application again.",
-        HotkeyAvailability.PermissionRevoked =>
-            "Permission to observe keys system-wide was withdrawn. Grant it again and start the "
-            + "application again.",
-        _ => "Keys could not be observed, so the hotkey does not work and cannot be re-recorded.",
-    };
+    public string? UnavailableBanner =>
+        Availability switch
+        {
+            HotkeyAvailability.Available => null,
+            HotkeyAvailability.NotStarted =>
+                "Keys are not being observed yet, so a new combination cannot be recorded.",
+            HotkeyAvailability.PermissionNotGranted =>
+                "Pisum Whisper has not been allowed to observe keys system-wide. Grant it accessibility "
+                + "access and start the application again.",
+            HotkeyAvailability.PermissionRevoked =>
+                "Permission to observe keys system-wide was withdrawn. Grant it again and start the "
+                + "application again.",
+            _ => "Keys could not be observed, so the hotkey does not work and cannot be re-recorded.",
+        };
 
     /// <summary>Enters recording mode and waits for one complete combination.</summary>
     [RelayCommand(CanExecute = nameof(CanStartRecording))]
     public async Task StartRecordingAsync()
     {
-        // CaptureAsync answers a concurrent call with Cancelled immediately, which would be
+        // CaptureAsync answers a concurrent call with Canceled immediately, which would be
         // indistinguishable from the user cancelling. Tracking that a capture is open is what tells
         // the two apart.
         if (IsRecording || !IsAvailable)
@@ -115,46 +116,12 @@ public sealed partial class HotkeyViewModel : ObservableObject
 
         try
         {
-            while (true)
+            // A capture that is neither a binding nor a cancel has left its reason in Message and
+            // asks for another key.
+            var finished = false;
+            while (!finished)
             {
-                var result = await _hotkeys.CaptureAsync(capture.Token).ConfigureAwait(true);
-
-                if (result.Outcome == HotkeyCaptureOutcome.Cancelled)
-                {
-                    _logger.LogDebug("Hotkey capture cancelled.");
-                    Message = null;
-                    return;
-                }
-
-                if (result.Outcome == HotkeyCaptureOutcome.KeyNotSupported)
-                {
-                    _logger.LogDebug("Hotkey capture saw a key this vocabulary cannot name.");
-                    Message = "That key cannot be used as a hotkey. Try another combination.";
-                    continue;
-                }
-
-                var binding = result.Binding!;
-
-                if (IsCancelKey(binding))
-                {
-                    // Escape is in the vocabulary, so the capture returns it as a binding rather than
-                    // treating it as a cancel. Reading it here is deterministic and needs no second
-                    // input path; Ctrl+Escape stays bindable because it carries a modifier.
-                    _logger.LogDebug("Hotkey capture cancelled with Escape.");
-                    Message = null;
-                    return;
-                }
-
-                if (binding.Modifiers.Count == 0)
-                {
-                    // A bare key is a legal capture and a terrible hotkey: it would stop working
-                    // everywhere else on the machine.
-                    Message = "Hold at least one modifier — Ctrl, Alt, Shift or Cmd — with the key.";
-                    continue;
-                }
-
-                Apply(binding);
-                return;
+                finished = await RecordOnceAsync(capture.Token).ConfigureAwait(true);
             }
         }
         finally
@@ -162,6 +129,53 @@ public sealed partial class HotkeyViewModel : ObservableObject
             IsRecording = false;
             _capture = null;
         }
+    }
+
+    /// <summary>
+    /// Waits for one capture and answers whether recording is over — a binding was applied, or the
+    /// user cancelled. A <c>false</c> asks for another key and leaves the reason in
+    /// <see cref="Message"/>.
+    /// </summary>
+    private async Task<bool> RecordOnceAsync(CancellationToken token)
+    {
+        var result = await _hotkeys.CaptureAsync(token).ConfigureAwait(true);
+
+        if (result.Outcome == HotkeyCaptureOutcome.Cancelled)
+        {
+            _logger.LogDebug("Hotkey capture cancelled.");
+            Message = null;
+            return true;
+        }
+
+        if (result.Outcome == HotkeyCaptureOutcome.KeyNotSupported)
+        {
+            _logger.LogDebug("Hotkey capture saw a key this vocabulary cannot name.");
+            Message = "That key cannot be used as a hotkey. Try another combination.";
+            return false;
+        }
+
+        var binding = result.Binding!;
+
+        if (IsCancelKey(binding))
+        {
+            // Escape is in the vocabulary, so the capture returns it as a binding rather than
+            // treating it as a cancel. Reading it here is deterministic and needs no second
+            // input path; Ctrl+Escape stays bindable because it carries a modifier.
+            _logger.LogDebug("Hotkey capture cancelled with Escape.");
+            Message = null;
+            return true;
+        }
+
+        if (binding.Modifiers.Count == 0)
+        {
+            // A bare key is a legal capture and a terrible hotkey: it would stop working
+            // everywhere else on the machine.
+            Message = "Hold at least one modifier — Ctrl, Alt, Shift or Cmd — with the key.";
+            return false;
+        }
+
+        Apply(binding);
+        return true;
     }
 
     /// <summary>Abandons a capture in progress, leaving the binding as it was.</summary>
@@ -172,7 +186,7 @@ public sealed partial class HotkeyViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Ends any capture in progress. Called by Cancel, by the window hiding and by the window being
+    /// Ends any capture in progress. Called by Cancel, by the window hiding, and by the window being
     /// deactivated, because an open capture is a hotkey that does nothing.
     /// </summary>
     public void Cancel()
@@ -207,11 +221,11 @@ public sealed partial class HotkeyViewModel : ObservableObject
         Message = null;
 
         // Copied into the draft rather than assigned by reference: the capture's binding is the
-        // caller's object and the draft is replaced on every commit.
+        // caller's object, and the draft is replaced on every commit.
         var modifiers = binding.Modifiers.ToList();
         var key = binding.Key;
 
         _editor.Edit(settings =>
-            settings.Hotkey = new HotkeyBinding {Modifiers = [..modifiers], Key = key});
+            settings.Hotkey = new HotkeyBinding {Modifiers = [.. modifiers], Key = key});
     }
 }

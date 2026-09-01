@@ -8,11 +8,11 @@ using Pisum.Whisper.Core.Settings;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The window has no OK, Cancel or Apply, so every edit persists by itself. Writing on each
+/// The window has no OK, Cancel, or Apply, so every edit persists by itself. Writing on each
 /// keystroke — which the reference does — would serialize the file and raise
 /// <see cref="SettingsStore.Changed"/> once per character, and would make a half-typed API key
 /// visible to a dictation already in flight, because the provider pool reads
-/// <see cref="SettingsStore.Current"/> at transcribe time. So edits land on a clone and the clone is
+/// <see cref="SettingsStore.Current"/> at transcribe time. So edits land on a clone, and the clone is
 /// saved after <see cref="CommitDelay"/> of quiet.
 /// </para>
 /// <para>
@@ -26,7 +26,7 @@ public sealed class SettingsEditor
 {
     /// <summary>
     /// How long the editor waits for the typing to stop before writing. A typing pause: long enough
-    /// that continuous typing coalesces into one write, short enough that a deliberate pause commits
+    /// that continuous typing coalesces into one writing, short enough that a deliberate pause commits
     /// before the user can reach the window's close button. A constant, deliberately not a setting.
     /// </summary>
     internal static readonly TimeSpan CommitDelay = TimeSpan.FromMilliseconds(400);
@@ -97,7 +97,7 @@ public sealed class SettingsEditor
 
             var superseded = _quiet;
 
-            // The new window is published *before* the old one is cancelled, and the order is not
+            // The new window is published *before* the old one is canceled, and the order is not
             // cosmetic. Cancelling runs the waiting continuation inline on this thread, and the lock
             // is reentrant, so a superseded task reaches its ownership check while this call is
             // still inside the lock. Assigning first is what lets it find that it no longer owns
@@ -112,8 +112,8 @@ public sealed class SettingsEditor
     }
 
     /// <summary>
-    /// Writes a pending draft now rather than waiting out the quiet window, and completes once it is
-    /// written. A no-op when nothing is pending, and safe to call twice.
+    /// Writes a pending draft now rather than waiting out the quiet window and completes once it is
+    /// written. A no-op when nothing is pending and safe to call twice.
     /// </summary>
     public async Task FlushAsync()
     {
@@ -127,7 +127,7 @@ public sealed class SettingsEditor
         }
 
         // Outside the lock, because cancelling runs the scheduled commit inline: it would otherwise
-        // save, and raise Changed into its subscribers, while this call still held the gate.
+        // save and raise Changed into its subscribers, while this call still held the gate.
         // Cancelling brings that commit forward rather than adding a second one, so the two cannot
         // both write - the draft is claimed once, under the lock, whoever gets there first.
         quiet?.Cancel();
@@ -140,8 +140,8 @@ public sealed class SettingsEditor
     /// opened a window of its own in the meantime.
     /// </summary>
     /// <remarks>
-    /// The cancellation has two causes and they mean opposite things. <see cref="Edit"/> cancels to
-    /// restart the window, and this task must then do nothing, because the call that cancelled it
+    /// The cancellation has two causes, and they mean opposite things. <see cref="Edit"/> cancels to
+    /// restart the window, and this task must then do nothing, because the call that canceled it
     /// owns the commit now. <see cref="FlushAsync"/> cancels to bring the commit forward, and this
     /// task must write. They are told apart by ownership: only the source still held in
     /// <see cref="_quiet"/> may commit.
@@ -154,7 +154,7 @@ public sealed class SettingsEditor
         }
         catch (OperationCanceledException)
         {
-            // Which of the two it was is decided under the lock below, not here.
+            // Which of the two it was is decided under the lock below, not here?
         }
 
         lock (_gate)
@@ -178,7 +178,7 @@ public sealed class SettingsEditor
             draft = _pending;
             edits = _pendingEdits;
 
-            // Nulled here rather than after the save, so a draft is claimed exactly once however
+            // Pulled here rather than after the save, so a draft is claimed exactly once, however
             // many callers arrive: a superseded quiet window and a flush both reach this.
             _pending = null;
             _pendingEdits = 0;

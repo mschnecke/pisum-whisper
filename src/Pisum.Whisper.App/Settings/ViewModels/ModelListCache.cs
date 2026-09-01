@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using Pisum.Whisper.Core.Transcription;
 
 /// <summary>
-/// The model listings fetched during one lifetime of the settings window, keyed by API key.
+/// The model listings fetched during one lifetime of the settings window, keyed by an API key.
 /// </summary>
 /// <remarks>
 /// <para>

@@ -23,7 +23,7 @@ using Pisum.Whisper.Core.Transcription;
 /// </remarks>
 public sealed partial class ProviderEntryViewModel : ObservableObject
 {
-    /// <summary>The dropdown's empty option, which leaves the provider on its own default.</summary>
+    /// <summary>The dropdown's an empty option, which leaves the provider on its own default.</summary>
     public static readonly GeminiModel DefaultModelOption =
         new(string.Empty, $"Default ({GeminiDefaults.Model})");
 
@@ -87,7 +87,7 @@ public sealed partial class ProviderEntryViewModel : ObservableObject
         }
     }
 
-    /// <summary>The settings entry this view model edits. The only handle it keeps on it.</summary>
+    /// <summary>The settings entry in this view model edits. The only handle it keeps on it.</summary>
     public string Id { get; }
 
     /// <summary>The models offered for selection, the empty default first.</summary>

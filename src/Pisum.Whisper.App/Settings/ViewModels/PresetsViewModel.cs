@@ -1,6 +1,7 @@
 namespace Pisum.Whisper.App.Settings.ViewModels;
 
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -14,7 +15,7 @@ using Pisum.Whisper.Core.Settings;
 /// This tab is the one that does <b>not</b> write through <see cref="SettingsEditor"/>.
 /// <see cref="SettingsStore"/> already exposes the three operations, and they encode rules the view
 /// model must not duplicate: a built-in cannot be deleted, a deleted active preset moves to its
-/// neighbour rather than back to the default, and a built-in's edited name and prompt survive the
+/// neighbor rather than back to the default, and a built-in's edited name and prompt survive the
 /// next load's merge.
 /// </para>
 /// <para>
@@ -213,7 +214,7 @@ public sealed partial class PresetsViewModel : ObservableObject
         SaveCommand.NotifyCanExecuteChanged();
     }
 
-    private void OnSelectedFieldChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    private void OnSelectedFieldChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(PresetEntryViewModel.Name)
             or nameof(PresetEntryViewModel.SystemPrompt))
