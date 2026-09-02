@@ -8,6 +8,7 @@ using FakeItEasy;
 using Microsoft.Extensions.Logging.Abstractions;
 using Pisum.Whisper.App.Settings;
 using Pisum.Whisper.App.Settings.ViewModels;
+using Pisum.Whisper.App.Tests;
 using Pisum.Whisper.App.Tests.Settings;
 using Pisum.Whisper.Core.Hotkeys;
 using Pisum.Whisper.Core.Logging;
@@ -35,6 +36,7 @@ public sealed class SettingsWindowTests : SettingsEditorTestBase
             _hotkeys,
             new LogDirectory(Path.Combine(Path.GetTempPath(), "pisum-whisper-tests-logs")),
             A.Fake<ISystemShell>(),
+            new RecordingNotificationService(),
             NullLoggerFactory.Instance);
     }
 

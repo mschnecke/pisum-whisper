@@ -5,6 +5,7 @@ using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using Pisum.Whisper.Core.Notifications;
 using Pisum.Whisper.Core.Settings;
 
 /// <summary>
@@ -25,6 +26,13 @@ using Pisum.Whisper.Core.Settings;
 /// it happened in that order.
 /// </para>
 /// <para>
+/// <b>Each command's store call is wrapped in a <c>try</c>.</b> Writing to disk can fail — disk full,
+/// permission denied, a network drive gone from under the home directory — and none of the three
+/// <see cref="SettingsStore"/> methods below guards against it; a failure surfaces as
+/// <see cref="SettingsException"/>, reported through <see cref="ReportSaveFailure"/> rather than
+/// becoming an unobserved task exception the way it did before this existed.
+/// </para>
+/// <para>
 /// Add and Save are disabled while either field is blank. <see cref="SettingsStore"/> validates
 /// nothing, so an empty <see cref="Preset.SystemPrompt"/> would otherwise become selectable and be
 /// sent to Gemini as the instruction for the user's speech.
@@ -32,9 +40,13 @@ using Pisum.Whisper.Core.Settings;
 /// </remarks>
 public sealed partial class PresetsViewModel : ObservableObject
 {
+    private const string SaveFailureTitle = "Settings Not Saved";
+
     private readonly SettingsStore _store;
 
     private readonly SettingsEditor _editor;
+
+    private readonly INotificationService _notifications;
 
     private readonly ILogger<PresetsViewModel> _logger;
 
@@ -52,10 +64,14 @@ public sealed partial class PresetsViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(AddCommand))]
     private string _newSystemPrompt = string.Empty;
 
-    public PresetsViewModel(SettingsStore store, SettingsEditor editor, ILogger<PresetsViewModel> logger)
+    public PresetsViewModel(SettingsStore store,
+                            SettingsEditor editor,
+                            INotificationService notifications,
+                            ILogger<PresetsViewModel> logger)
     {
         _store = store;
         _editor = editor;
+        _notifications = notifications;
         _logger = logger;
 
         Reload();
@@ -88,7 +104,16 @@ public sealed partial class PresetsViewModel : ObservableObject
         };
 
         await _editor.FlushAsync().ConfigureAwait(true);
-        _store.SavePreset(preset);
+
+        try
+        {
+            _store.SavePreset(preset);
+        }
+        catch (SettingsException exception)
+        {
+            ReportSaveFailure(exception, "Preset '{PresetName}' could not be added.", preset.Name);
+            return;
+        }
 
         // The name, never the prompt: a preset's system prompt is the user's own writing.
         _logger.LogInformation("Preset '{PresetName}' added.", preset.Name);
@@ -116,7 +141,16 @@ public sealed partial class PresetsViewModel : ObservableObject
         };
 
         await _editor.FlushAsync().ConfigureAwait(true);
-        _store.SavePreset(preset);
+
+        try
+        {
+            _store.SavePreset(preset);
+        }
+        catch (SettingsException exception)
+        {
+            ReportSaveFailure(exception, "Preset '{PresetName}' could not be saved.", preset.Name);
+            return;
+        }
 
         _logger.LogInformation("Preset '{PresetName}' saved.", preset.Name);
         Reload(preset.Id);
@@ -134,7 +168,16 @@ public sealed partial class PresetsViewModel : ObservableObject
         var id = Selected.Id;
 
         await _editor.FlushAsync().ConfigureAwait(true);
-        _store.SetActivePreset(id);
+
+        try
+        {
+            _store.SetActivePreset(id);
+        }
+        catch (SettingsException exception)
+        {
+            ReportSaveFailure(exception, "Preset {PresetId} could not be activated.", id);
+            return;
+        }
 
         _logger.LogInformation("Active preset is now {PresetId}.", id);
         Reload(id);
@@ -144,9 +187,10 @@ public sealed partial class PresetsViewModel : ObservableObject
     /// Deletes the selected preset, which is offered only when it is not built-in.
     /// </summary>
     /// <remarks>
-    /// <see cref="SettingsStore.DeletePreset"/> raises for a built-in, and this command cannot reach
-    /// that throw: <see cref="CanDeleteSelected"/> is false for exactly the presets it refuses. That
-    /// is why there is no <c>try</c> here.
+    /// <see cref="SettingsStore.DeletePreset"/> also raises for a built-in, and this command cannot
+    /// reach that throw: <see cref="CanDeleteSelected"/> is false for exactly the presets it refuses.
+    /// The <c>try</c> below exists for the other way it can throw — a write that fails to reach
+    /// disk — which no <c>CanExecute</c> guard can rule out.
     /// </remarks>
     [RelayCommand(CanExecute = nameof(CanDeleteSelected))]
     public async Task DeleteAsync()
@@ -159,7 +203,16 @@ public sealed partial class PresetsViewModel : ObservableObject
         var id = Selected.Id;
 
         await _editor.FlushAsync().ConfigureAwait(true);
-        _store.DeletePreset(id);
+
+        try
+        {
+            _store.DeletePreset(id);
+        }
+        catch (SettingsException exception)
+        {
+            ReportSaveFailure(exception, "Preset {PresetId} could not be deleted.", id);
+            return;
+        }
 
         _logger.LogInformation("Preset {PresetId} deleted.", id);
         Reload();
@@ -180,6 +233,17 @@ public sealed partial class PresetsViewModel : ObservableObject
         }
 
         Selected = Presets.FirstOrDefault(entry => entry.Id == wanted) ?? Presets.FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Logs and shows a failed write, then reloads so the tab reflects what is actually persisted
+    /// rather than the edit that failed to reach it — the fix for a save that looked like it worked.
+    /// </summary>
+    private void ReportSaveFailure(SettingsException exception, string message, params object?[] args)
+    {
+        _logger.LogError(exception, message, args);
+        _notifications.Notify(SaveFailureTitle, exception.Message);
+        Reload();
     }
 
     private bool CanAdd()
