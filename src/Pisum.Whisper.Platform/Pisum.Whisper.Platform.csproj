@@ -1,15 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- Required by LibraryImport: its generated marshalling stubs are unsafe, whatever the
-         signatures being imported look like. This project is the whole of the P/Invoke surface. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- For MacOsFatalErrorReporter.Escape alone: the AppleScript escaping is the one part of the
-         macOS half that can be verified from Windows, and a syntax error there means no dialog at
-         all. -->
     <InternalsVisibleTo Include="Pisum.Whisper.Platform.Tests" />
   </ItemGroup>
 
