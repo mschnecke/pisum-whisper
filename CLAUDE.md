@@ -659,7 +659,8 @@ that "fixes" it fails a test that says why. `Report` swallows everything for the
 the dialog is bad, losing the exit code and the `Fatal` line behind it is worse.
 
 **`Program` owns the Serilog logger now, and restoring `dispose: true` silently breaks the fatal
-path.** `AddFileLogging` registers it with `services.AddSerilog(serilog, false)` and hands it back
+path.** `AddFileLogging` registers it with `services.AddSerilog(serilog)` — whose `dispose`
+parameter defaults to `false`, which is the whole point — and hands it back
 through an `out` parameter that `BuildHost` assigns *immediately* after that call, before anything
 that can throw — which is what lets one catch in `Main` write a `Fatal` line for a container that
 never finished building. Put `dispose: true` back and the logger has two owners; the container
