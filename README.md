@@ -22,14 +22,21 @@ hotkey to record, release to transcribe and paste, with the tray icon reporting 
 recording and transcribing it is in. On top of that it now has a settings window for every one of
 those settings, tells you when a dictation fails, and can register itself to start at login.
 
+Off that numbered sequence, it also now reports the failures that happen *before* any of the above
+exists: a failure that stops it starting reaches you as a native dialog rather than a silent exit,
+and the two conditions that let it start but leave it unable to work — a log directory it could not
+create, and a hotkey it is not being allowed to observe — are reported once there is a tray icon to
+report them on.
+
 Only **change 12, packaging and CI**, is outstanding: there is no installer, no signed binary and no
 release pipeline, so the application is run from a build.
 
 One thing qualifies all of it. **No dictation has yet been run end to end by hand** on either
-platform — that is the first open verification task of change 8 — and changes 8, 10 and 11 were each
-archived with their manual verification still open. The capabilities are complete in code and
-covered by tests rather than demonstrated on hardware; the macOS half of that verification has never
-been run at all.
+platform — that is the first open verification task of change 8 — and changes 8, 10, 11 and
+`report-startup-failures` were each archived with their manual verification still open. The
+capabilities are complete in code and covered by tests rather than demonstrated on hardware; the
+macOS half of that verification has never been run at all, and the startup dialogs in particular
+have never been drawn on either platform.
 
 macOS is **partly verified**. Change 1's spikes were re-run on an Apple M4 (macOS 26.6.2) under
 [issue #15](https://github.com/mschnecke/pisum-whisper/issues/15), now closed: the global hook, its
@@ -76,6 +83,13 @@ The window has six tabs — Providers, Presets, Hotkey, Audio, Logging and Gener
 you make them: there is no OK, Cancel or Apply, and they reach the running application without a
 restart, including the hotkey binding and the log level.
 
+**If it cannot start at all, it says so in a dialog** naming what failed and where the log would be,
+then exits non-zero. Four failures reach it; the two you could plausibly hit are a settings file that
+is not valid JSON and one it cannot write, the other two — a missing tray asset and a service
+container that fails validation — being developer-facing. A tray-only process has nowhere else to put
+such a message: with no window and no console, exiting quietly is indistinguishable from never having
+been launched, which matters most when it was launched from a login item and nobody was watching.
+
 To build for a specific runtime, name the project rather than the solution (a `.slnx` cannot be
 built for a single RID):
 
@@ -97,10 +111,12 @@ tab:
 A dictation that fails is reported on screen rather than only in the log, because the window is
 usually hidden and the tray icon reports a state and not a reason. **Turning notifications off does
 not silence failures** — a rejected API key still has to reach you — it silences status messages such
-as pressing the hotkey during a transcription, or a recording stopped at the maximum duration. A
-notification never takes focus, which matters because this application pastes at the cursor in
-whatever you are typing in; it clears itself after a few seconds and is not clickable. No transcript,
-API key or clipboard content ever appears in one.
+as pressing the hotkey during a transcription, or a recording stopped at the maximum duration. The
+same exemption covers a **degraded start** — a log directory that could not be created, or a hotkey
+that is not being observed — because both leave the application looking exactly like one that is
+doing nothing at all. A notification never takes focus, which matters because this application pastes
+at the cursor in whatever you are typing in; it clears itself after a few seconds and is not
+clickable. No transcript, API key or clipboard content ever appears in one.
 
 Autostart is *reconciled* rather than toggled: the registration is compared with the setting at every
 launch and whenever settings are saved, and written only when the two disagree — so an entry removed
@@ -131,6 +147,12 @@ control that:
 A debug build also echoes to the terminal it was launched from; a release build writes to the file
 only.
 
+If the directory cannot be created the application still starts — a dictation tool that refuses to
+launch because it cannot write a log is worse than one that launches without one — and it now tells
+you so on screen. That message has to be a notification rather than a log line for the obvious
+reason: the one thing that could explain why there is no log is the one thing that cannot be written
+to it.
+
 ## Permissions
 
 **macOS** will require two grants, neither of which can be pre-approved:
@@ -138,9 +160,12 @@ only.
 - **Accessibility** — `System Settings → Privacy & Security → Accessibility`. Needed *twice over*:
   the global hotkey installs a `CGEventTap`, and pasting synthesises Cmd+V. Without it the app runs
   but never sees the hotkey and never pastes. macOS does not always say so: an ungranted tap can
-  block silently rather than failing, so the app waits five seconds, logs that the hotkey is not
-  being observed and starts anyway. Grant it and **relaunch** — macOS does not reliably hand a new
-  grant to a process that is already running, so this costs one restart on first run.
+  block silently rather than failing, so the app waits five seconds, then starts anyway and tells you
+  on screen that keys are not being observed. On a first macOS launch that notification appears beside
+  the welcome, which is the expected pair rather than a fault — the grant cannot be present yet.
+  Access withdrawn *while* the app is running is reported the same way, whenever it happens. Grant it
+  and **relaunch** — macOS does not reliably hand a new grant to a process that is already running,
+  so this costs one restart on first run.
 - **Microphone** — `System Settings → Privacy & Security → Microphone`, prompted on first recording.
 
 A caution for anyone developing on macOS: the Accessibility grant is bound to the binary's **code
@@ -158,7 +183,7 @@ app says so, which is expected behaviour rather than a defect.
 | Path | |
 |---|---|
 | `src/Pisum.Whisper.Core` | domain and orchestration; no platform or UI dependencies |
-| `src/Pisum.Whisper.Platform` | the OS-specific surface; the clipboard, the paste probes and autostart |
+| `src/Pisum.Whisper.Platform` | the OS-specific surface; the clipboard, the paste probes, autostart and the native startup-failure dialog |
 | `src/Pisum.Whisper.App` | Avalonia tray shell, settings window, notification toasts and composition root |
 | `tests/Pisum.Whisper.Core.Tests` | xUnit v3, FakeItEasy, Shouldly |
 | `tests/Pisum.Whisper.Platform.Tests` | native registration, and the manual clipboard round trip |
