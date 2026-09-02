@@ -50,7 +50,9 @@ public sealed class SettingsStore
     /// Reads the settings file, creating it with defaults if it is absent, and repairs the two
     /// states the reference found worth fixing.
     /// </summary>
-    /// <exception cref="SettingsException">The file exists but cannot be read or parsed.</exception>
+    /// <exception cref="SettingsException">
+    /// The file exists but cannot be read or parsed, or no file exists and one cannot be written.
+    /// </exception>
     public AppSettings Load()
     {
         if (!File.Exists(FilePath))
@@ -233,7 +235,15 @@ public sealed class SettingsStore
         var json = JsonSerializer.Serialize(settings, SettingsJsonContext.OnDisk.AppSettings);
         var temporaryPath = FilePath + ".tmp";
 
-        File.WriteAllText(temporaryPath, json);
-        File.Move(temporaryPath, FilePath, true);
+        try
+        {
+            File.WriteAllText(temporaryPath, json);
+            File.Move(temporaryPath, FilePath, true);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            throw new SettingsException(
+                $"The settings file '{FilePath}' could not be written: {exception.Message}", exception);
+        }
     }
 }

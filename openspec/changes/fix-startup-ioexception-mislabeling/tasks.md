@@ -1,6 +1,6 @@
 ## 1. Wrap `SettingsStore.Write`'s failure
 
-- [ ] 1.1 In `src/Pisum.Whisper.Core/Settings/SettingsStore.cs`, wrap `Write`'s `File.WriteAllText` +
+- [x] 1.1 In `src/Pisum.Whisper.Core/Settings/SettingsStore.cs`, wrap `Write`'s `File.WriteAllText` +
   `File.Move` in a `try`/`catch (Exception exception) when (exception is IOException or
   UnauthorizedAccessException)` that rethrows `new SettingsException($"The settings file '{FilePath}'
   could not be written: {exception.Message}", exception)` — the message `StartupFailure.Describe`'s
@@ -17,7 +17,7 @@
 
 ## 2. Narrow `StartupFailure.Describe`
 
-- [ ] 2.1 In `src/Pisum.Whisper.Core/Diagnostics/StartupFailure.cs`, delete the
+- [x] 2.1 In `src/Pisum.Whisper.Core/Diagnostics/StartupFailure.cs`, delete the
   `UnauthorizedAccessException or IOException => (SettingsErrorTitle, ...)` arm and its comment —
   task 1.1 means nothing reaches this switch under those raw types for an actual settings failure any
   more, and the arm's only remaining effect was mislabeling unrelated I/O failures. Leave
@@ -28,7 +28,7 @@
 
 ## 3. Update `StartupFailureTests`
 
-- [ ] 3.1 In `tests/Pisum.Whisper.Core.Tests/Diagnostics/StartupFailureTests.cs`, rebuild
+- [x] 3.1 In `tests/Pisum.Whisper.Core.Tests/Diagnostics/StartupFailureTests.cs`, rebuild
   `AnUnwritableSettingsFileIsASettingsError` around a `SettingsException` constructed the way
   `Write` now builds one — `new SettingsException($"The settings file '...' could not be written:
   {inner.Message}", inner)` for each of the two `denied` cases — replacing the raw
@@ -44,6 +44,6 @@
 
 ## 4. Whole-suite check
 
-- [ ] 4.1 `dotnet test Pisum.Whisper.slnx --filter-not-trait Category=Manual` green, and
+- [x] 4.1 `dotnet test Pisum.Whisper.slnx --filter-not-trait Category=Manual` green, and
   `dotnet build Pisum.Whisper.slnx` at 0 warnings. Verify: both commands succeed with no other test
   outside `SettingsStoreTests` and `StartupFailureTests` changing outcome.

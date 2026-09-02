@@ -239,6 +239,18 @@ public sealed class SettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void Load_WhenTheDirectoryDoesNotExist_ThrowsSettingsExceptionNamingThePath()
+    {
+        var path = Path.Combine(_directory, "missing", ".pisum-whisper.json");
+        var store = new SettingsStore(NullLogger<SettingsStore>.Instance, path);
+
+        var exception = Should.Throw<SettingsException>(() => store.Load());
+
+        exception.Message.ShouldContain(path);
+        exception.InnerException.ShouldBeOfType<DirectoryNotFoundException>();
+    }
+
+    [Fact]
     public void Save_WritesThroughATemporaryFileAndLeavesNothingBehind()
     {
         var store = NewStore();

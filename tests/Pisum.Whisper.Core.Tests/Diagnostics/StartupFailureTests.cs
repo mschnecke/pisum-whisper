@@ -31,18 +31,35 @@ public sealed class StartupFailureTests
     [InlineData(false)]
     public void AnUnwritableSettingsFileIsASettingsError(bool denied)
     {
-        // Not reachable through SettingsException: SettingsStore.Write is a bare File.WriteAllText
-        // plus a File.Move, called from Load on a first launch, so this is what an unwritable home
-        // directory actually throws.
-        Exception thrown = denied
+        // SettingsStore.Write now wraps its own failure exactly as Read() already wraps its, so this
+        // arrives as a SettingsException whether it happened on a first launch or a later Save.
+        Exception inner = denied
             ? new UnauthorizedAccessException(@"Access to the path 'C:\home\.pisum-whisper.json.tmp' is denied.")
             : new IOException(@"There is not enough space on the disk.");
+        var thrown = new SettingsException(
+            $@"The settings file 'C:\home\.pisum-whisper.json' could not be written: {inner.Message}", inner);
 
         var (title, message) = StartupFailure.Describe(thrown, LogPath);
 
         title.ShouldBe("Settings Error");
         message.ShouldContain("could not be written");
-        message.ShouldContain(thrown.Message);
+        message.ShouldContain(inner.Message);
+    }
+
+    [Fact]
+    public void ANonSettingsIOExceptionIsAStartupError()
+    {
+        // Issue #34's exact reproduction: Avalonia.Platform.StandardAssetLoader.Open raises this, an
+        // IOException subclass, for a missing tray icon resource — nothing to do with settings.
+        var (title, message) = StartupFailure.Describe(
+            new FileNotFoundException(
+                "The resource avares://Pisum.Whisper.App/Assets/tray-idle.png could not be found."),
+            LogPath);
+
+        title.ShouldBe("Startup Error");
+        message.ShouldContain(StartupFailure.StartupErrorMessage);
+        message.ShouldNotContain("settings", Case.Insensitive);
+        message.ShouldNotContain(".pisum-whisper.json");
     }
 
     [Fact]
