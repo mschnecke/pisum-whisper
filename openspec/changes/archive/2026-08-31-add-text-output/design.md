@@ -378,22 +378,30 @@ round-trip test. Everything with a decision in it stays in Core.
 unverified is that Windows' `CanIncludeInClipboardHistory` / `ExcludeClipboardContentFromMonitorProcessing`
 formats and macOS' `org.nspasteboard.ConcealedType` convention have the effect they document. Both
 are checked by hand — copy a dictation, then look in Win+V and in a clipboard manager — as a task of
-this change.
+this change. *macOS half answered 2026-09-02, see Verification results:* `ConcealedType` keeps a
+`MacOsClipboard.SetText` write out of a real running clipboard manager's history, verified against
+Maccy with a sentinel proving the manager was actually watching. The Windows half (Win+V) remains
+unmeasured — 3.3's Windows run passed only vacuously, since clipboard history was off on that
+machine.
 
 **Is 1000 ms right?** *Answered for Windows, see Verification results:* a cold Edge window and
 Notepad both read the clipboard within 50 ms, so the constant is kept with a twentyfold margin. An
 Office document, a terminal, and everything on macOS are still unmeasured.
 
-**Does S1b pass on macOS once the app is signed?** Task 1.4 owns the signing identity; until it is
-done, the macOS half of this change cannot be verified end to end and the `ClipboardOnly` outcome is
-what a macOS user will get. This change does not close that row of the platform verification matrix.
+**Does S1b pass on macOS once the app is signed?** *Answered 2026-09-02, see Verification results —
+not the way this question assumed.* Task 1.4 turned out not to need a signing identity at all: the
+Accessibility/Input Monitoring grant that matters belongs to the terminal a dev build is launched
+from, not to the binary's own signature. With that grant present, `DeliverAsync` pastes correctly and
+repeatably through the real `MacOsClipboard`/`MacOsPasteProbe` — confirming the "a process that got
+as far as a dictation is one whose paste is expected to work" reasoning above without ever needing
+change 12's signing to land first.
 
 ## Verification results
 
 Run on 2026-08-31 on win-x64 (Windows 11 Pro 10.0.26200) through a throwaway harness in the
 scratchpad that drives the real `WindowsClipboard`, `WindowsPasteProbe`, `TextOutput` and
-`EventSimulator` against real windows. **No macOS run has happened**, so every osx-arm64 row below is
-still open and tasks 3.5, 3.6 and 5.4 remain unticked.
+`EventSimulator` against real windows. **No macOS run had happened at the time**, so every osx-arm64
+row below was still open; tasks 3.5, 3.6 and 5.4 are all closed below.
 
 | # | What was checked | Result |
 |---|---|---|
@@ -419,4 +427,86 @@ select-all/copy read-back that this harness can use.
 - *Clipboard history exclusion (3.3).* `HKCU\Software\Microsoft\Clipboard\EnableClipboardHistory` is
   not set on this machine, so Win+V retains nothing from any application and the check would pass
   vacuously. It needs a machine with clipboard history switched on.
-- *Everything macOS (3.5, 3.6, 5.4).* No Apple Silicon host was available to this run.
+- *Everything macOS (3.5, 3.6, 5.4).* No Apple Silicon host was available to this run; all three are
+  covered by the macOS runs below.
+
+### macOS run — 2026-09-02 (issue #31, task 7/3.5)
+
+Run on an Apple M4 (macOS 26.6.2), against Maccy (`org.p0deje.Maccy`), a real clipboard manager
+already running with Accessibility granted. A throwaway harness referenced `Pisum.Whisper.Platform`
+directly and called `new MacOsClipboard().SetText(token)` — the same call `TextOutput` makes at step 2
+of `DeliverAsync` — with no app, no DI, no dictation. Maccy's own history store (a Core Data SQLite
+database under its sandbox container) was queried directly rather than read from its menu.
+
+A sentinel makes the negative result meaningful: an unmarked write (`pbcopy`, no `ConcealedType`) was
+made first as a positive control, to prove Maccy is actually capturing this session's clipboard writes
+before trusting an absence.
+
+| # | What was checked | Result |
+|---|---|---|
+| — | Positive control: unmarked token via `pbcopy` | **Captured** — appeared in Maccy's history within 2 s, confirming the harness is live |
+| 3.5 | Marked token via the real `MacOsClipboard.SetText` (`ConcealedType` applied) | **PASS** — never appeared in Maccy's history, even after a longer wait; `pbpaste` confirmed the token genuinely was on the clipboard throughout |
+
+**A stale-looking result in the same database is not a counter-example, and is worth writing down so
+nobody re-diagnoses it as one.** Querying the same table for older entries turns up several
+`PISUM-7.5.4-…` tokens from task 7/5.4's own verification harness (PR #39), attributed to
+`com.apple.TextEdit` rather than to this application. Those came from *that* harness's independent
+check — selecting all and copying back out of TextEdit to confirm the paste landed — and TextEdit's
+own `Cmd+C` carries no `ConcealedType` marking of its own, so that re-copy is a legitimately separate,
+unmarked write Maccy was right to capture. `ConcealedType` protects the write this application makes;
+it says nothing about, and cannot reach, a later copy the user (or a verification harness) makes from
+wherever the transcript landed.
+
+### macOS run — 2026-09-02 (issue #31, task 7/3.6)
+
+Run on an Apple M4 (macOS 26.6.2). `MacOsPasteProbe.CanPaste()` is a direct, argument-free
+`AXIsProcessTrusted()` P/Invoke with no exception path (`src/Pisum.Whisper.Platform/Output/MacOsPasteProbe.cs`)
+and no existing test exercises the real call, so this checks the actual OS answer in both states
+rather than the DI wiring `NativeOutputRegistrationTests` already covers.
+
+A throwaway console harness in the scratchpad referenced `Pisum.Whisper.Platform` directly and
+printed `new MacOsPasteProbe().CanPaste()` — no app, no DI container.
+
+| # | What was checked | Result |
+|---|---|---|
+| 3.6 | `CanPaste()` with Accessibility granted (run through Rider's terminal, which holds the grant — see task 1.4) | **PASS** — `True` |
+| 3.6 | `CanPaste()` without Accessibility (the same built binary, run from a plain `Terminal.app` that has never been granted) | **PASS** — `False` |
+
+Neither run produced a system Accessibility prompt, matching the code: `AXIsProcessTrusted()` takes
+no prompt option. Both answers match `MacOsPasteProbe`'s own doc comment — "definitive rather than
+heuristic" — with no crash and no exception in either state. This closes 3.6; `TextOutput`'s handling
+of a `false` result (skip the paste, keep the clipboard write, return `ClipboardOnly`) is exercised by
+`TextOutputTestBase`'s `FakePasteProbe` already and was not re-derived here.
+
+### macOS run — 2026-09-02 (issue #31, task 7/5.4)
+
+Run on an Apple M4 (macOS 26.6.2) through a throwaway harness in the scratchpad, mirroring the
+win-x64 harness above: it builds the real `MacOsClipboard`, `MacOsPasteProbe` and `TextOutput` through
+`AddTextOutput()` + `AddNativeOutput()` and calls `DeliverAsync` against a real TextEdit window, then
+independently verifies what landed by selecting all and copying back out with the same
+`EventSimulator` the production paste uses.
+
+| # | What was checked | Result |
+|---|---|---|
+| 5.4 | Full delivery into TextEdit, `IPasteProbe.CanPaste()` true throughout | **PASS** — outcome `Pasted` every time the target window was confirmed frontmost; the token landed correctly in 4 of 4 valid trials |
+
+**S1b's FAIL does not reproduce through the shipped code path.** `IPasteProbe.CanPaste()` (which
+wraps `AXIsProcessTrusted()`) returned `true` on every run, and `DeliverAsync` pasted the token into
+TextEdit every time the harness confirmed TextEdit was actually frontmost first. This closes the
+macOS half of task 5.4 in favour of the design's existing decision — the paste stays as designed, and
+the clipboard-only fallback kept in reserve is not adopted.
+
+**Two invalid trials, both harness artifacts rather than paste failures, are worth recording so
+nobody re-diagnoses them as regressions.** First, an early run's own verification step (its
+select-all/copy, not `DeliverAsync`'s paste) fired while this session's own terminal — not
+TextEdit — was frontmost, so it captured and echoed the terminal's on-screen contents instead of
+TextEdit's; nothing indicates `DeliverAsync`'s own paste went astray in that run, only the harness's
+follow-up check. Second, a run against a document reused from a `killall -9`-terminated previous run
+came back with the new token concatenated after an old one — TextEdit's session-resume state, not a
+clean empty document, unlike spike `PasteSpike.cs`'s explicit clear-before-paste step which this
+harness initially omitted. Both are fixed in the harness by confirming (via `System Events`'
+frontmost-process name) that TextEdit is actually the active application immediately before both the
+paste and the verification copy, aborting the trial rather than reporting a false result if it is not
+— after which every trial passed cleanly. **Takeaway for anyone driving synthetic keystrokes from a
+process running in the same interactive session as its own terminal: verify the target is frontmost
+immediately before firing, since focus is not guaranteed to stay where an `activate` call put it.**
