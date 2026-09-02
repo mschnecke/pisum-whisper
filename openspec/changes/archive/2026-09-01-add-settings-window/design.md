@@ -626,6 +626,20 @@ anything constructing a real `SettingsStore` over a temp file is `Integration`.
    is the standard answer; whether it is sufficient with `ShowInDock = false` is not known. Settled by
    task 6.2, and it is the one question that could force a design change — an application that must
    call `NSApp.activate(ignoringOtherApps:)` needs a Platform seam this design does not have.
-3. **Is 400 ms right?** Chosen, not measured. Task 6.1 is the first time anyone types a real API key
-   into it; if the commit feels laggy, or a fast tab-away loses an edit, the constant moves once and
-   the reason is recorded here.
+3. ~~**Is 400 ms right?**~~ **Yes, confirmed by running it — see Verification results.** Chosen, not
+   measured, until now; all three observations passed and the constant is unchanged.
+
+## Verification results
+
+Run on 2026-09-02 on win-x64 (Windows 11 Pro 10.0.26200) under `dotnet run --project src/Pisum.Whisper.App`
+(Debug), `logLevel` at `debug`, as task 2.3 of settle-win-x64-verification-debt (task 6.3 of this
+change).
+
+| # | What was checked | Result |
+|---|---|---|
+| 6.3 | A pasted API key commits once | **PASS** — exactly one `Committing … settings changes.` line in the log for the paste. It read `Committing 10 settings changes.`: the `ApiKey` property evidently fires once per character during a paste rather than once for the whole string, so a 10-character paste produced 10 `SettingsEditor.Edit` calls — but all ten landed inside the same 400 ms debounce window and collapsed to the one commit and one file write the check asks about. Not a defect; if anything, the debounce doing exactly its job against a noisier-than-expected input |
+| 6.3 | A fast tab-away does not lose the edit | **PASS** — typed one character in a field and pressed Tab immediately; `~/.pisum-whisper.json`'s last-write timestamp (`12:50:01.878`) matches the `Committing 1 settings changes.` line to the millisecond, and the edit was in the file |
+| 6.3 | No commit is perceptible as lag | **PASS** — typing normally across several fields felt instant, no lag |
+
+**400 ms stands.** All three of open question 3's conditions passed; `SettingsEditor.CommitDelay` is
+unchanged.

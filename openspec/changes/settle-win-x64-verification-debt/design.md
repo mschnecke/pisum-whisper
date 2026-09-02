@@ -457,6 +457,7 @@ Each is settled by a task of this change and struck through in the archived desi
 8. **Which exception does the directory collision raise, `IOException` or
    `UnauthorizedAccessException`?** Both map to the settings title; recorded for the record —
    task 5.1.
-9. **Does the tooltip refresh live when the active preset changes?** Change 9's 4.1 was written before
-   change 10 gave the window a route to `Save` and left that scenario unproven; task 2.2 can now
-   prove it.
+9. ~~**Does the tooltip refresh live when the active preset changes?**~~ **Yes, see change 9's
+   Verification results.** Switching to "Transcribe EN" in the running Settings window updated the
+   tray tooltip immediately, with no relaunch — the subscription task 3.2 wired in but could not
+   exercise until change 10 existed now works end to end.

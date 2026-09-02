@@ -1,6 +1,7 @@
 namespace Pisum.Whisper.App.Notifications;
 
 using Avalonia.Threading;
+using Microsoft.Extensions.Logging;
 using Pisum.Whisper.Core.Notifications;
 
 /// <summary>
@@ -17,6 +18,15 @@ using Pisum.Whisper.Core.Notifications;
 /// <para>
 /// Everything below the post runs on the UI thread and only there, which is what lets
 /// <see cref="_live"/> be an ordinary list with no lock.
+/// </para>
+/// <para>
+/// <b><see cref="Present"/> is gated on the UI thread already owning a dispatcher.</b> A notification
+/// raised between <c>host.Start()</c> and Avalonia's initialisation runs on a pooled thread; touching
+/// <see cref="Dispatcher.UIThread"/> there would create the process's one dispatcher on that pooled
+/// thread instead of the main one, and Avalonia's own initialisation then fails with a
+/// thread-ownership exception it cannot recover from. Asking <see cref="Dispatcher.FromThread"/>
+/// whether the captured UI thread has a dispatcher yet, instead of touching <c>UIThread</c> directly,
+/// is what avoids creating one from the wrong thread.
 /// </para>
 /// </remarks>
 public sealed class ToastPresenter : INotificationPresenter
@@ -35,11 +45,16 @@ public sealed class ToastPresenter : INotificationPresenter
 
     private readonly TimeSpan _dwell;
 
+    private readonly ILogger<ToastPresenter> _logger;
+
+    /// <summary>Captured at construction, on the main thread, before Avalonia is initialised.</summary>
+    private readonly Thread _uiThread;
+
     /// <summary>Oldest first, which is both the stacking order and which one a fourth displaces.</summary>
     private readonly List<Live> _live = [];
 
-    public ToastPresenter()
-        : this(DefaultDwell)
+    public ToastPresenter(ILogger<ToastPresenter> logger)
+        : this(DefaultDwell, logger, Thread.CurrentThread)
     {
     }
 
@@ -48,9 +63,17 @@ public sealed class ToastPresenter : INotificationPresenter
     /// shape as <c>SettingsEditor</c>'s injected debounce and <c>GeminiProvider</c>'s injected
     /// backoff.
     /// </summary>
-    internal ToastPresenter(TimeSpan dwell)
+    internal ToastPresenter(TimeSpan dwell, ILogger<ToastPresenter> logger)
+        : this(dwell, logger, Thread.CurrentThread)
+    {
+    }
+
+    /// <summary>Constructs the presenter naming the UI thread explicitly, so a test can name one that owns no dispatcher.</summary>
+    internal ToastPresenter(TimeSpan dwell, ILogger<ToastPresenter> logger, Thread uiThread)
     {
         _dwell = dwell;
+        _logger = logger;
+        _uiThread = uiThread;
     }
 
     /// <summary>How many notifications are on screen. The UI thread's view of it.</summary>
@@ -58,7 +81,17 @@ public sealed class ToastPresenter : INotificationPresenter
 
     public void Present(string title, string message)
     {
-        Dispatcher.UIThread.Post(() => Show(title, message));
+        var dispatcher = Dispatcher.FromThread(_uiThread);
+
+        if (dispatcher is null)
+        {
+            _logger.LogWarning(
+                "A notification was raised before the UI was ready and was dropped: {Title}", title);
+
+            return;
+        }
+
+        dispatcher.Post(() => Show(title, message));
     }
 
     /// <summary>

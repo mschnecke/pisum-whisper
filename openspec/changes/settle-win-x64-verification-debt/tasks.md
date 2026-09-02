@@ -1,11 +1,11 @@
 ## 1. Preparation
 
-- [ ] 1.1 Establish the baseline: `git status` clean on `main` and the commit noted;
+- [x] 1.1 Establish the baseline: `git status` clean on `main` and the commit noted;
   `dotnet build Pisum.Whisper.slnx` at 0 warnings; `dotnet test Pisum.Whisper.slnx --filter-not-trait Category=Manual`
   with the total it prints noted, which task 6.1 compares against; `dotnet build src/Pisum.Whisper.App -c Release`
   with `src/Pisum.Whisper.App/bin/Release/net10.0/Pisum.Whisper.App.exe` confirmed present. Verify: the
   three commands succeed and the commit, the test total and the exe path are written to the scratchpad.
-- [ ] 1.2 Back up user state: copy `~/.pisum-whisper.json` to the scratchpad and record its SHA-256;
+- [x] 1.2 Back up user state: copy `~/.pisum-whisper.json` to the scratchpad and record its SHA-256;
   record the `Run` value `Pisum Whisper` under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
   (absent, or its path) and `HKCU\Software\Microsoft\Clipboard\EnableClipboardHistory` (absent, or its
   value). Verify: `Get-FileHash` of the backup equals the recorded hash, and both registry readings are
@@ -13,7 +13,7 @@
 
 ## 2. The first dictation and what rides on it
 
-- [ ] 2.1 **8 / 6.1** Under `dotnet run --project src/Pisum.Whisper.App`, put known text on the
+- [x] 2.1 **8 / 6.1** Under `dotnet run --project src/Pisum.Whisper.App`, put known text on the
   clipboard, focus Notepad, hold the hotkey, speak a sentence, release; confirm the words arrive at the
   cursor and the known text is back on the clipboard afterwards. Set `recordingMode` to toggle and
   repeat with press, speak, press. Then create change 8's *Verification results* section in its
@@ -21,7 +21,7 @@
   counts from the log and no transcript text, and tick 6.1 in its `tasks.md`. Verify: both rows record
   `Pasted` from the log's delivery line and the clipboard restore; `git diff` of the archived change
   shows the new section and the tick and nothing else.
-- [ ] 2.2 **9 / 4.1** Launch the Release build with `Start-Process`: no taskbar button, no console
+- [x] 2.2 **9 / 4.1** Launch the Release build with `Start-Process`: no taskbar button, no console
   window; find the icon and record where it landed (expect the hidden overflow, which is change 11's
   evidence); hover for the tooltip naming the active preset; run a dictation and watch
   idle → recording → transcribing → idle; open Settings → Presets, activate the other preset and hover
@@ -29,7 +29,7 @@
   change 9's `design.md` under a new *Verification results*, noting that the tooltip check now covers
   the live refresh, strike this change's open question 9, tick 4.1. Verify: all three icons were
   observed, the tooltip named both presets without a relaunch, and the record names the overflow.
-- [ ] 2.3 **10 / 6.3** With `logLevel` at `debug`, paste an API key into a provider field and count the
+- [x] 2.3 **10 / 6.3** With `logLevel` at `debug`, paste an API key into a provider field and count the
   `Committing … settings changes.` lines (expect one); type one character and press Tab at once, then
   read the file a second later (the edit is there); type normally across several fields and judge
   whether any commit is perceptible. Move `SettingsEditor.CommitDelay` once if any of the three fails,
@@ -81,7 +81,7 @@
   alt-tab open question, tick 7.1; 7.4 stays open until 4.2. Verify: the hash matches 1.2; the `Run`
   value appeared naming the Debug output and disappeared; the alt-tab answer before and after the
   click, and where focus went, are in the record.
-- [ ] 4.2 **11 / 7.4, the experiment** Insert the blocking
+- [x] 4.2 **11 / 7.4, the experiment** Insert the blocking
   `Task.Run(… Notify(…)).GetAwaiter().GetResult()` from Decision 5 between `host.Start()` and
   `BuildAvaloniaApp` in `Program.Main` and run under `dotnet run`. Expected, from the reading: a
   `Fatal` line carrying `InvalidOperationException` "The calling thread cannot access this object
@@ -93,7 +93,7 @@
   half was not expressible against a `MarkReady()` gate and is against `FromThread` (4.3). Verify:
   `git status` clean; the record names the thread the notification was raised from, quotes the
   exception, and says whether the outcome matched the prediction.
-- [ ] 4.3 **11 / 7.4, the gate** Add the readiness gate from Decision 5 to `ToastPresenter`:
+- [x] 4.3 **11 / 7.4, the gate** Add the readiness gate from Decision 5 to `ToastPresenter`:
   `ILogger<ToastPresenter>` through the public constructor, the UI thread captured at construction
   and injectable through the internal one, and a `Present` that asks `Dispatcher.FromThread` for that
   thread's dispatcher — posting to it when there is one, and otherwise logging the warning with the
@@ -109,7 +109,7 @@
 
 ## 5. Startup failures
 
-- [ ] 5.1 **report-startup-failures / 7.1, unwritable with none present — and the driver** First add
+- [x] 5.1 **report-startup-failures / 7.1, unwritable with none present — and the driver** First add
   `spikes -- fatal <exe> <title>` to `spikes/Pisum.Whisper.Spikes`: launch the executable, wait for a
   top-level window of that process whose title matches, post `WM_CLOSE` (which an `MB_OK` box answers
   as OK), wait for exit, and print the exit code and the newest `Fatal` line from
@@ -122,13 +122,13 @@
   Verify: `dotnet run --project spikes/Pisum.Whisper.Spikes -- fatal` builds and drives the
   reproduction end to end; the hash matches 1.2, no `.tmp` remains, and the row names the exception
   type and the exit code.
-- [ ] 5.2 **7.1, `ValidateOnBuild`** Comment out `AddNativeOutput()` in `Program.BuildHost`,
+- [x] 5.2 **7.1, `ValidateOnBuild`** Comment out `AddNativeOutput()` in `Program.BuildHost`,
   `dotnet build src/Pisum.Whisper.App -c Release`, run the driver: a dialog with the "could not
   start" title, exit code 1, a `Fatal` line naming `ISystemClipboard`.
   `git checkout -- src/Pisum.Whisper.App/Program.cs` and rebuild Release. Add the row. Verify:
   `git status` clean apart from the new spike, and the Release exe is rebuilt from the clean tree
   before 5.3.
-- [ ] 5.3 **7.1, missing tray asset** Move `src/Pisum.Whisper.App/Assets/tray-idle.png` to the
+- [x] 5.3 **7.1, missing tray asset** Move `src/Pisum.Whisper.App/Assets/tray-idle.png` to the
   scratchpad, rebuild Release, run the driver: the "could not start" dialog, exit code 1, a `Fatal`
   line carrying the `avares://` URI. Move it back, `git status` clean apart from the spike, rebuild
   Release. Add the row, annotate the archived task with the correction from Decision 6, and tick 7.1

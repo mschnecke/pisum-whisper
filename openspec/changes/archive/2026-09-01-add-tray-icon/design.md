@@ -382,3 +382,21 @@ proposal. Recorded here so change 11 inherits it as a known gap rather than disc
   the binaries — and answered twice, the second time correcting the first about which type owns the
   accessors — but the visual result is not. The macOS sizing sharpness glance above rides along on the
   same hardware pass — one launch, two checks.
+
+## Verification results
+
+Run on 2026-09-02 on win-x64 (Windows 11 Pro 10.0.26200), Release build launched via `Start-Process`,
+as task 2.2 of settle-win-x64-verification-debt (task 4.1 of this change).
+
+| # | What was checked | Result |
+|---|---|---|
+| 4.1 | No taskbar button, no console window | **PASS** — confirmed programmatically (`MainWindowHandle` 0, `MainWindowTitle` empty) and by observation |
+| 4.1 | Where the icon lands | **PASS, in the hidden overflow** — matches the prediction and change 11's evidence |
+| 4.1 | Tooltip names the active preset | **PASS** — named "Transcribe DE", the active preset at launch |
+| 4.1 | All three icon states during a real dictation | **PASS** — idle → recording → transcribing → idle observed across a 7.3 s recording (348960 samples, Opus), `Delivered 56 characters: Pasted.` in the log |
+| 4.1 | Tooltip live refresh when the active preset changes, **with no relaunch** | **PASS — this change's own task text said not to look for this, because change 10 did not exist yet. It exists now, and the refresh works**: switched to "Transcribe EN" in Settings → Presets while the app kept running; the log recorded `Active preset is now en-transcribe.`; hovering the tray icon again showed the new name without relaunching |
+| 4.1 | Quit | **PASS** — clean shutdown, log ends `Application is shutting down...`, no `Fatal` line |
+
+This supersedes 4.1's original instruction to relaunch for a second preset name: the live-refresh
+subscription wired in task 3.2, unexercisable until change 10 gave the window a route to `Save`, is
+now exercised and works.

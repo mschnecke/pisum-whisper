@@ -400,8 +400,9 @@ not that it looks good.
 
 ## Open Questions
 
-- **What happens when `Present` touches `Dispatcher.UIThread` from a pooled thread before Avalonia is
-  initialised?** The orchestrator's hotkey handlers are armed at `host.Start()`, before
+- ~~**What happens when `Present` touches `Dispatcher.UIThread` from a pooled thread before Avalonia is
+  initialised?**~~ **Answered by running it, see Verification results below (settle-win-x64-verification-debt, tasks 4.2 and 4.3): the process fails fast, exactly as the reading below predicts, and
+  `ToastPresenter` now gates on it.** The orchestrator's hotkey handlers are armed at `host.Start()`, before
   `StartWithClassicDesktopLifetime`, and `App.cs` already acknowledges that window as real — its
   seeded `ApplyState` exists precisely because "a hotkey pressed during Avalonia's platform
   initialisation opens a recording this icon would otherwise misreport". A capture-start failure in
@@ -456,3 +457,19 @@ not that it looks good.
   surface these at all and the transport is dead regardless of the AUMID. Until then the spike stays
   in the tree unrun, and `CLAUDE.md`'s claim that the spikes harness is deletable is false while it
   does.
+
+## Verification results
+
+Run on 2026-09-02 on win-x64 (Windows 11 Pro 10.0.26200) under `dotnet run --project src/Pisum.Whisper.App`
+(Debug), as part of settle-win-x64-verification-debt's tasks 4.2 and 4.3. **Only the dispatcher half
+of 7.4 is recorded here; the alt-tab half stays open for task 4.1, so 7.4 stays unticked.**
+
+| # | What was checked | Result |
+|---|---|---|
+| 4.2 | The throwaway edit from Decision 5 — `Task.Run(() => …Notify(…)).GetAwaiter().GetResult()` between `host.Start()` and `BuildAvaloniaApp` — run against the pre-gate `ToastPresenter` | **FAIL, matching the prediction exactly.** The process stayed alive with a window titled "Startup Error" (`MainWindowTitle` confirmed via `Get-Process`); the log carried `[FTL] Startup failed: Startup Error` followed by `System.InvalidOperationException: The calling thread cannot access this object because a different thread owns it.` at `Avalonia.Threading.Dispatcher.VerifyAccess()`, called from `InitializeUIThreadDispatcher` from `Win32Platform.Initialize`. No tray icon came up — the failure is inside Avalonia's own setup, before `App`'s constructor runs. Dismissed by posting `WM_CLOSE` to the dialog (the same mechanism `report-startup-failures` used), which exited the process; `Main`'s `catch` guarantees exit code 1 for this path, though the code itself was not independently re-observed after the dismiss (the `Process` handle obtained via `Get-Process` did not expose it) |
+| 4.3 | The same edit, re-run against the gated `ToastPresenter` (this change's `Present` now asks `Dispatcher.FromThread(_uiThread)` before touching the dispatcher) | **PASS.** The process stayed alive with no window at all (tray-only, as expected); the log carried `[WRN] A notification was raised before the UI was ready and was dropped: Early` and no `Fatal` line; `Application started. Press Ctrl+C to shut down.` followed normally. `dotnet build Pisum.Whisper.slnx` at 0 warnings; `dotnet test tests/Pisum.Whisper.App.Tests` green at 167/167 including the two new gate tests |
+
+Both throwaway edits were reverted with `git checkout -- src/Pisum.Whisper.App/Program.cs` immediately
+after their run; `git status` was clean apart from the intended `ToastPresenter` and test changes
+before either edit and after both. No transcript text, API key or clipboard content is implicated by
+either run.
