@@ -18,12 +18,6 @@ internal static class StartupFailure
             // of what makes the file repairable by hand.
             SettingsException => (SettingsErrorTitle, exception.Message),
 
-            // SettingsStore.Write is a bare File.WriteAllText plus a File.Move, called from Load on the
-            // first launch, so an unwritable home directory arrives here rather than as a
-            // SettingsException. Both types name the path in their own message.
-            UnauthorizedAccessException or IOException =>
-                (SettingsErrorTitle, $"The settings file could not be written: {exception.Message}"),
-
             _ => (StartupErrorTitle, StartupErrorMessage),
         };
 

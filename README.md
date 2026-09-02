@@ -26,7 +26,10 @@ Off that numbered sequence, it also now reports the failures that happen *before
 exists: a failure that stops it starting reaches you as a native dialog rather than a silent exit,
 and the two conditions that let it start but leave it unable to work — a log directory it could not
 create, and a hotkey it is not being allowed to observe — are reported once there is a tray icon to
-report them on.
+report them on. A follow-up fix ([issue #34](https://github.com/mschnecke/pisum-whisper/issues/34))
+corrected that dialog's title: it used to match on the exception's *type*, so an unrelated I/O
+failure — a missing tray icon asset — could be shown as a settings-file error; it is now matched by
+where the failure actually happened.
 
 Only **change 12, packaging and CI**, is outstanding: there is no installer, no signed binary and no
 release pipeline, so the application is run from a build.
