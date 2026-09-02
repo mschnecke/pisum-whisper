@@ -113,11 +113,11 @@ distinction from *deferred* matters here because both trigger their documented f
 |---|---|---|---|---|
 | S1 | Global hook reports key press **and** release | **PASS** | **PASS** | Hand-written `WH_KEYBOARD_LL` / `CGEventTap` interop |
 | S1 | Hook co-exists with Avalonia's run loop | **PASS** | **PASS** | Threading redesign; highest severity in the project |
-| S1 | `EventSimulator` paste accepted by a foreign app | **PASS** | **FAIL** — see macOS spike results | Clipboard-only output with a manual-paste message |
+| S1 | `EventSimulator` paste accepted by a foreign app | **PASS** | **FAIL** at the raw spike level — see macOS spike results. **Does not reproduce through the shipped code path** — `add-text-output`'s task 7/5.4 re-test (2026-09-02) pastes correctly and repeatably through the real `TextOutput`/`MacOsClipboard`/`MacOsPasteProbe` sequence | Clipboard-only output with a manual-paste message — not adopted; the shipped path works |
 | S2 | Capture opens at 48 kHz mono f32, resampling from the device's native rate | **PARTIAL** | **PASS** | `NAudio.Core`'s managed `WdlResampler` behind `IAudioCapture` |
 | S3 | Tray icon visible; image swappable at runtime | **PASS** | **PASS** | Platform-specific tray implementation in `Pisum.Whisper.Platform` |
 | S3 | Tooltip on `NSStatusItem` | n/a | **PASS** | Active preset name moves into the menu itself |
-| S3 | Template image support (auto light/dark tinting) | n/a | unconfirmed — only tested under Light | Active preset name moves into the menu itself |
+| S3 | Template image support (auto light/dark tinting) | n/a | **PASS** — `add-tray-icon`'s task 9/4.3 re-test (2026-09-02) confirmed under both appearance modes: glyph inverts correctly under Dark, interior holes stay visible in both | None needed |
 | S4 | Encoded `.opus` decodes back to the same duration | **PASS** | covered by win-x64 — pure computation, no platform surface | Hand-rolled Ogg muxer, as originally planned |
 | 3.3 | `MacOSPlatformOptions { ShowInDock = false }` suppresses the Dock icon | n/a | **PASS** | None needed |
 | 1.4 | Accessibility/Input Monitoring grant survives a rebuild | n/a | **PASS when launched through Rider** — see 2026-09-02 re-test | Stable signing identity, deferred to change 12 packaging (only matters outside Rider's ancestry) |

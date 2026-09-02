@@ -764,14 +764,18 @@ write that never reaches disk was an unobserved task exception, not a report —
 handling below now implement; it too is synced.
 
 **Changes 8, 10, 11 and `report-startup-failures` were all archived with their manual verification
-still open** — 8's tasks 6.1, 6.3 and 6.4, 10's 6.2 to 6.4, 11's 7.1 to 7.4, and every one of
+still open** — 8's tasks 6.3 and 6.4, 10's 6.4, 11's 7.1 and 7.4, and every one of
 `report-startup-failures`'s 7.1 to 7.3. Every one of them needs a person at a
 machine, and the macOS ones need Apple Silicon with Accessibility granted. An archived change here therefore does **not** certify
 that its capability was verified on hardware: what each still owes, and the open design questions
 those runs would settle, stay in that change's archived `design.md` and are reflected nowhere under
 `openspec/specs/`. Read the archived `tasks.md` before treating a capability spec as verified
 behaviour rather than intended behaviour. The macOS verification change 1 left unfinished was tracked
-by issue #15 rather than by an open change, and closed on 2026-08-28. Drive
+by issue #15 rather than by an open change, and closed on 2026-08-28; issue #31 carried the same
+shape forward for changes 1, 7, 8, 9, 10 and 11, and ran everything but 8's refused-microphone case
+on 2026-09-02 — which is why it stays open rather than closing the way #15 did. Change 9's manual
+verification is entirely closed as a result, which is why it is absent from the list this paragraph
+opens with. Drive
 the workflow with the `/opsx:*` commands (`explore`, `propose`, `apply`, `sync`, `archive`); the
 backing skills are in `.claude/skills/openspec-*`. The bottom of `openspec/config.yaml` carries the
 project context and the per-artifact rules, and both are **live, not the commented-out template**:
