@@ -295,10 +295,16 @@ public sealed class App : Application
         var trayIcon = new TrayIcon
         {
             Icon = _idleIcon,
-            ToolTipText = TooltipFor(_settings!.Current),
             Menu = menu,
             IsVisible = true,
         };
+
+        // Set after IsVisible rather than in the initializer: on macOS the native NSStatusItem is not
+        // realised until IsVisible becomes true, and a ToolTipText assigned before that point is lost
+        // rather than picked up by the native object once it exists — verified by hand under issue
+        // #31's task 9/4.2, where the tooltip read a platform default ("Avalon Application") on first
+        // launch and only became correct after a later settings change routed through ApplyTooltip.
+        trayIcon.ToolTipText = TooltipFor(_settings!.Current);
 
         // Change 9 deferred this to change 10. Whether it fires on macOS when a Menu is attached is
         // open question 1: if it does not, the menu item is the entry point there and nothing else

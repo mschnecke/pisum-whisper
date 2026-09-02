@@ -365,7 +365,8 @@ proposal. Recorded here so change 11 inherits it as a known gap rather than disc
   multi-representation image is indeed inexpressible, not merely suspected. What's left is not this
   question but a narrower one: whether a 36 px source downsampled to 34 physical px at 2x reads as
   crisp — a sharpness glance, not a correctness check, small enough to fold into the appearance-mode
-  pass below rather than stand alone.
+  pass below rather than stand alone. **Answered 2026-09-02, see the macOS run under Verification
+  results:** it reads crisp on an Apple M4, not soft. The 36 px source is not worth revisiting.
 - ~~**Is `IsTemplateIcon = true` a harmless no-op on Windows?**~~ **Answered from the binaries.**
   `Avalonia.Win32.TrayIconImpl` does not implement `ITrayIconWithIsTemplateImpl` and
   `Avalonia.Native.TrayIconImpl` does; see *macOS uses template images* above for what that leaves
@@ -400,3 +401,47 @@ as task 2.2 of settle-win-x64-verification-debt (task 4.1 of this change).
 This supersedes 4.1's original instruction to relaunch for a second preset name: the live-refresh
 subscription wired in task 3.2, unexercisable until change 10 gave the window a route to `Save`, is
 now exercised and works.
+
+### macOS run — 2026-09-02 (issue #31, task 9/4.2)
+
+Run on an Apple M4 (macOS 26.6.2), Debug build launched as the apphost binary directly.
+
+| # | What was checked | Result |
+|---|---|---|
+| 4.2 | No Dock icon, no window | **PASS** — confirmed by observation |
+| 4.2 | Menu bar extra found | **PASS** |
+| 4.2 | Tooltip names the active preset, on first launch | **FAIL, then fixed** — see below |
+| 4.2 | Sharpness glance at the 36 px source downsampled to 34 physical px, 2x backing scale | **PASS** — reads crisp, not soft; closes the sharpness question in *Open Questions* |
+| 4.2 | All three icon states during a real dictation | **PASS** — two hold-to-record dictations, 4.1 s and 2.9 s, both `Transcription complete: 13 characters` / `Delivered 13 characters: Pasted.` in the log; a third, sub-50-ms press+release before the first was correctly discarded with no `Transcribing` line, confirming the minimum-duration guard |
+| 4.2 | Quit | **PASS** — clean shutdown, log ends `Application is shutting down...`, process gone |
+
+**The tooltip failed on first launch, and this is macOS-specific — 4.1 above did not see it on
+Windows.** `CreateTrayIcon` (`src/Pisum.Whisper.App/App.cs`) set `ToolTipText` inside the object
+initializer, before `IsVisible = true`. On macOS the tray icon's tooltip bubble read a platform
+default, "Avalon Application" — a string that is not present in any Avalonia assembly or native
+library shipped with this application (searched exhaustively, including as UTF-16 in the native
+`libAvaloniaNative.dylib`), so it is `Avalonia.Native`'s own fallback rather than anything this
+codebase writes. The value written in the initializer was silently lost. A live settings save
+afterward — which sets `ToolTipText` through `ApplyTooltip`, on an already-realised native
+`NSStatusItem` — corrected it immediately, which is the evidence that pinned this to timing rather
+than to `TooltipFor`'s logic: `Avalonia.Native`'s `TrayIconImpl` does not appear to read a property
+already set before the native object exists, only property-changed events that arrive afterward.
+`Avalonia.Win32.TrayIconImpl` evidently does read the initial value, which is why 4.1 saw no failure.
+
+**Fixed by moving the assignment out of the initializer**, to run after `IsVisible = true` has
+realised the native icon:
+
+```csharp
+var trayIcon = new TrayIcon { Icon = _idleIcon, Menu = menu, IsVisible = true };
+trayIcon.ToolTipText = TooltipFor(_settings!.Current);
+```
+
+Verified by relaunching: the tooltip read `Pisum Whisper - Transcribe EN` correctly on the very first
+hover, no settings save needed. `dotnet build src/Pisum.Whisper.App` stays at 0 warnings; all 167
+`Pisum.Whisper.App.Tests` still pass — none of them exercised this construction order, which is why it
+shipped unnoticed.
+
+**Task 8/6.4 (issue #31) is not ticked here, but this run is most of its success case for free**: two
+real dictations, real Gemini calls (`gemini-2.5-flash-lite`, 855 ms–9.3 s per call), correct text
+pasted into TextEdit both times. What 6.4 still owes is the refused-microphone-grant case, which
+this run did not exercise.
