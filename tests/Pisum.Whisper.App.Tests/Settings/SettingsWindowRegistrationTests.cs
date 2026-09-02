@@ -3,10 +3,12 @@ namespace Pisum.Whisper.App.Tests.Settings;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Pisum.Whisper.App.Notifications;
 using Pisum.Whisper.App.Settings;
 using Pisum.Whisper.App.Settings.ViewModels;
 using Pisum.Whisper.Core.Hotkeys;
 using Pisum.Whisper.Core.Logging;
+using Pisum.Whisper.Core.Notifications;
 using Pisum.Whisper.Core.Settings;
 using Pisum.Whisper.Core.Shell;
 using Pisum.Whisper.Core.Transcription;
@@ -54,6 +56,7 @@ public sealed class SettingsWindowRegistrationTests : IDisposable
         host.Services.GetRequiredService<IGlobalHotkeyService>().ShouldNotBeNull();
         host.Services.GetRequiredService<LogDirectory>().ShouldNotBeNull();
         host.Services.GetRequiredService<ISystemShell>().ShouldNotBeNull();
+        host.Services.GetRequiredService<INotificationService>().ShouldNotBeNull();
         host.Services.GetRequiredService<SettingsWindowViewModel>().ShouldNotBeNull();
     }
 
@@ -86,6 +89,10 @@ public sealed class SettingsWindowRegistrationTests : IDisposable
         builder.Services.AddGeminiTranscription();
         builder.Services.AddGlobalHotkey();
         builder.Services.AddNativeShell();
+        builder.Services.AddNotifications();
+        builder.Services.AddSingleton<ToastPresenter>();
+        builder.Services.AddSingleton<INotificationPresenter>(
+            provider => provider.GetRequiredService<ToastPresenter>());
         builder.Services.AddSingleton<SettingsEditor>();
         builder.Services.AddSingleton<SettingsWindowViewModel>();
 

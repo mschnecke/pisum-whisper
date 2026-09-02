@@ -1,5 +1,6 @@
 namespace Pisum.Whisper.App.Tests.Settings;
 
+using Pisum.Whisper.App.Tests;
 using Pisum.Whisper.Core.Settings;
 using Shouldly;
 
@@ -191,5 +192,30 @@ public sealed class SettingsEditorTests : SettingsEditorTestBase
 
         await Should.NotThrowAsync(editor.FlushAsync());
         Store.Current.Providers.ShouldBeEmpty();
+    }
+
+    // ---- Task 1.1/1.2 (surface-settings-save-failures): a commit that cannot be written ----
+
+    [Fact]
+    public async Task ACommitThatCannotBeWritten_NotifiesAndLogsRatherThanThrowingUnobserved()
+    {
+        var notifications = new RecordingNotificationService();
+        var editor = NewEditor(notifications: notifications);
+
+        // Locking the settings file exclusively forces the commit's File.Move to fail with a real
+        // IOException, the same shape a network drive going away or another process holding the file
+        // would produce — without deleting the test's own temp directory, which Dispose still needs.
+        using (File.Open(Store.FilePath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            editor.Edit(settings => settings.AudioFormat = AudioFormat.Wav);
+            CompleteQuietWindow();
+
+            await WaitForAsync(() => notifications.Forced.Count == 1);
+        }
+
+        notifications.Forced.ShouldHaveSingleItem();
+        notifications.Forced[0].Title.ShouldBe("Settings Not Saved");
+        Saves.ShouldBe(0);
+        Store.Current.AudioFormat.ShouldBe(AudioFormat.Opus);
     }
 }

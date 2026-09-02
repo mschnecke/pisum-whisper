@@ -7,7 +7,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Pisum.Whisper.App.Settings;
 using Pisum.Whisper.App.Settings.ViewModels;
 using Pisum.Whisper.App.Settings.Views;
+using Pisum.Whisper.App.Tests;
 using Pisum.Whisper.App.Tests.Settings;
+using Pisum.Whisper.Core.Notifications;
 using Pisum.Whisper.Core.Settings;
 using Shouldly;
 
@@ -15,9 +17,10 @@ using Shouldly;
 [Trait(Traits.Category, Traits.Categories.Integration)]
 public sealed class PresetsViewModelTests : SettingsEditorTestBase
 {
-    private PresetsViewModel NewViewModel(SettingsEditor editor)
+    private PresetsViewModel NewViewModel(SettingsEditor editor, INotificationService? notifications = null)
     {
-        return new PresetsViewModel(Store, editor, NullLogger<PresetsViewModel>.Instance);
+        return new PresetsViewModel(
+            Store, editor, notifications ?? new RecordingNotificationService(), NullLogger<PresetsViewModel>.Instance);
     }
 
     private static void Fill(PresetsViewModel viewModel, string name, string prompt)
@@ -65,6 +68,27 @@ public sealed class PresetsViewModelTests : SettingsEditorTestBase
     }
 
     [Fact]
+    public async Task Add_WhenTheWriteFails_KeepsTheTypedFieldsAndNotifies()
+    {
+        var notifications = new RecordingNotificationService();
+        var viewModel = NewViewModel(NewEditor(), notifications);
+        Fill(viewModel, "Notes", "Turn my dictation into bullet points.");
+
+        // Locking the settings file exclusively forces the store's write to fail, the same shape a
+        // disk-full or permission-denied failure would take.
+        using (File.Open(Store.FilePath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            await viewModel.AddCommand.ExecuteAsync(null);
+        }
+
+        Store.Current.Presets.ShouldNotContain(preset => preset.Name == "Notes");
+        viewModel.NewName.ShouldBe("Notes");
+        viewModel.NewSystemPrompt.ShouldBe("Turn my dictation into bullet points.");
+        notifications.Forced.ShouldHaveSingleItem();
+        notifications.Forced[0].Title.ShouldBe("Settings Not Saved");
+    }
+
+    [Fact]
     public async Task Save_StoresTheEditedNameAndPromptAndFlushesFirst()
     {
         Store.SavePreset(new Preset {Id = "mine", Name = "Custom", SystemPrompt = "Say it plainly."});
@@ -81,6 +105,35 @@ public sealed class PresetsViewModelTests : SettingsEditorTestBase
         stored.Name.ShouldBe("Renamed");
         stored.SystemPrompt.ShouldBe("Be terse.");
         Store.Current.MaxRecordingDurationSecs.ShouldBe(90);
+    }
+
+    [Fact]
+    public async Task Save_WhenTheWriteFails_RevertsTheDisplayedTextAndNotifies()
+    {
+        Store.SavePreset(new Preset {Id = "mine", Name = "Custom", SystemPrompt = "Say it plainly."});
+        var notifications = new RecordingNotificationService();
+        var viewModel = NewViewModel(NewEditor(), notifications);
+
+        viewModel.Selected = viewModel.Presets.Single(preset => preset.Id == "mine");
+        viewModel.Selected.Name = "Renamed";
+        viewModel.Selected.SystemPrompt = "Be terse.";
+
+        using (File.Open(Store.FilePath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            await viewModel.SaveCommand.ExecuteAsync(null);
+        }
+
+        var stored = Store.Current.Presets.Single(preset => preset.Id == "mine");
+        stored.Name.ShouldBe("Custom");
+        stored.SystemPrompt.ShouldBe("Say it plainly.");
+
+        // The regression guard for the issue: the bound text reverts to what is actually persisted
+        // rather than continuing to show the edit that failed to save.
+        viewModel.Selected.ShouldNotBeNull();
+        viewModel.Selected.Name.ShouldBe("Custom");
+        viewModel.Selected.SystemPrompt.ShouldBe("Say it plainly.");
+
+        notifications.Forced.ShouldHaveSingleItem();
     }
 
     [Fact]
@@ -113,6 +166,24 @@ public sealed class PresetsViewModelTests : SettingsEditorTestBase
     }
 
     [Fact]
+    public async Task Activate_WhenTheWriteFails_LeavesTheActivePresetAndNotifies()
+    {
+        var notifications = new RecordingNotificationService();
+        var viewModel = NewViewModel(NewEditor(), notifications);
+        var before = Store.Current.ActivePresetId;
+
+        viewModel.Selected = viewModel.Presets.Single(preset => preset.Id == "de-transcribe");
+
+        using (File.Open(Store.FilePath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            await viewModel.ActivateCommand.ExecuteAsync(null);
+        }
+
+        Store.Current.ActivePresetId.ShouldBe(before);
+        notifications.Forced.ShouldHaveSingleItem();
+    }
+
+    [Fact]
     public async Task Delete_RemovesAUserPresetAndFlushesFirst()
     {
         Store.SavePreset(new Preset {Id = "mine", Name = "Custom", SystemPrompt = "Say it plainly."});
@@ -126,6 +197,25 @@ public sealed class PresetsViewModelTests : SettingsEditorTestBase
         Store.Current.Presets.ShouldNotContain(preset => preset.Id == "mine");
         Store.Current.MaxRecordingDurationSecs.ShouldBe(90);
         viewModel.Presets.ShouldNotContain(preset => preset.Id == "mine");
+    }
+
+    [Fact]
+    public async Task Delete_WhenTheWriteFails_LeavesThePresetAndNotifies()
+    {
+        Store.SavePreset(new Preset {Id = "mine", Name = "Custom", SystemPrompt = "Say it plainly."});
+        var notifications = new RecordingNotificationService();
+        var viewModel = NewViewModel(NewEditor(), notifications);
+
+        viewModel.Selected = viewModel.Presets.Single(preset => preset.Id == "mine");
+
+        using (File.Open(Store.FilePath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            await viewModel.DeleteCommand.ExecuteAsync(null);
+        }
+
+        Store.Current.Presets.ShouldContain(preset => preset.Id == "mine");
+        viewModel.Presets.ShouldContain(preset => preset.Id == "mine");
+        notifications.Forced.ShouldHaveSingleItem();
     }
 
     [Fact]
@@ -146,8 +236,8 @@ public sealed class PresetsViewModelTests : SettingsEditorTestBase
         viewModel.Selected = viewModel.Presets.Single(preset => preset.Id == "en-transcribe");
 
         // Invoked directly, which is the path a disabled button does not cover. The command's own
-        // guard is what makes the store's SettingsException unreachable and its lack of a try
-        // correct.
+        // guard is what makes the store's *validation* SettingsException unreachable; a try still
+        // exists in DeleteAsync for a write that fails to reach disk, which no guard can rule out.
         await Should.NotThrowAsync(viewModel.DeleteCommand.ExecuteAsync(null));
 
         Store.Current.Presets.ShouldContain(preset => preset.Id == "en-transcribe");

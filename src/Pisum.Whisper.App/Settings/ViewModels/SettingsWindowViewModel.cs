@@ -3,6 +3,7 @@ namespace Pisum.Whisper.App.Settings.ViewModels;
 using Microsoft.Extensions.Logging;
 using Pisum.Whisper.Core.Hotkeys;
 using Pisum.Whisper.Core.Logging;
+using Pisum.Whisper.Core.Notifications;
 using Pisum.Whisper.Core.Settings;
 using Pisum.Whisper.Core.Shell;
 using Pisum.Whisper.Core.Transcription;
@@ -23,6 +24,7 @@ public sealed class SettingsWindowViewModel
                                    IGlobalHotkeyService hotkeys,
                                    LogDirectory logs,
                                    ISystemShell shell,
+                                   INotificationService notifications,
                                    ILoggerFactory loggers)
     {
         Editor = editor;
@@ -31,7 +33,8 @@ public sealed class SettingsWindowViewModel
 
         Providers = new ProvidersViewModel(
             editor, probe, new ModelListCache(loggers.CreateLogger<ModelListCache>()), settings);
-        Presets = new PresetsViewModel(store, editor, loggers.CreateLogger<PresetsViewModel>());
+        Presets = new PresetsViewModel(
+            store, editor, notifications, loggers.CreateLogger<PresetsViewModel>());
         Hotkey = new HotkeyViewModel(editor, hotkeys, loggers.CreateLogger<HotkeyViewModel>(), settings);
         Audio = new AudioViewModel(editor, settings);
         Logging = new LoggingViewModel(
