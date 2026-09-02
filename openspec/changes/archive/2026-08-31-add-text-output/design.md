@@ -378,7 +378,11 @@ round-trip test. Everything with a decision in it stays in Core.
 unverified is that Windows' `CanIncludeInClipboardHistory` / `ExcludeClipboardContentFromMonitorProcessing`
 formats and macOS' `org.nspasteboard.ConcealedType` convention have the effect they document. Both
 are checked by hand — copy a dictation, then look in Win+V and in a clipboard manager — as a task of
-this change.
+this change. *macOS half answered 2026-09-02, see Verification results:* `ConcealedType` keeps a
+`MacOsClipboard.SetText` write out of a real running clipboard manager's history, verified against
+Maccy with a sentinel proving the manager was actually watching. The Windows half (Win+V) remains
+unmeasured — 3.3's Windows run passed only vacuously, since clipboard history was off on that
+machine.
 
 **Is 1000 ms right?** *Answered for Windows, see Verification results:* a cold Edge window and
 Notepad both read the clipboard within 50 ms, so the constant is kept with a twentyfold margin. An
@@ -392,8 +396,9 @@ what a macOS user will get. This change does not close that row of the platform 
 
 Run on 2026-08-31 on win-x64 (Windows 11 Pro 10.0.26200) through a throwaway harness in the
 scratchpad that drives the real `WindowsClipboard`, `WindowsPasteProbe`, `TextOutput` and
-`EventSimulator` against real windows. **No macOS run has happened**, so every osx-arm64 row below is
-still open and tasks 3.5, 3.6 and 5.4 remain unticked.
+`EventSimulator` against real windows. **No macOS run had happened at the time**, so every osx-arm64
+row below was open; task 3.5 is closed below, tasks 3.6 and 5.4 remain unticked here (recorded on
+separate not-yet-merged PRs, #40 and #39).
 
 | # | What was checked | Result |
 |---|---|---|
@@ -419,4 +424,32 @@ select-all/copy read-back that this harness can use.
 - *Clipboard history exclusion (3.3).* `HKCU\Software\Microsoft\Clipboard\EnableClipboardHistory` is
   not set on this machine, so Win+V retains nothing from any application and the check would pass
   vacuously. It needs a machine with clipboard history switched on.
-- *Everything macOS (3.5, 3.6, 5.4).* No Apple Silicon host was available to this run.
+- *Everything macOS except 3.5 (3.6, 5.4).* No Apple Silicon host was available to this run; 3.5 is
+  covered by the macOS run below.
+
+### macOS run — 2026-09-02 (issue #31, task 7/3.5)
+
+Run on an Apple M4 (macOS 26.6.2), against Maccy (`org.p0deje.Maccy`), a real clipboard manager
+already running with Accessibility granted. A throwaway harness referenced `Pisum.Whisper.Platform`
+directly and called `new MacOsClipboard().SetText(token)` — the same call `TextOutput` makes at step 2
+of `DeliverAsync` — with no app, no DI, no dictation. Maccy's own history store (a Core Data SQLite
+database under its sandbox container) was queried directly rather than read from its menu.
+
+A sentinel makes the negative result meaningful: an unmarked write (`pbcopy`, no `ConcealedType`) was
+made first as a positive control, to prove Maccy is actually capturing this session's clipboard writes
+before trusting an absence.
+
+| # | What was checked | Result |
+|---|---|---|
+| — | Positive control: unmarked token via `pbcopy` | **Captured** — appeared in Maccy's history within 2 s, confirming the harness is live |
+| 3.5 | Marked token via the real `MacOsClipboard.SetText` (`ConcealedType` applied) | **PASS** — never appeared in Maccy's history, even after a longer wait; `pbpaste` confirmed the token genuinely was on the clipboard throughout |
+
+**A stale-looking result in the same database is not a counter-example, and is worth writing down so
+nobody re-diagnoses it as one.** Querying the same table for older entries turns up several
+`PISUM-7.5.4-…` tokens from task 7/5.4's own verification harness (PR #39), attributed to
+`com.apple.TextEdit` rather than to this application. Those came from *that* harness's independent
+check — selecting all and copying back out of TextEdit to confirm the paste landed — and TextEdit's
+own `Cmd+C` carries no `ConcealedType` marking of its own, so that re-copy is a legitimately separate,
+unmarked write Maccy was right to capture. `ConcealedType` protects the write this application makes;
+it says nothing about, and cannot reach, a later copy the user (or a verification harness) makes from
+wherever the transcript landed.
