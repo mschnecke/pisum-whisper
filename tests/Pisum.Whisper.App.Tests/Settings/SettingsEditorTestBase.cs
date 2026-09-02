@@ -3,6 +3,8 @@ namespace Pisum.Whisper.App.Tests.Settings;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Pisum.Whisper.App.Settings;
+using Pisum.Whisper.App.Tests;
+using Pisum.Whisper.Core.Notifications;
 using Pisum.Whisper.Core.Settings;
 
 /// <summary>
@@ -55,9 +57,14 @@ public abstract class SettingsEditorTestBase : IDisposable
     /// <summary>How many times the store has published a save, counted from its own event.</summary>
     protected int Saves { get; private set; }
 
-    protected SettingsEditor NewEditor(ILogger<SettingsEditor>? logger = null)
+    protected SettingsEditor NewEditor(ILogger<SettingsEditor>? logger = null,
+                                       INotificationService? notifications = null)
     {
-        var editor = new SettingsEditor(Store, logger ?? NullLogger<SettingsEditor>.Instance, DelayAsync);
+        var editor = new SettingsEditor(
+            Store,
+            logger ?? NullLogger<SettingsEditor>.Instance,
+            notifications ?? new RecordingNotificationService(),
+            DelayAsync);
         _editors.Add(editor);
         return editor;
     }

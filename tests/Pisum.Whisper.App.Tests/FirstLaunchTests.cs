@@ -110,11 +110,12 @@ public sealed class FirstLaunchTests : SettingsEditorTestBase
 
         return new SettingsWindowViewModel(
             Store,
-            NewEditor(),
+            NewEditor(notifications: _notifications),
             A.Fake<IGeminiKeyProbe>(),
             _hotkeys,
             new LogDirectory(Path.Combine(Path.GetTempPath(), "pisum-whisper-tests-logs")),
             A.Fake<ISystemShell>(),
+            _notifications,
             NullLoggerFactory.Instance);
     }
 }

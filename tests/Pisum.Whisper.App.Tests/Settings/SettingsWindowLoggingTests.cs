@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Pisum.Whisper.App.Settings;
 using Pisum.Whisper.App.Settings.ViewModels;
+using Pisum.Whisper.App.Tests;
 using Pisum.Whisper.Core.Hotkeys;
 using Pisum.Whisper.Core.Logging;
 using Pisum.Whisper.Core.Settings;
@@ -86,7 +87,8 @@ public sealed class SettingsWindowLoggingTests : SettingsEditorTestBase
         await editor.FlushAsync();
 
         // A preset edit: the prompt is the user's own writing and is not a loggable value.
-        var presets = new PresetsViewModel(Store, editor, loggers.CreateLogger<PresetsViewModel>());
+        var presets = new PresetsViewModel(
+            Store, editor, new RecordingNotificationService(), loggers.CreateLogger<PresetsViewModel>());
         presets.NewName = "Resignation";
         presets.NewSystemPrompt = Prompt;
         await presets.AddCommand.ExecuteAsync(null);

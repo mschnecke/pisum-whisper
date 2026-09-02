@@ -1,6 +1,7 @@
 namespace Pisum.Whisper.App.Settings;
 
 using Microsoft.Extensions.Logging;
+using Pisum.Whisper.Core.Notifications;
 using Pisum.Whisper.Core.Settings;
 
 /// <summary>
@@ -31,9 +32,13 @@ public sealed class SettingsEditor
     /// </summary>
     internal static readonly TimeSpan CommitDelay = TimeSpan.FromMilliseconds(400);
 
+    private const string SaveFailureTitle = "Settings Not Saved";
+
     private readonly SettingsStore _store;
 
     private readonly ILogger<SettingsEditor> _logger;
+
+    private readonly INotificationService _notifications;
 
     private readonly Func<TimeSpan, CancellationToken, Task> _delay;
 
@@ -48,8 +53,8 @@ public sealed class SettingsEditor
     /// <summary>The commit currently in flight or scheduled, awaited by <see cref="FlushAsync"/>.</summary>
     private Task _commit = Task.CompletedTask;
 
-    public SettingsEditor(SettingsStore store, ILogger<SettingsEditor> logger)
-        : this(store, logger, null)
+    public SettingsEditor(SettingsStore store, ILogger<SettingsEditor> logger, INotificationService notifications)
+        : this(store, logger, notifications, null)
     {
     }
 
@@ -59,10 +64,12 @@ public sealed class SettingsEditor
     /// </summary>
     internal SettingsEditor(SettingsStore store,
                             ILogger<SettingsEditor> logger,
+                            INotificationService notifications,
                             Func<TimeSpan, CancellationToken, Task>? delay)
     {
         _store = store;
         _logger = logger;
+        _notifications = notifications;
         _delay = delay ?? Task.Delay;
     }
 
@@ -192,6 +199,15 @@ public sealed class SettingsEditor
         // A count and nothing else. This type holds the object carrying the user's API keys and
         // preset prompts, so no field name and no value is written down.
         _logger.LogDebug("Committing {ChangedSettings} settings changes.", edits);
-        _store.Save(draft);
+
+        try
+        {
+            _store.Save(draft);
+        }
+        catch (SettingsException exception)
+        {
+            _logger.LogError(exception, "{ChangedSettings} settings changes could not be saved.", edits);
+            _notifications.Notify(SaveFailureTitle, exception.Message);
+        }
     }
 }
