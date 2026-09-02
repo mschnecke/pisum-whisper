@@ -1,15 +1,21 @@
 ## 1. Deciding what a fatal failure says
 
-- [ ] 1.1 **Answer the disclosure question before anything is written against it.** `SettingsException`
+- [x] 1.1 **Answer the disclosure question before anything is written against it.** `SettingsException`
   wraps `JsonException.Message`, and `~/.pisum-whisper.json` holds API keys in plaintext. Issue #20's
   reproduction shows the message naming the offending token (`'B' is an invalid start of a property
   name`), so the question is whether a file corrupted *inside* a key value can put a fragment of that
-  value into the message. Read `System.Text.Json`'s `ThrowHelper` and `JsonReaderException` at the
-  version the SDK pins, and settle it. If a fragment can escape, `StartupFailure.Describe` must
-  summarise the parse failure — file, line, position — rather than pass the message through, **and the
-  existing `SettingsStore.Read` log line has the same exposure and is a separate pre-existing finding
-  rather than something this change introduced**. Verify: the answer written into `design.md`'s *Open
-  Questions*, struck through in the manner of change 9, and 1.2 written to match it.
+  value into the message. **Answered from the error templates in `System.Text.Json.dll` at `10.0.8`,
+  the runtime `global.json` pins — what ships rather than what the source says.** Every reader template
+  formats one offending character into `{0}`; the type-conversion template formats a type name;
+  `JsonException.Path` names the failing property and never its value. The one exception is the literal
+  family (`'{0}' is an invalid JSON literal.`), which captures the token being read and needs a missing
+  opening quote **and** a value beginning `t`, `f` or `n` to return a few leading characters. No
+  template can return a whole value. **Decision: `Describe` passes the message through**, because
+  summarising it deletes what issue #20 holds up as the actionable part. The existing
+  `SettingsStore.Read` log line carries the identical message and so inherits the same verdict — a
+  pre-existing finding, not one this change introduced. Verify: recorded in `design.md`'s *Open
+  Questions*, struck through in the manner of change 9, with the residual case in *Risks*; 1.2 written
+  to match.
 - [ ] 1.2 Add `Core/Diagnostics/IFatalErrorReporter.cs` — one method, `void Report(string title, string message)`
   — and `Core/Diagnostics/StartupFailure.cs`, an `internal static class` whose
   `Describe(Exception exception, string? logFilePath)` returns `(string Title, string Message)`.
@@ -21,8 +27,11 @@
   log directory and a fatal failure can coincide.
   `Core/Diagnostics` is a new folder and `openspec/config.yaml` already names `Diagnostics` as one of
   `Core`'s areas. Verify: unit tests in `Core.Tests/Diagnostics/StartupFailureTests.cs` covering each
-  row of the table and the fallback, plus whatever 1.1 decided about the parse message. `Unit` trait —
-  in-memory exceptions only.
+  row of the table and the fallback. **Per 1.1 the parse message is passed through unchanged**, so add
+  the disclosure test the `notifications` spec's analogous rule already has a precedent for: build a
+  `SettingsException` from a genuine parse failure over a document holding a recognisable API key
+  value, and assert the described message contains no part of that value. It guards the decision 1.1
+  made rather than merely restating it. `Unit` trait — in-memory exceptions only.
 
 ## 2. The native dialog
 

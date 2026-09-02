@@ -57,6 +57,39 @@ which is the reported defect this capability was raised for.
 - **WHEN** the application fails to start and its log directory is also unusable
 - **THEN** the user is still shown the failure
 
+### Requirement: A startup message says where a settings file is wrong, not what it contains
+The application SHALL describe a settings file it cannot read in terms of *where* the problem is — the
+file, the property that failed, and the position at which reading stopped — and SHALL NOT reproduce
+the value of any setting. Where describing the problem unavoidably quotes the text that stopped the
+read, that quotation SHALL be bounded to the token itself and SHALL NOT extend to a complete value.
+The same bound SHALL apply to what is written to the log.
+
+The settings file holds the user's API keys in plaintext, and this is the one message in the
+application composed from the contents of that file. It is also shown on the widest surface the
+application has: a dialog is drawn over whatever the user is presenting or sharing, where a log file
+at least has to be opened first. The existing rules against putting a transcript, an API key or
+clipboard contents in a log or a notification were written about narrower surfaces than this one.
+
+Naming the property is deliberately permitted rather than overlooked. It is what makes the file
+repairable by hand, and it discloses nothing: the shape of the settings file is public in the
+repository, and a property's name is not its value.
+
+#### Scenario: A settings file cannot be parsed
+- **WHEN** the user is told the settings file could not be read
+- **THEN** the message names the file, the property that failed and where reading stopped
+
+#### Scenario: The failing property holds a credential
+- **WHEN** the parse failure occurs inside a property holding an API key
+- **THEN** no complete value is shown, and nothing shown would allow the key to be reconstructed
+
+#### Scenario: The same failure is written to the log
+- **WHEN** the failure is recorded in the log
+- **THEN** the record is bounded by the same rule as the message shown on screen
+
+#### Scenario: A startup unrelated to settings fails
+- **WHEN** the application fails to start for a reason other than the settings file
+- **THEN** nothing drawn from the settings file appears in the message
+
 ### Requirement: A settings file that cannot be read is never replaced
 The application SHALL NOT start on default settings when a settings file exists but cannot be read,
 and SHALL NOT overwrite or repair that file. It SHALL leave the file exactly as it found it.

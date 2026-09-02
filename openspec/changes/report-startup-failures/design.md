@@ -42,6 +42,12 @@ Program.Main
 launch, so an unwritable home directory throws `UnauthorizedAccessException` rather than
 `SettingsException`.
 
+The work lands in three capabilities. `startup-diagnostics` is new and owns both transports, the exit
+code, and the bound on what a failure is allowed to say. `global-hotkey` and `file-logging` each gain
+one thing, and in both cases it is existing state becoming observable rather than new behaviour: a
+change in whether the binding is being observed, and the reason a log directory could not be created
+surviving the moment it was discovered.
+
 ## Goals / Non-Goals
 
 **Goals.** Every one of [1] to [7] reaches the user rather than only a log that may not exist. The
@@ -322,13 +328,18 @@ the process does not vanish, which no headless test observes.
 
 ## Risks / Trade-offs
 
-**`SettingsException` embeds `JsonException.Message`, and the settings file holds API keys.** The
-message from `System.Text.Json` carries a line and a position and can name the offending token — issue
-#20's own reproduction shows `'B' is an invalid start of a property name`. If a file is corrupted
-*inside* an API key value, it is not established that no fragment of that value can reach the message.
-`CLAUDE.md`'s rules forbid a transcript, a key or clipboard contents in a log or a notification, and a
-modal dialog is a wider surface than either. This is the one place in the change where a disclosure
-rule may bind, and it is listed in *Open Questions* rather than assumed away.
+**`SettingsException` embeds `JsonException.Message`, and the settings file holds API keys.**
+Measured rather than assumed — see *Open Questions*, where this is settled: no reader template
+captures a value, so the worst case is a short literal token, and the message is passed through. The
+residual is narrow but real, and it is written down here rather than left in the code: a value whose
+opening quote is missing parses as a JSON literal instead of a string, and a value beginning `t`, `f`
+or `n` then returns a few of its leading characters inside `'{0}' is an invalid JSON literal.`
+Two independent corruptions have to line up for that, and no template can return a whole value.
+
+**The same message already reaches the log today**, so this change does not create the exposure — it
+widens the surface from a file to a screen, which is exactly the argument change 11 made for giving
+notifications their own disclosure rule. `SettingsStore.Read`'s existing log line inherits the same
+verdict, and it is a pre-existing finding rather than one this change introduces.
 
 **The macOS dialog is attributed to Script Editor.** A fatal error appearing to come from another
 application is poor, and it is accepted because the alternative is nothing at all. It is also
@@ -361,10 +372,27 @@ container to `Program` is behaviourally identical on the success path. If a late
 
 ## Open Questions
 
-- **Can `JsonException.Message` contain bytes from the settings file beyond the offending token?** If
-  it can, `StartupFailure.Describe` must summarise the parse failure rather than pass the message
-  through, and the existing log line has the same problem. Answerable by reading `System.Text.Json`'s
-  `ThrowHelper` at the pinned version, and it should be answered before this ships rather than after.
+- ~~**Can `JsonException.Message` contain bytes from the settings file beyond the offending token?**~~
+  **Answered: only a short literal token, never a value — so the message is passed through.** Read from
+  the error templates in `System.Text.Json.dll` at `10.0.8`, the runtime `global.json` pins, which is
+  stronger evidence than the source would have been because it is what actually ships.
+
+  Every reader template a corrupt settings file can trip formats **one offending character** into
+  `{0}` — `'{0}' is an invalid start of a property name.`, `'{0}' is invalid after a value.`,
+  `'{0}' is invalid within a JSON string.`, `Invalid leading zero before '{0}'.` — and that character
+  is the corruption rather than the content. The type-conversion template formats a *type name*. The
+  one exception is the literal family, `'{0}' is an invalid JSON literal. Expected the literal 'true'.`
+  and the `GetInvalidLiteralMultiSegment` helper beside it, which capture the token being read: `tru3`
+  comes back whole. Reaching it with key material needs the value's opening quote gone **and** the
+  value beginning `t`, `f` or `n`, and it returns only the literal's length.
+
+  `JsonException.Path` — `$.providers[0].apiKey` — names which property failed and never its value.
+  It is not a disclosure: the schema is in the repository already, and it is the single most useful
+  thing for repairing the file by hand.
+
+  Summarising to a line and position was the alternative and is rejected: it deletes exactly what
+  issue #20 holds up as the actionable part of the report, in exchange for a handful of leading
+  characters in a case that requires two corruptions to coincide.
 - **Does `MessageBoxW` come to the foreground from a process with no window and no owner?**
   `MB_SETFOREGROUND` is specified to, but foreground-activation rules on Windows 11 are permissive
   about refusing. One run of issue #20's reproduction settles it.
