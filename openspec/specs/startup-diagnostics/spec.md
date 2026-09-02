@@ -34,6 +34,11 @@ taskbar entry, and in a release build no console. A failure before the tray icon
 indistinguishable, to the person who launched it, from the application never having been launched at
 all — and it is most often launched from a login item, where nobody is watching for it.
 
+What failed SHALL be identified by where the failure actually occurred, not by the runtime type of
+the exception it happened to raise. An exception type that a settings failure raises MAY also be
+raised by a failure that has nothing to do with settings, and matching on type alone would mislabel
+the second as the first.
+
 #### Scenario: The settings file cannot be read
 - **WHEN** the settings file exists but cannot be parsed
 - **THEN** the user is shown a message naming the settings file, and the application exits reporting failure
@@ -49,6 +54,10 @@ all — and it is most often launched from a login item, where nobody is watchin
 #### Scenario: A resource the tray icon needs is missing
 - **WHEN** an image the tray icon is drawn from cannot be loaded
 - **THEN** the user is shown a message saying it could not start, and the application exits reporting failure
+
+#### Scenario: A non-settings failure raises the same kind of exception a settings failure would
+- **WHEN** startup fails for a reason unrelated to the settings file, and that failure raises an exception of a type also used to report a settings failure
+- **THEN** the user is shown a message saying the application could not start, and nothing in the message names the settings file
 
 #### Scenario: Startup succeeds
 - **WHEN** the application starts normally
