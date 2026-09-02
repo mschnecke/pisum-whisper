@@ -718,11 +718,14 @@ labelled `change:NN`. **Changes 1 through 11 are archived** and their `applicati
 `gemini-transcription`, `text-output`, `dictation-pipeline`, `tray-icon`, `settings-window`,
 `notifications` and `autostart` specs are synced, so read every one of them from `openspec/specs/`
 like any other. Only change 12 (`add-packaging-ci` — `packaging`) is still active, and it is a lone
-`proposal.md` — no design, no tasks and no delta specs — so it is not archivable as it stands. `migrate-tests-to-xunit-v3` is archived as well; it
-carries no number, by the roadmap's own rule that off-sequence work gets a section instead of one.
+`proposal.md` — no design, no tasks and no delta specs — so it is not archivable as it stands.
+`migrate-tests-to-xunit-v3` and `report-startup-failures` are archived as well; they carry no number,
+by the roadmap's own rule that off-sequence work gets a section instead of one. The second added
+`startup-diagnostics` and extended `file-logging` and `global-hotkey`, and all three are synced.
 
-**Changes 8, 10 and 11 were all archived with their manual verification still open** — 8's tasks
-6.1, 6.3 and 6.4, 10's 6.2 to 6.4, and 11's 7.1 to 7.4. Every one of them needs a person at a
+**Changes 8, 10, 11 and `report-startup-failures` were all archived with their manual verification
+still open** — 8's tasks 6.1, 6.3 and 6.4, 10's 6.2 to 6.4, 11's 7.1 to 7.4, and every one of
+`report-startup-failures`'s 7.1 to 7.3. Every one of them needs a person at a
 machine, and the macOS ones need Apple Silicon with Accessibility granted. An archived change here therefore does **not** certify
 that its capability was verified on hardware: what each still owes, and the open design questions
 those runs would settle, stay in that change's archived `design.md` and are reflected nowhere under

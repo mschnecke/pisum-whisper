@@ -87,11 +87,11 @@ Changes **1-11** are implemented and archived under `openspec/changes/archive/`,
 `global-hotkey`, `gemini-transcription`, `text-output`, `dictation-pipeline`, `tray-icon`,
 `settings-window`, `notifications` and `autostart` specs synced into `openspec/specs/`. Change **12**
 has `proposal.md` only; its `specs`, `design` and `tasks` are written when its turn comes.
-`report-startup-failures` is active and fully planned — proposal, design, tasks and three delta specs
-— with nothing implemented; its own section 7 adds three more by-hand checks to the table below when
-it lands, one of which needs Apple Silicon.
+`report-startup-failures` is implemented and archived as well, on 2026-09-02, with its
+`file-logging`, `global-hotkey` and new `startup-diagnostics` specs synced. **None of its three
+by-hand checks has been run**, so they join the table below rather than closing with it.
 
-**Seven archived changes carry unchecked tasks, twenty in total, and they are not all macOS.** This
+**Eight archived changes carry unchecked tasks, twenty-three in total, and they are not all macOS.** This
 section previously named changes 8 to 11 and called that "a departure from how 1-7 were closed".
 Both halves were wrong: changes 1 and 7 are in the same state, so there was no departure — only the
 recording of it changed.
@@ -105,11 +105,12 @@ recording of it changed.
 | 10 `add-settings-window` | 6.2, 6.3, 6.4 | Apple Silicon for 6.2; win-x64 for 6.3 and 6.4 |
 | 11 `add-system-integration` | 7.1, 7.2, 7.3, 7.4 | win-x64 for 7.1; Apple Silicon for 7.2 and the `spikes -- toast` re-run; 7.4 is a headless test plus a glance during 7.1 |
 | `migrate-tests-to-xunit-v3` | 5.4 | win-x64 — confirm Rider still discovers the tests |
+| `report-startup-failures` | 7.1, 7.2, 7.3 | win-x64 for 7.1 and 7.3; Apple Silicon for 7.2. Nothing has been run at all, so the `osascript` dialog has never been drawn |
 
-**Eight of the twenty need nothing but the Windows machine this is developed on**, and a ninth is
-7.4's headless test. Calling the whole of it "one Apple Silicon sitting" is what has kept those
-sitting. Ten do need Apple Silicon and should be done in one pass; one needs a 44.1 kHz input device
-and is not about either platform.
+**Ten of the twenty-three need nothing but the Windows machine this is developed on**, and an
+eleventh is 11's 7.4 headless test. Calling the whole of it "one Apple Silicon sitting" is what has
+kept those sitting. Eleven do need Apple Silicon and should be done in one pass; one needs a 44.1 kHz
+input device and is not about either platform.
 
 **An unchecked box does not mean the work never ran, and this section is where that was learned.**
 Change 1's macOS tasks did run, under issue #15 on an Apple M4, and the results have been in that
