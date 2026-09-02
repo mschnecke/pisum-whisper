@@ -88,8 +88,9 @@ Changes **1-11** are implemented and archived under `openspec/changes/archive/`,
 `settings-window`, `notifications` and `autostart` specs synced into `openspec/specs/`. Change **12**
 has `proposal.md` only; its `specs`, `design` and `tasks` are written when its turn comes.
 `report-startup-failures` is implemented and archived as well, on 2026-09-02, with its
-`file-logging`, `global-hotkey` and new `startup-diagnostics` specs synced. **None of its three
-by-hand checks has been run**, so they join the table below rather than closing with it.
+`file-logging`, `global-hotkey` and new `startup-diagnostics` specs synced. **One of its three
+by-hand checks has partly run** — 7.1's corrupt-settings reproduction, on 2026-09-02, which closed
+issue #20 — so all three join the table below rather than closing with it.
 
 **Eight archived changes carry unchecked tasks, twenty-three in total, and they are not all macOS.** This
 section previously named changes 8 to 11 and called that "a departure from how 1-7 were closed".
@@ -105,7 +106,7 @@ recording of it changed.
 | 10 `add-settings-window` | 6.2, 6.3, 6.4 | Apple Silicon for 6.2; win-x64 for 6.3 and 6.4 |
 | 11 `add-system-integration` | 7.1, 7.2, 7.3, 7.4 | win-x64 for 7.1; Apple Silicon for 7.2 and the `spikes -- toast` re-run; 7.4 is a headless test plus a glance during 7.1 |
 | `migrate-tests-to-xunit-v3` | 5.4 | win-x64 — confirm Rider still discovers the tests |
-| `report-startup-failures` | 7.1, 7.2, 7.3 | win-x64 for 7.1 and 7.3; Apple Silicon for 7.2. Nothing has been run at all, so the `osascript` dialog has never been drawn |
+| `report-startup-failures` | 7.1, 7.2, 7.3 | win-x64 for 7.1 and 7.3; Apple Silicon for 7.2. 7.1's corrupt-settings reproduction ran on 2026-09-02 and closed #20; its other three, and 7.3 at login, are still owed. The `osascript` dialog has never been drawn |
 
 **Ten of the twenty-three need nothing but the Windows machine this is developed on**, and an
 eleventh is 11's 7.4 headless test. Calling the whole of it "one Apple Silicon sitting" is what has
