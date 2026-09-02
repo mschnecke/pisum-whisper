@@ -456,7 +456,17 @@ of this change is to run one and record the result here.
 
 **Does a denied macOS microphone grant present as "no input device"?** Unverified — S2 passed on the
 M4 with the microphone accessible. It decides whether the deferred "Microphone Access Required"
-message ever needs a home, and if so whether `AudioException` needs a category.
+message ever needs a home, and if so whether `AudioException` needs a category. **Attempted
+2026-09-02 (issue #31, task 8/6.4) and abandoned before reaching a denied grant to test against.**
+Microphone access, unlike Accessibility, is tracked in the *user*-level TCC database and attributed
+directly to the app binary's own file path rather than to a responsible parent process —
+`Pisum.Whisper.App` already held its own grant there, separate from Rider's. `tccutil reset
+Microphone <path>` refused it ("No such bundle identifier"): `tccutil` expects a bundle identifier,
+which an unbundled dev build does not have. Writing the revocation directly into the live TCC
+database was ruled out as too risky — it is an actively-managed system security database, not a
+config file, and a manual write while `tccd` holds it open risks corrupting it or leaving it
+inconsistent with the daemon's own state. Revoking it by hand through System Settings → Privacy &
+Security → Microphone was offered and declined for this sitting. Still unverified.
 
 **Should a timed-out or failed dictation keep its audio?** Today the encoded bytes are dropped, as in
 the reference, and the user re-speaks. Retaining them would make a retry possible and is cheap now
