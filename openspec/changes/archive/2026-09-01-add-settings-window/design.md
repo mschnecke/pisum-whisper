@@ -286,7 +286,8 @@ and `AddNativeShell()` registers it, beside `AddNativeOutput()`. This is the fir
 `UseShellExecute = true` on macOS by handing the path to `/usr/bin/open`, which is precisely the
 command the reference's `open_log_folder` runs, so one call covers both targets. That is unusual
 enough for this codebase — every other Platform type is a Windows/macOS pair — that the macOS half is
-verified by hand rather than trusted, in task 6.2.
+verified by hand rather than trusted, in task 6.2. **Verified 2026-09-02, see the macOS run under
+Verification results:** calling the real `SystemShell.OpenFolder` did open Finder at the given path.
 
 The interface exists for one reason: `Process.Start` cannot be faked, and without the seam the
 Logging tab's view model could not be unit tested at all. It is not there for a future second
@@ -618,14 +619,14 @@ anything constructing a real `SettingsStore` over a temp file is `Integration`.
 
 ## Open Questions
 
-1. **Does `TrayIcon.Clicked` fire on macOS when a `Menu` is attached?** On Windows the click and the
-   menu are separate gestures. On macOS a status item with a menu conventionally opens the menu on any
-   click, and Avalonia's `AvnTrayIcon` may never raise `Clicked`. If it does not, the Settings menu
-   item is the macOS entry point and no code changes. Settled by task 6.2.
-2. **Does a window shown by an accessory-policy application take focus?** `Show()` plus `Activate()`
-   is the standard answer; whether it is sufficient with `ShowInDock = false` is not known. Settled by
-   task 6.2, and it is the one question that could force a design change — an application that must
-   call `NSApp.activate(ignoringOtherApps:)` needs a Platform seam this design does not have.
+1. ~~**Does `TrayIcon.Clicked` fire on macOS when a `Menu` is attached?**~~ **Answered 2026-09-02, see
+   the macOS run under Verification results: no.** Clicking the icon opens the menu, matching macOS
+   status-item convention; `Clicked` does not reach `ShowSettings`. The Settings menu item is the sole
+   macOS entry point, exactly the "no code changes" branch this question anticipated.
+2. ~~**Does a window shown by an accessory-policy application take focus?**~~ **Answered 2026-09-02,
+   see the macOS run under Verification results: yes.** `Show()` plus `Activate()` is sufficient —
+   keystrokes landed directly in a field with no click needed first. The design-change branch (an
+   `NSApp.activate(ignoringOtherApps:)` seam) does not apply.
 3. ~~**Is 400 ms right?**~~ **Yes, confirmed by running it — see Verification results.** Chosen, not
    measured, until now; all three observations passed and the constant is unchanged.
 
@@ -643,3 +644,34 @@ change).
 
 **400 ms stands.** All three of open question 3's conditions passed; `SettingsEditor.CommitDelay` is
 unchanged.
+
+### macOS run — 2026-09-02 (issue #31, task 10/6.2)
+
+Run on an Apple M4 (macOS 26.6.2), Debug build launched as the apphost binary directly, `logLevel`
+raised to `debug` mid-session through the window itself (see below).
+
+| # | What was checked | Result |
+|---|---|---|
+| 6.2 / OQ1 | `TrayIcon.Clicked` with a `Menu` attached | **Does not fire** — a click opens the menu; Settings is reached only through the menu item |
+| 6.2 / OQ2 | Keyboard focus on an accessory-policy window's `Show()` + `Activate()` | **PASS** — typed directly into a field with no prior click |
+| 6.2 / Decision 6 | `ISystemShell.OpenFolder` reaches Finder via `UseShellExecute` | **PASS** — a throwaway harness called the real `SystemShell.OpenFolder` directly (no app, no DI); Finder had no windows beforehand and opened exactly one at the given path afterward |
+| 6.2 | Open the window from the tray menu | **PASS** |
+| 6.2 | Change the log level and confirm the next lines obey it | **PASS** — `DBG` lines appeared immediately after committing the change, none before |
+| 6.2 | A real hold-to-record dictation, watching all three icon states | **PASS** — Recording → Transcribing → Idle all logged and observed, `Delivered 82 characters: Pasted.` |
+
+**All three open questions answered, and none forced a design change** — the two live-risk questions
+(`Clicked` firing, and focus on an accessory-policy window) both came back on the safe side. This
+closes every open question `add-settings-window` carried.
+
+**Two items from 6.1's fuller script were attempted but not completed cleanly in this session, and are
+recorded as such rather than as a pass:** recording a new hotkey binding, and adding-then-activating a
+new preset with the tray tooltip following it. Neither produced a settings-file change or a
+`Committing … settings changes.` line, which is consistent with — though not confirmed as caused
+by — `CaptureAsync`'s documented behaviour that a capture is silently cancelled if the window
+deactivates, since the session also switched focus to check the tray icon (OQ1/OQ2) around the same
+time. Both are Core-level, platform-agnostic logic already exercised on Windows (task 4.1's
+tooltip-follows-activation check) and by `SettingsEditorTests`/`PresetsViewModelTests`, so this is not
+treated as a gap in coverage — only as an inconclusive manual attempt, left open rather than marked
+PASS on inference. A momentary "No audio was recorded" failure mid-session, on the same microphone
+that worked moments before and moments after, is recorded for the same reason: not reproduced, not
+explained, not treated as a finding.
