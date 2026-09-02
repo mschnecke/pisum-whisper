@@ -510,6 +510,35 @@ cloned *before* a preset was added would be saved *after* it and would silently 
 per command, one test per command. `SettingsEditorTests.AStaleDraftNeverRevertsAPresetWrittenThroughTheStore`
 is the regression guard for the whole clone decision.
 
+**A write that never reaches disk is now reported, not swallowed.** Neither `SettingsEditor.Commit()`
+nor any of the four `PresetsViewModel` commands used to catch anything: an `IAsyncRelayCommand`'s
+`ICommand.Execute` does not await its `Task`, and `Commit()` itself runs unawaited on a pooled thread,
+so a `SettingsException` from `SettingsStore.Write` — disk full, permission denied, a network drive
+gone from under the home directory — became an unobserved task exception and the window looked like
+the save had worked. `Commit()` now wraps its one `_store.Save(draft)` call in
+`try`/`catch (SettingsException)`, logs at `Error` and calls
+`INotificationService.Notify("Settings Not Saved", exception.Message)` — forced, ignoring
+`showTrayNotifications`, because a save that silently failed is not chatter. `exception.Message` is
+safe to show verbatim: it is `SettingsStore.Write`'s own composed string naming the file, the same one
+`StartupFailure.Describe` already surfaces. `Commit()` deliberately no longer rethrows: `FlushAsync()`
+has exactly one caller (`PresetsViewModel`), so a rethrow would report a *different* tab's flushed
+failure through whichever Presets command happened to trigger the flush, attributing the error to the
+wrong place.
+
+**Presets reverts what it shows on a failed write; the other five tabs don't.**
+`PresetsViewModel`'s four commands route a failed `SavePreset`/`SetActivePreset`/`DeletePreset` through
+a shared `ReportSaveFailure` — log, notify, then `Reload()` unconditionally — because its
+`PresetEntryViewModel` fields are bound directly to the entry being edited, so a failed `SaveAsync`
+would otherwise leave the *displayed* name and prompt as the failed edit while `Store.Current` still
+holds the old value. `Reload()` rebuilds from `Store.Current`, which a failed `Save()` left untouched,
+so the tab reverts to what is actually persisted — the fix for "an edited name still shows the edited
+text as if it had saved" — while `AddAsync`'s typed-but-unsaved fields survive, since `Reload()` never
+touches `NewName`/`NewSystemPrompt`. Audio, General, Hotkey, Logging and Providers write through
+`SettingsEditor.Commit()` instead and get only the notification: nothing reverts their bound fields to
+the persisted value, because `SettingsEditor` has no per-field view state to refresh the way Presets
+does. Neither path retries — the failures issue #37 names, disk-full and permission-denied, are not
+transient the way `GeminiProvider`'s three-attempt retry assumes network errors are.
+
 **Three recorder rules are the view model's, not `CaptureAsync`'s.** A capture with no modifier is
 refused and recording continues; a captured **bare Escape** is the cancel — read from the capture
 rather than from a key event, because both the hook and the focused window see the keystroke in no
@@ -719,17 +748,20 @@ labelled `change:NN`. **Changes 1 through 11 are archived** and their `applicati
 `notifications` and `autostart` specs are synced, so read every one of them from `openspec/specs/`
 like any other. Only change 12 (`add-packaging-ci` — `packaging`) is still active, and it is a lone
 `proposal.md` — no design, no tasks and no delta specs — so it is not archivable as it stands.
-`migrate-tests-to-xunit-v3`, `report-startup-failures` and `fix-startup-ioexception-mislabeling` are
-archived as well; they carry no number, by the roadmap's own rule that off-sequence work gets a
-section instead of one. The second added `startup-diagnostics` and extended `file-logging` and
-`global-hotkey`, and all three are synced. The third closed issue #34, which `report-startup-failures`'s
-own archived `design.md` had already reproduced and deliberately deferred: `SettingsStore.Read` and
-`Write` now both wrap `IOException` and `UnauthorizedAccessException` into `SettingsException`, so
-`StartupFailure.Describe` no longer carries a type-matching arm that mislabels an unrelated I/O
-failure (a missing tray asset's `FileNotFoundException`, issue #34's reproduction) as a settings
-error. It also added a `settings-persistence` requirement that a write failure is reported the same
-way on first launch and on a later save; both deltas — `startup-diagnostics` and
-`settings-persistence` — are synced.
+`migrate-tests-to-xunit-v3`, `report-startup-failures`, `fix-startup-ioexception-mislabeling` and
+`surface-settings-save-failures` are archived as well; they carry no number, by the roadmap's own rule
+that off-sequence work gets a section instead of one. The second added `startup-diagnostics` and
+extended `file-logging` and `global-hotkey`, and all three are synced. The third closed issue #34,
+which `report-startup-failures`'s own archived `design.md` had already reproduced and deliberately
+deferred: `SettingsStore.Read` and `Write` now both wrap `IOException` and `UnauthorizedAccessException`
+into `SettingsException`, so `StartupFailure.Describe` no longer carries a type-matching arm that
+mislabels an unrelated I/O failure (a missing tray asset's `FileNotFoundException`, issue #34's
+reproduction) as a settings error. It also added a `settings-persistence` requirement that a write
+failure is reported the same way on first launch and on a later save; both deltas —
+`startup-diagnostics` and `settings-persistence` — are synced. The fourth closed issue #37 — a settings
+write that never reaches disk was an unobserved task exception, not a report — and its
+`settings-window` delta is the one `SettingsEditor.Commit()` and `PresetsViewModel`'s notify-and-reload
+handling below now implement; it too is synced.
 
 **Changes 8, 10, 11 and `report-startup-failures` were all archived with their manual verification
 still open** — 8's tasks 6.1, 6.3 and 6.4, 10's 6.2 to 6.4, 11's 7.1 to 7.4, and every one of

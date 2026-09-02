@@ -29,7 +29,11 @@ create, and a hotkey it is not being allowed to observe — are reported once th
 report them on. A follow-up fix ([issue #34](https://github.com/mschnecke/pisum-whisper/issues/34))
 corrected that dialog's title: it used to match on the exception's *type*, so an unrelated I/O
 failure — a missing tray icon asset — could be shown as a settings-file error; it is now matched by
-where the failure actually happened.
+where the failure actually happened. A second follow-up ([issue #37](https://github.com/mschnecke/pisum-whisper/issues/37))
+closed the matching gap once the window is already open: a save that failed to reach disk — full,
+permission denied, a network drive gone — used to look like it had worked, because nothing was
+awaiting the write. It is now reported on screen, and a failed preset save reverts to what is actually
+saved rather than continuing to show the edit.
 
 Only **change 12, packaging and CI**, is outstanding: there is no installer, no signed binary and no
 release pipeline, so the application is run from a build.
@@ -84,7 +88,8 @@ working; Quit is on the tray menu.
 
 The window has six tabs — Providers, Presets, Hotkey, Audio, Logging and General. Edits are saved as
 you make them: there is no OK, Cancel or Apply, and they reach the running application without a
-restart, including the hotkey binding and the log level.
+restart, including the hotkey binding and the log level. If a save cannot reach disk, you are told on
+screen rather than the window quietly looking like it worked.
 
 **If it cannot start at all, it says so in a dialog** naming what failed and where the log would be,
 then exits non-zero. Four failures reach it; the two you could plausibly hit are a settings file that

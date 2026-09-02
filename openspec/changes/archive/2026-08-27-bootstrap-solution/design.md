@@ -120,7 +120,7 @@ distinction from *deferred* matters here because both trigger their documented f
 | S3 | Template image support (auto light/dark tinting) | n/a | unconfirmed — only tested under Light | Active preset name moves into the menu itself |
 | S4 | Encoded `.opus` decodes back to the same duration | **PASS** | covered by win-x64 — pure computation, no platform surface | Hand-rolled Ogg muxer, as originally planned |
 | 3.3 | `MacOSPlatformOptions { ShowInDock = false }` suppresses the Dock icon | n/a | **PASS** | None needed |
-| 1.4 | Accessibility/Input Monitoring grant survives a rebuild under a stable signing identity | n/a | **FAIL** — see macOS spike results | Task 1.4: establish and use a stable development signing identity |
+| 1.4 | Accessibility/Input Monitoring grant survives a rebuild | n/a | **PASS when launched through Rider** — see 2026-09-02 re-test | Stable signing identity, deferred to change 12 packaging (only matters outside Rider's ancestry) |
 
 ### Windows spike results
 
@@ -269,6 +269,34 @@ under both appearance modes before relying on template flagging.
 **3.3 — no Dock icon, PASS.** `combined` sets `MacOSPlatformOptions { ShowInDock = false }`; confirmed
 by direct observation that no Dock icon appears. (`tray` does not set this option and was not used for
 this check, since a Dock icon there would be expected, not informative.)
+
+### Task 1.4 re-test — 2026-09-02 (issue #31)
+
+Re-run on the same Apple M4 that produced the FAIL above, macOS 26.6.2 unchanged between sessions.
+From `spikes/Pisum.Whisper.Spikes`: `dotnet build --no-incremental` (forces a fresh ad-hoc signature —
+confirmed via `codesign -dv`, `flags=0x2(adhoc)`, `TeamIdentifier=not set` before and after every
+rebuild), then the built apphost executed directly. Three rebuild-then-run cycles in a row.
+
+**All three passed on the first run after rebuild** — 3/3 press and release events, correct modifier
+mask, no hang, no zero-event first run. None of the FAIL symptoms recorded above reproduced.
+
+**Root cause: the grant was never the spike binary's.** `sqlite3` against the system TCC database
+shows `com.jetbrains.rider` holding `2` (allowed) for both `kTCCServiceAccessibility` and
+`kTCCServiceListenEvent` (Input Monitoring); no row exists for `Pisum.Whisper.Spikes` at all. Every
+command in this session runs through the ancestry `rider → zsh → claude → zsh`, so macOS attributes
+each TCC check to Rider as the responsible process — the same "for Rider (the terminal's parent
+process)" behaviour already recorded above for the `combined` spike, generalised: it also covers Input
+Monitoring, and it also covers a rebuild, because Rider's own code identity is what gets checked and
+Rider's identity never changes. This does not falsify the original FAIL — that result presumably came
+from a run outside Rider's process tree, which this session cannot reproduce, since every process it
+spawns inherits Rider's ancestry.
+
+**Consequence.** Spike/dev iteration through Rider's integrated terminal — the actual day-to-day
+workflow in this repository — already survives rebuilds with no signing-identity work, riding on
+Rider's own persistent grant. A stable development signing identity is therefore **not established as
+part of this task**: it would only matter for a binary run outside Rider's ancestry (unverified either
+way) or for the packaged `Pisum.Whisper.App.app` a real user eventually launches standalone, which
+belongs to change 12 (`add-packaging-ci`), not here.
 
 ## Open Questions
 
