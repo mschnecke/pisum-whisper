@@ -111,6 +111,8 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService, IHostedService, 
 
     public event EventHandler? Released;
 
+    public event EventHandler<HotkeyAvailability>? AvailabilityChanged;
+
     public HotkeyAvailability Availability { get; private set; } = HotkeyAvailability.NotStarted;
 
     public HotkeyChord Chord => _matcher.Chord;
@@ -143,7 +145,7 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService, IHostedService, 
             return;
         }
 
-        Availability = HotkeyAvailability.Failed;
+        SetAvailability(HotkeyAvailability.Failed);
         _logger.LogError(
             "The global hook did not start within {StartTimeoutSeconds} seconds, so the hotkey "
             + "{Binding} is not being observed. On macOS this is what a missing Accessibility grant "
@@ -172,8 +174,48 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService, IHostedService, 
 
     private void ReportEnabled()
     {
-        Availability = HotkeyAvailability.Available;
+        SetAvailability(HotkeyAvailability.Available);
         _logger.LogInformation("Observing the hotkey {Binding}.", _matcher.Chord);
+    }
+
+    /// <summary>
+    /// The one place <see cref="Availability"/> is written, and the only thing that raises
+    /// <see cref="AvailabilityChanged"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Raises only on an actual change, so nothing is told twice about a state that was published
+    /// again — the timed-out start reporting itself late is exactly that case.
+    /// </para>
+    /// <para>
+    /// <b>None of its three call sites is the hook thread</b>, and none may become it: two are
+    /// <see cref="StartAsync"/> or its continuation and the third is <c>RunHookAsync</c>'s catch. A
+    /// subscriber here reaches the notification transport, and this class's standing rule is that
+    /// nothing but matching runs on the hook thread.
+    /// </para>
+    /// <para>
+    /// The handler is guarded for the same reason the edge handlers are, one call site further out:
+    /// <c>RecordUnavailable</c> runs inside a task nobody awaits, so a throw escaping here would
+    /// become an unobserved task exception and would take the log line that follows it with it.
+    /// </para>
+    /// </remarks>
+    private void SetAvailability(HotkeyAvailability availability)
+    {
+        if (Availability == availability)
+        {
+            return;
+        }
+
+        Availability = availability;
+
+        try
+        {
+            AvailabilityChanged?.Invoke(this, availability);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "An availability handler threw.");
+        }
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
@@ -404,7 +446,7 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService, IHostedService, 
         switch (exception.Result)
         {
             case UioHookResult.ErrorAxApiDisabled:
-                Availability = HotkeyAvailability.PermissionNotGranted;
+                SetAvailability(HotkeyAvailability.PermissionNotGranted);
                 _logger.LogError(
                     exception,
                     "The hotkey cannot be observed because Accessibility access has not been granted. "
@@ -413,7 +455,7 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService, IHostedService, 
                 break;
 
             case UioHookResult.ErrorAxApiRevoked:
-                Availability = HotkeyAvailability.PermissionRevoked;
+                SetAvailability(HotkeyAvailability.PermissionRevoked);
                 _logger.LogError(
                     exception,
                     "The hotkey stopped being observed because Accessibility access was withdrawn "
@@ -422,7 +464,7 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService, IHostedService, 
                 break;
 
             default:
-                Availability = HotkeyAvailability.Failed;
+                SetAvailability(HotkeyAvailability.Failed);
                 _logger.LogError(
                     exception,
                     "The hotkey cannot be observed: the global hook failed to start with {Result}.",

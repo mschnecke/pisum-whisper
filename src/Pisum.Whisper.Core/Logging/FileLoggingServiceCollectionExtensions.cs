@@ -77,7 +77,13 @@ public static class FileLoggingServiceCollectionExtensions
                 swept);
         }
 
-        services.AddSerilog(serilog, true);
+        // dispose: false — the caller owns it, and that is load-bearing rather than a detail.
+        // Program holds the out parameter below across the whole of startup and disposes it in its
+        // own finally, so its one catch can write a Fatal line for a container that never finished
+        // building. Putting dispose: true back gives the logger two owners: the container would
+        // dispose it at the end of the using that Program's catch runs inside, and the fatal path
+        // would silently stop writing anything. FileLoggingRegistrationTests guards it.
+        services.AddSerilog(serilog);
         services.AddSingleton(options.Directory);
         services.AddSingleton(levelSwitch);
         services.AddSingleton(monitor);

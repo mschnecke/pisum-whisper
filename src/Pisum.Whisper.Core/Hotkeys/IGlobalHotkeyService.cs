@@ -23,6 +23,29 @@ public interface IGlobalHotkeyService
     /// <summary>Raised when the configured combination stops being fully held.</summary>
     event EventHandler? Released;
 
+    /// <summary>
+    /// Raised when <see cref="Availability"/> changes, carrying the new value.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Access can be withdrawn long after startup — <c>libuiohook</c> reports it by ending its run,
+    /// which is caught far from the <c>StartAsync</c> that returned successfully — so asking is not
+    /// enough. Without this, a binding that stops working is knowable only by opening the settings
+    /// window, which is the wrong audience: from where the user sits the application is simply doing
+    /// nothing.
+    /// </para>
+    /// <para>
+    /// Raised only on an actual change, so publishing the same state again tells nobody twice.
+    /// </para>
+    /// <para>
+    /// <b>Never raised from the hook thread</b>, and no implementation may start doing so. A
+    /// subscriber here draws on screen, and the operating system removes a hook that takes too long
+    /// without saying so — reporting from there would cost the user the hotkey in the course of
+    /// telling them about it.
+    /// </para>
+    /// </remarks>
+    event EventHandler<HotkeyAvailability>? AvailabilityChanged;
+
     /// <summary>Whether the binding is being observed, and if not, why.</summary>
     HotkeyAvailability Availability { get; }
 

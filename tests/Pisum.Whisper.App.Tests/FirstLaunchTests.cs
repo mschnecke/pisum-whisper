@@ -10,7 +10,6 @@ using Pisum.Whisper.App.Tests.Settings;
 using Pisum.Whisper.App.Tests.Views;
 using Pisum.Whisper.Core.Hotkeys;
 using Pisum.Whisper.Core.Logging;
-using Pisum.Whisper.Core.Notifications;
 using Pisum.Whisper.Core.Settings;
 using Pisum.Whisper.Core.Shell;
 using Pisum.Whisper.Core.Transcription;
@@ -117,29 +116,5 @@ public sealed class FirstLaunchTests : SettingsEditorTestBase
             new LogDirectory(Path.Combine(Path.GetTempPath(), "pisum-whisper-tests-logs")),
             A.Fake<ISystemShell>(),
             NullLoggerFactory.Instance);
-    }
-
-    /// <summary>
-    /// Keeps the two kinds apart, so "forced" is asserted rather than assumed — the welcome must not
-    /// be the one message a silenced user never sees.
-    /// </summary>
-    private sealed class RecordingNotificationService : INotificationService
-    {
-        public List<(string Title, string Message)> Forced { get; } = [];
-
-        public List<(string Title, string Message)> Informational { get; } = [];
-
-        public Action? OnNotify { get; set; }
-
-        public void Notify(string title, string message)
-        {
-            Forced.Add((title, message));
-            OnNotify?.Invoke();
-        }
-
-        public void NotifyInformation(string title, string message)
-        {
-            Informational.Add((title, message));
-        }
     }
 }

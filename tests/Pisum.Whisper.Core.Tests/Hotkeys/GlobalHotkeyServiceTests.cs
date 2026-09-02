@@ -267,6 +267,72 @@ public sealed class GlobalHotkeyServiceTests : GlobalHotkeyServiceTestBase
         service.Availability.ShouldBe(HotkeyAvailability.Failed);
     }
 
+    // ---- Task 4.2: a change in whether the binding is observed is published ----
+
+    /// <summary>
+    /// Asking is not enough: access can be withdrawn long after <c>StartAsync</c> returned, and the
+    /// only place that asks today is a settings window the affected user has no reason to open.
+    /// </summary>
+    [Fact]
+    public async Task AvailabilityChanged_FiresOnceForARealTransition()
+    {
+        var observed = new List<HotkeyAvailability>();
+        Service.AvailabilityChanged += (_, availability) => observed.Add(availability);
+
+        await StartAsync();
+
+        observed.ShouldBe([HotkeyAvailability.Available]);
+        Service.Availability.ShouldBe(HotkeyAvailability.Available);
+    }
+
+    [Fact]
+    public async Task AvailabilityChanged_CarriesTheNewValue()
+    {
+        Provider.RunResult = UioHookResult.ErrorAxApiRevoked;
+
+        HotkeyAvailability? carried = null;
+        Service.AvailabilityChanged += (_, availability) => carried = availability;
+
+        await StartAsync();
+
+        carried.ShouldBe(HotkeyAvailability.PermissionRevoked);
+    }
+
+    /// <summary>
+    /// A start that timed out and then succeeded reports itself, so the same value genuinely does
+    /// get published twice — and the user must be told once.
+    /// </summary>
+    [Fact]
+    public async Task AvailabilityChanged_DoesNotFireWhenTheSameValueIsPublishedAgain()
+    {
+        var observed = new List<HotkeyAvailability>();
+        Service.AvailabilityChanged += (_, availability) => observed.Add(availability);
+
+        await StartAsync();
+
+        // The provider is already enabled, so this is the second publication of Available.
+        await StartAsync();
+
+        observed.ShouldBe([HotkeyAvailability.Available]);
+    }
+
+    /// <summary>
+    /// A subscriber here reaches the notification transport, and <c>RecordUnavailable</c> runs inside
+    /// a task nobody awaits — so a throw that escaped would be an unobserved task exception and would
+    /// take the log line explaining the failure with it.
+    /// </summary>
+    [Fact]
+    public async Task AThrowingAvailabilityHandler_DoesNotCostTheLogLine()
+    {
+        Provider.RunResult = UioHookResult.ErrorAxApiDisabled;
+        Service.AvailabilityChanged += (_, _) => throw new InvalidOperationException("presenter defect");
+
+        await Should.NotThrowAsync(StartAsync);
+
+        Service.Availability.ShouldBe(HotkeyAvailability.PermissionNotGranted);
+        WaitForLogMessageContaining("has not been granted").ShouldBeTrue();
+    }
+
     // ---- Task 3.6: rebinding without restarting the hook ----
 
     [Fact]

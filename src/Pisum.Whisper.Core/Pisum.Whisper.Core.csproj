@@ -15,11 +15,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="Pisum.Whisper.Core.Tests"/>
-    <!-- For FileLoggingOptions.SinkOverride alone: change 10's logging-rule tests put the same
-         RecordingSink behind AddFileLogging that the other suites use, and the override is the
-         only way in. -->
+    <InternalsVisibleTo Include="Pisum.Whisper.App"/>
     <InternalsVisibleTo Include="Pisum.Whisper.App.Tests"/>
+    <InternalsVisibleTo Include="Pisum.Whisper.Core.Tests"/>
   </ItemGroup>
 
 </Project>

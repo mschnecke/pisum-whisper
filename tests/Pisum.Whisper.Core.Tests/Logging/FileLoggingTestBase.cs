@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Pisum.Whisper.Core.Logging;
 using Pisum.Whisper.Core.Settings;
+using ILogger = Serilog.ILogger;
 
 /// <summary>
 /// A temporary home directory and a host built the way the application builds one, so these tests
@@ -13,6 +14,8 @@ using Pisum.Whisper.Core.Settings;
 public abstract class FileLoggingTestBase : IDisposable
 {
     private readonly string _home = string.Empty;
+
+    private readonly List<ILogger> _loggers = [];
 
     protected LogDirectory Logs { get; private set; } = new();
 
@@ -27,6 +30,15 @@ public abstract class FileLoggingTestBase : IDisposable
 
     public void Dispose()
     {
+        // The logger is disposed here because AddFileLogging registers it with dispose: false — the
+        // caller owns it, which in the application is Program and here is this base. Leaving it to
+        // the host would leave an asynchronous worker holding the log file open while the directory
+        // below is deleted.
+        foreach (var logger in _loggers)
+        {
+            (logger as IDisposable)?.Dispose();
+        }
+
         Directory.Delete(_home, true);
     }
 
@@ -42,7 +54,8 @@ public abstract class FileLoggingTestBase : IDisposable
     protected IHost BuildHost(FileLoggingOptions options)
     {
         var builder = Host.CreateApplicationBuilder();
-        builder.Services.AddFileLogging(options, out _);
+        builder.Services.AddFileLogging(options, out var logger);
+        _loggers.Add(logger);
         builder.Services.AddSingleton(provider =>
             new SettingsStore(provider.GetRequiredService<ILogger<SettingsStore>>(), SettingsPath));
 

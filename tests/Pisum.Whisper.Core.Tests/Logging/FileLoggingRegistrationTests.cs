@@ -79,24 +79,59 @@ public sealed class FileLoggingRegistrationTests : FileLoggingTestBase
         sink.Messages.ShouldBe(["Past the level switch."]);
     }
 
+    /// <summary>
+    /// The Serilog logger belongs to whoever called <c>AddFileLogging</c>, not to the container, and
+    /// disposing it is what drains the asynchronous sink rather than discarding its queue.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is the guard on <c>AddSerilog(serilog, false)</c>. The ownership is invisible on the
+    /// success path — the logger is disposed either way, a line later — which is exactly why it needs
+    /// a test: <c>Program.Main</c>'s one catch writes its <c>Fatal</c> line into this logger for a
+    /// container that never finished building, and restoring <c>dispose: true</c> would give the
+    /// logger two owners and silently stop the fatal path writing anything.
+    /// </para>
+    /// <para>
+    /// It replaces a test that asserted the host drained the queue. That was true when the container
+    /// owned the logger and is not the contract any more; what has to hold now is the two assertions
+    /// below.
+    /// </para>
+    /// </remarks>
     [Fact]
-    public async Task DisposingTheHost_DrainsTheQueueRatherThanDiscardingIt()
+    public void DisposingTheLogger_DrainsTheQueueRatherThanDiscardingIt()
     {
-        // AddSerilog defaults to dispose: false, which throws the queue away instead of draining it.
-        // Measured against a clean shutdown, that default leaves an empty file.
         const int events = 500;
-        var host = BuildHost(new FileLoggingOptions {Directory = Logs});
-        var logger = host.Services.GetRequiredService<ILogger<FileLoggingRegistrationTests>>();
+        var services = new ServiceCollection();
+        services.AddFileLogging(new FileLoggingOptions {Directory = Logs}, out var logger);
 
-        host.Start();
         for (var index = 0; index < events; index++)
         {
-            logger.LogInformation("Event {Index}.", index);
+            logger.Information("Event {Index}.", index);
         }
 
-        await host.StopAsync(TimeSpan.FromSeconds(5));
-        host.Dispose();
+        // The Fatal line Program writes on the way out, over a sink that has a queue behind it.
+        logger.Fatal(new InvalidOperationException("boom"), "Startup failed: {FailureTitle}", "Startup Error");
 
-        File.ReadAllLines(Logs.LogFilePath).Count(line => line.Contains("Event ")).ShouldBe(events);
+        ((IDisposable) logger).Dispose();
+
+        var written = File.ReadAllLines(Logs.LogFilePath);
+        written.Count(line => line.Contains("Event ")).ShouldBe(events);
+        written.ShouldContain(line => line.Contains("Startup failed: Startup Error"));
+    }
+
+    [Fact]
+    public void TheContainerDoesNotDisposeTheLogger()
+    {
+        // Program builds the container inside the try its catch belongs to, so a container that
+        // owned the logger would have closed it before the Fatal line was written.
+        var services = new ServiceCollection();
+        services.AddFileLogging(new FileLoggingOptions {Directory = Logs}, out var logger);
+
+        ((IDisposable) services.BuildServiceProvider()).Dispose();
+
+        logger.Fatal("Written after the container has gone.");
+        ((IDisposable) logger).Dispose();
+
+        File.ReadAllText(Logs.LogFilePath).ShouldContain("Written after the container has gone.");
     }
 }
