@@ -53,4 +53,45 @@ public sealed class AppleScriptEscapingTests
         // path — is the case that would run the string on into the rest of the script.
         AppleScript.Escape(@"C:\logs\").ShouldBe(@"C:\\logs\\");
     }
+
+    /// <summary>
+    /// A raw line break ends an AppleScript statement, and the whole script is one <c>-e</c>
+    /// argument — so an unescaped one is a syntax error and no dialog at all, which is the exact
+    /// failure this function exists to prevent.
+    /// </summary>
+    /// <remarks>
+    /// This is not a hypothetical input. <c>StartupFailure.Describe</c> ends <b>every</b> message it
+    /// produces with a blank line and the log path, so without this the macOS dialog would never
+    /// appear for any startup failure.
+    /// </remarks>
+    [Fact]
+    public void ALineBreakBecomesAnAppleScriptEscapeRatherThanEndingTheStatement()
+    {
+        AppleScript.Escape("could not start.\n\nThe log is at /tmp/x.log.")
+            .ShouldBe(@"could not start.\n\nThe log is at /tmp/x.log.");
+    }
+
+    [Fact]
+    public void AWindowsLineEndingBecomesOneEscapeRatherThanTwo()
+    {
+        AppleScript.Escape("first\r\nsecond").ShouldBe(@"first\nsecond");
+    }
+
+    [Fact]
+    public void ALoneCarriageReturnIsEscapedToo()
+    {
+        AppleScript.Escape("first\rsecond").ShouldBe(@"first\nsecond");
+    }
+
+    /// <summary>
+    /// The ordering guard: the backslash pass runs first, so the backslash a line break introduces
+    /// is AppleScript's own escape and is not doubled — while a literal backslash followed by the
+    /// letter n stays literal text and does not become a line break.
+    /// </summary>
+    [Fact]
+    public void ALiteralBackslashNIsNotConfusedWithALineBreak()
+    {
+        AppleScript.Escape(@"C:\new\thing").ShouldBe(@"C:\\new\\thing");
+        AppleScript.Escape("a\nb").ShouldBe(@"a\nb");
+    }
 }

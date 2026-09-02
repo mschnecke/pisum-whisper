@@ -122,11 +122,11 @@ which is why every class deriving `DictationTestBase`, `FileLoggingTestBase` or
 `GlobalHotkeyServiceTestBase` is one: those bases create a temp home in their constructor.
 `Unit` means neither; in-memory objects and fakes only, including the Gemini tests, which drive a
 real `HttpClient` over a fake handler and never reach the network. The split is 28 / 55 / 4 classes and
-219 / 393 / 4 tests — they sum to 616, so exactly one category applies to every test.
+223 / 393 / 4 tests — they sum to 620, so exactly one category applies to every test.
 
 ```bash
-dotnet test Pisum.Whisper.slnx --filter-trait Category=Unit          # 219, no I/O at all
-dotnet test Pisum.Whisper.slnx --filter-not-trait Category=Manual    # 612, what CI should run
+dotnet test Pisum.Whisper.slnx --filter-trait Category=Unit          # 223, no I/O at all
+dotnet test Pisum.Whisper.slnx --filter-not-trait Category=Manual    # 616, what CI should run
 ```
 
 Keep the rule mechanical when adding a class: if its constructor or its base's reaches
@@ -688,6 +688,17 @@ run** (the change's task 7.2, which belongs to the sitting changes 8 to 11 alrea
 `[SupportedOSPlatform("macos")]`, and calling a macOS-only member from an unguarded test is a CA1416
 error — which would put the one part of the macOS half Windows can verify out of reach of the tests
 that justify it.
+
+**`AppleScript.Escape` must escape line breaks, not only quotes and backslashes.** An AppleScript
+string literal cannot span lines and the whole script is one `-e` argument, so a raw line break is a
+syntax error, `osascript` draws nothing, and `Report` swallows the non-zero exit — the silent total
+failure the escaping exists to prevent. This is not a hypothetical input:
+`StartupFailure.Describe` ends *every* message with a blank line and the log path, so dropping the
+newline passes breaks the macOS dialog for **all** four fatal cases at once, and does it on the one
+platform whose verification is by hand. The order is load-bearing — backslashes first, so the
+backslash each `\n` introduces is AppleScript's own escape rather than a doubled literal, and CRLF
+before the single characters so a Windows line ending is not two blank lines.
+`AppleScriptEscapingTests` covers all of it.
 
 **A parse failure's message is passed through unchanged**, and that was measured rather than assumed.
 `SettingsException` embeds `JsonException.Message` and the settings file holds API keys in plaintext,

@@ -12,24 +12,40 @@ namespace Pisum.Whisper.Platform.Diagnostics;
 /// are its whole justification.
 /// </para>
 /// <para>
-/// Getting it wrong fails silently and totally: an unescaped quote or backslash makes the script a
-/// syntax error, <c>osascript</c> exits without drawing anything, and the user sees nothing — which
-/// is precisely the condition this capability exists to prevent. Both characters arrive in practice,
-/// because <c>StartupFailure.Describe</c> passes exception messages through and those quote file
-/// names and carry Windows paths.
+/// Getting it wrong fails silently and totally: an unescaped quote, backslash or <b>line break</b>
+/// makes the script a syntax error, <c>osascript</c> exits without drawing anything, and the user
+/// sees nothing — which is precisely the condition this capability exists to prevent. All three
+/// arrive in practice: <c>StartupFailure.Describe</c> passes exception messages through, and those
+/// quote file names and carry Windows paths, while <b>every</b> message it produces ends with a
+/// blank line and the log path.
 /// </para>
 /// </remarks>
 internal static class AppleScript
 {
     /// <summary>Escapes <paramref name="value"/> into an AppleScript string literal's contents.</summary>
     /// <remarks>
+    /// <para>
     /// The backslash is replaced first. The other order would escape the backslashes introduced by
     /// escaping the quotes, and the literal would close early.
+    /// </para>
+    /// <para>
+    /// <b>The line breaks are not optional.</b> An AppleScript string literal cannot span lines — a
+    /// raw line break ends the statement — and the whole script is passed as one <c>-e</c> argument,
+    /// so a message containing one is a syntax error rather than a two-line dialog. Since
+    /// <c>StartupFailure.Describe</c> always appends the log path after a blank line, that is every
+    /// message this ever receives. They are replaced <em>after</em> the backslash pass so the
+    /// backslash each one introduces is AppleScript's own <c>\n</c> escape and is not doubled into a
+    /// literal one; CRLF is matched before the single characters so a Windows line ending does not
+    /// become two blank lines.
+    /// </para>
     /// </remarks>
     internal static string Escape(string value)
     {
         return value
             .Replace("\\", "\\\\", StringComparison.Ordinal)
-            .Replace("\"", "\\\"", StringComparison.Ordinal);
+            .Replace("\"", "\\\"", StringComparison.Ordinal)
+            .Replace("\r\n", "\\n", StringComparison.Ordinal)
+            .Replace("\r", "\\n", StringComparison.Ordinal)
+            .Replace("\n", "\\n", StringComparison.Ordinal);
     }
 }
