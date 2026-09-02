@@ -146,17 +146,26 @@ AppleScript escaping; the dialog itself is verified by hand in section 7.
 
 ## 6. Documentation
 
-- [ ] 6.1 Update `CLAUDE.md`. Add a *Startup diagnostics* section beside the existing capability
-  sections carrying (a) the two transports and that they are split by **when** a failure happens rather
-  than by how bad it is; (b) that `IFatalErrorReporter` is constructed rather than registered, and why
-  — one of its call sites is the container failing to build; (c) that `Program` owns the Serilog logger
-  now, and that restoring `dispose: true` silently breaks the fatal path; (d) that `using var host`
-  must stay out of the `try`; and (e) that a test calling `Report` on Windows hangs the suite on a
-  modal dialog. **And correct the *Notifications and autostart* section's closing paragraph**, which
-  says the startup gap and `HotkeyAvailability.Failed` "stay log-and-unwind" and want "its own
-  proposal" — this change is that proposal, so the paragraph is false the moment this lands. Verify:
-  all five are written down, the stale paragraph is gone, and `git show --stat` confirms the
-  `CLAUDE.md` change lands with the code it describes rather than after it.
+- [x] 6.1a Correct the *Notifications and autostart* section's closing paragraph in `CLAUDE.md`, which
+  said the startup gap and `HotkeyAvailability.Failed` "stay log-and-unwind" and want "its own
+  proposal". That proposal exists now, so the paragraph was stale the moment this change was written.
+  Point it at `report-startup-failures`, saying plainly that it is planned and **not implemented** and
+  that until it lands the rest of the paragraph still describes the code. **Split out of 6.1b and done
+  first because it is the only half that is true today**: it describes the tree as it stands and makes
+  no claim about code that does not exist. Verify: the stale sentence is gone, the replacement says
+  "not implemented", and nothing in it names a type that is not in `src/`.
+- [ ] 6.1b Add a *Startup diagnostics* section to `CLAUDE.md` beside the existing capability sections,
+  carrying (a) the two transports and that they are split by **when** a failure happens rather than by
+  how bad it is; (b) that `IFatalErrorReporter` is constructed rather than registered, and why — one of
+  its call sites is the container failing to build; (c) that `Program` owns the Serilog logger now, and
+  that restoring `dispose: true` silently breaks the fatal path; (d) that `using var host` must stay
+  out of the `try`; and (e) that a test calling `Report` on Windows hangs the suite on a modal dialog.
+  **This cannot be done before the code exists.** Four of those five describe behaviour of types that
+  are not written, and `CLAUDE.md` describes the code rather than the plan — a section claiming them
+  early is the same defect as a commit message claiming an implementation that has not started, and
+  harder to catch, because nobody diffs `CLAUDE.md` against `src/`. Verify: all five are written down,
+  and `git show --stat` confirms the `CLAUDE.md` change lands **in the same commit** as the code it
+  describes.
 - [x] 6.2 Update `openspec/ROADMAP.md`. Add `report-startup-failures` to the *Off-sequence changes*
   table with what it is and what it blocks (nothing — change 12 does not depend on it), since the
   roadmap's own standing decision is that off-sequence work gets a section rather than a number.

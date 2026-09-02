@@ -615,7 +615,12 @@ this capability closes that. A corrupt settings file (issue #20) and a `Validate
 happen in `Main` before `StartWithClassicDesktopLifetime`, so a posted job is enqueued into a loop
 that is never started; a missing tray asset throws out of the `App` constructor. Those stay
 log-and-unwind, and so does `HotkeyAvailability.Failed`, which change 9 deferred here and change 11
-deferred again — it is a startup condition rather than a dictation failure and wants its own proposal.
+deferred again — it is a startup condition rather than a dictation failure and wanted its own
+proposal. **That proposal now exists** as the off-sequence `report-startup-failures`, which is fully
+planned and **not implemented**: a native modal dialog for the four failures that prevent startup,
+and these degraded conditions reported from `App.OnFrameworkInitializationCompleted` beside
+`ShowFirstLaunch` rather than where they are discovered. Until it lands, everything in this paragraph
+still describes the code.
 
 ## Spec-driven workflow (OpenSpec)
 
