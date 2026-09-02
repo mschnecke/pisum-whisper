@@ -396,7 +396,8 @@ change 12's signing to land first.
 
 Run on 2026-08-31 on win-x64 (Windows 11 Pro 10.0.26200) through a throwaway harness in the
 scratchpad that drives the real `WindowsClipboard`, `WindowsPasteProbe`, `TextOutput` and
-`EventSimulator` against real windows.
+`EventSimulator` against real windows. **No macOS run had happened at the time**, so every osx-arm64
+row below was still open; tasks 3.6 and 5.4 are closed below, task 3.5 remains unticked.
 
 | # | What was checked | Result |
 |---|---|---|
@@ -422,8 +423,29 @@ select-all/copy read-back that this harness can use.
 - *Clipboard history exclusion (3.3).* `HKCU\Software\Microsoft\Clipboard\EnableClipboardHistory` is
   not set on this machine, so Win+V retains nothing from any application and the check would pass
   vacuously. It needs a machine with clipboard history switched on.
-- *Everything macOS except 5.4 (3.5, 3.6).* No Apple Silicon host was available to this run; 5.4 is
-  covered by the macOS run below.
+- *Everything macOS except 3.6 and 5.4 (3.5).* No Apple Silicon host was available to this run; 3.6
+  and 5.4 are covered by the macOS runs below.
+
+### macOS run — 2026-09-02 (issue #31, task 7/3.6)
+
+Run on an Apple M4 (macOS 26.6.2). `MacOsPasteProbe.CanPaste()` is a direct, argument-free
+`AXIsProcessTrusted()` P/Invoke with no exception path (`src/Pisum.Whisper.Platform/Output/MacOsPasteProbe.cs`)
+and no existing test exercises the real call, so this checks the actual OS answer in both states
+rather than the DI wiring `NativeOutputRegistrationTests` already covers.
+
+A throwaway console harness in the scratchpad referenced `Pisum.Whisper.Platform` directly and
+printed `new MacOsPasteProbe().CanPaste()` — no app, no DI container.
+
+| # | What was checked | Result |
+|---|---|---|
+| 3.6 | `CanPaste()` with Accessibility granted (run through Rider's terminal, which holds the grant — see task 1.4) | **PASS** — `True` |
+| 3.6 | `CanPaste()` without Accessibility (the same built binary, run from a plain `Terminal.app` that has never been granted) | **PASS** — `False` |
+
+Neither run produced a system Accessibility prompt, matching the code: `AXIsProcessTrusted()` takes
+no prompt option. Both answers match `MacOsPasteProbe`'s own doc comment — "definitive rather than
+heuristic" — with no crash and no exception in either state. This closes 3.6; `TextOutput`'s handling
+of a `false` result (skip the paste, keep the clipboard write, return `ClipboardOnly`) is exercised by
+`TextOutputTestBase`'s `FakePasteProbe` already and was not re-derived here.
 
 ### macOS run — 2026-09-02 (issue #31, task 7/5.4)
 
