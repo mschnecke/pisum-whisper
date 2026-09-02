@@ -325,6 +325,17 @@ the process does not vanish, which no headless test observes.
   to build.
 - **A fourth tray icon state for the degraded cases.** Rejected by change 9, and it would say nothing
   at the moment [5] is discovered, because the tray icon does not exist yet either.
+- **Splitting this into two changes, one per transport.** The seam is real and unambiguous — the fatal
+  half depends on nothing and closes issue #20 alone, the degraded half depends on change 11 — and it
+  was weighed rather than overlooked. It is rejected on two counts. The four fatal cases and the two
+  degraded ones are observed in the same launch cycle, so splitting turns one by-hand pass into two on
+  each platform, against a verification queue that already carries twenty items across seven archived
+  changes. And decision 1 only holds with both halves in view: the point that the transports are split
+  by *when* a failure happens rather than by how bad it is cannot be made by either half alone, and
+  each change would inherit half a table and none of the argument. **What the split was wanted for is
+  available without it** — tasks 1.1 to 3.2 are ordered first, depend on nothing in sections 4 and 5,
+  and close issue #20 on their own, so the fatal half can land as its own commit or pull request inside
+  this one change.
 
 ## Risks / Trade-offs
 
