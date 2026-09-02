@@ -16,6 +16,7 @@ internal static class Program
             "notify" => await NotifySpike.RunAsync(),
             "toast" => await ToastSpike.RunAsync(),
             "combined" => await CombinedSpike.RunAsync(),
+            "fatal" => await FatalSpike.RunAsync(args),
             _ => Usage(spike),
         };
     }

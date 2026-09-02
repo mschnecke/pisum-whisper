@@ -462,3 +462,20 @@ message ever needs a home, and if so whether `AudioException` needs a category.
 the reference, and the user re-speaks. Retaining them would make a retry possible and is cheap now
 and awkward later — but it is new scope, with a place to put the file and a lifetime to decide. Not
 taken here; recorded so the decision is visible rather than implicit.
+
+## Verification results
+
+Run on 2026-09-02 on win-x64 (Windows 11 Pro 10.0.26200) under `dotnet run --project src/Pisum.Whisper.App`
+(Debug), as task 6.1 of settle-win-x64-verification-debt. The configured provider's model needed
+changing during this run — `gemini-flash-lite-latest` returned Gemini 400 `INVALID_ARGUMENT` on the
+first attempt, and `gemini-2.5-flash`, `gemini-2.5-flash-lite` and `gemini-pro-latest` were also tried
+(404, 404 and 429 respectively) before `gemini-3-flash-preview` succeeded; that is a provider
+configuration detail external to this codebase, not a pipeline defect.
+
+| # | What was checked | Result |
+|---|---|---|
+| 6.1 | Hold-to-record: hotkey held, spoken, released, into Notepad with known text pre-loaded on the clipboard | **PASS** — a 3.2 s recording (153600 samples, Opus); the log's delivery line reads `Delivered 44 characters: Pasted.`; the known clipboard text was back afterwards |
+| 6.1 | Toggle mode: hotkey pressed to start, spoken, pressed again to stop, same setup | **PASS** — a 4.4 s recording (212640 samples, Opus); `Delivered 45 characters: Pasted.`; clipboard restored |
+
+No transcript text is recorded above, per this change's own logging rules — only durations, sample
+counts and character counts, all read from the log.

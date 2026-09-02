@@ -175,10 +175,13 @@ AppleScript escaping; the dialog itself is verified by hand in section 7.
 
 ## 7. Verification
 
-- [ ] 7.1 Verify the fatal half on win-x64 by hand, following issue #20's own reproduction. For each of
+- [x] 7.1 Verify the fatal half on win-x64 by hand, following issue #20's own reproduction. For each of
   the four: corrupt `~/.pisum-whisper.json` and launch; make the settings file unwritable and launch
   with it absent so `Load` tries to create it; comment out `AddNativeOutput` to fail `ValidateOnBuild`;
-  rename a `tray-*.png` in the build output. In every case confirm a dialog appears naming what
+  ~~rename a `tray-*.png` in the build output~~ **correction (settle-win-x64-verification-debt,
+  Decision 6): the build output holds no `.png` at all — `Assets\**` are `AvaloniaResource` items
+  compiled into `Pisum.Whisper.App.dll` — so the reproduction moves
+  `src/Pisum.Whisper.App/Assets/tray-idle.png` out of the source tree instead.** In every case confirm a dialog appears naming what
   failed, that dismissing it exits the process with code 1, and that the log file has gained a `Fatal`
   line — the last of which is the half issue #20 says is missing today. Do this against a **Release**
   build launched from Explorer, not `dotnet run`, because a debug build has a console and the whole

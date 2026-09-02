@@ -438,8 +438,28 @@ exception on a stderr nothing reads.
 **What was disclosed is what 1.1 predicted.** The dialog and the log quote the one offending character
 (`'B'`) and name the property (`$.hotkey`); no value from the file appears in either.
 
-**Three reproductions of 7.1 were not run, and the login-time half of 7.3 was not either.** An
-unwritable settings file with none present, `AddNativeOutput` commented out to fail `ValidateOnBuild`,
-and a renamed `tray-*.png` all remain, as does whether the dialog is foreground when the process is
-started by the `Run` key at login rather than by something already holding the foreground. All four
-are tracked on issue #30.
+### The remaining three reproductions of 7.1, run 2026-09-02 (settle-win-x64-verification-debt, tasks 5.1–5.3)
+
+Against a Release build of `change/settle-win-x64-verification-debt` at `c40a1f3` — no code differs
+from `main` at that commit — driven by `spikes -- fatal <exe> <title>` (launch, wait for a matching
+window, post `WM_CLOSE`, wait for exit, read the newest `[FTL]` line), added by task 5.1 and kept
+under `spikes/` rather than thrown away, per this change's own task 7.1 standing decision.
+
+| # | What was checked | Result |
+|---|---|---|
+| 7.1 | `~/.pisum-whisper.json` moved aside and replaced with a directory of the same name, then launched | **PASS** — a `Settings Error` dialog naming the path; dismissing it exits with code 1; the log gains `[FTL] Startup failed: Settings Error` with `System.UnauthorizedAccessException: Access to the path is denied.` at `SettingsStore.Write`'s `File.Move`. **Answers open question 8: it is `UnauthorizedAccessException`, not `IOException`.** The directory was removed, the leftover `.tmp` (present) was removed, and the file was restored and re-hashed to match the 1.2 backup |
+| 7.1 | `AddNativeOutput()` commented out in `Program.BuildHost`, built Release, launched | **PASS** — a `Startup Error` dialog ("Pisum Whisper could not start."); dismissing it exits with code 1; the log gains `[FTL] Startup failed: Startup Error` with a `System.AggregateException` from `ValidateOnBuild` naming `Pisum.Whisper.Core.Output.ISystemClipboard` as the type that could not be resolved, for both `ITextOutput` and `DictationOrchestrator`. Reverted with `git checkout`; Release rebuilt from the clean tree before the next reproduction |
+| 7.1 | `src/Pisum.Whisper.App/Assets/tray-idle.png` moved out of the tree, built Release, launched | **FAIL of the prediction, not of the application.** No `Startup Error` dialog appeared — the driver's 15 s wait for that title timed out. The log shows the crash happened exactly as predicted, `System.IO.FileNotFoundException: The resource avares://Pisum.Whisper.App/Assets/tray-idle.png could not be found.` at `App.LoadIcon` in the `App` constructor — but **`StartupFailure.Describe` mislabels it**: `FileNotFoundException` is an `IOException`, so it matches the `UnauthorizedAccessException or IOException` arm meant for `SettingsStore.Write`, and the dialog shown is actually titled **`Settings Error`** reading "The settings file could not be written: The resource avares://Pisum.Whisper.App/Assets/tray-idle.png could not be found." — a wrong, misleading message for a failure that has nothing to do with the settings file. This is a genuine defect in `StartupFailure.Describe`'s exception matching, not limited to this reproduction: **any** `IOException` raised during startup for a reason other than writing the settings file would be mislabeled the same way. Recorded here rather than fixed — out of this change's scope, which is verification plus the one gate `Present` needed. Tracked as issue #34. The file was moved back and Release rebuilt from the clean tree; `git status` was clean apart from the spike before and after |
+
+**All four reproductions of 7.1 have now run.** Three passed exactly as predicted; the fourth
+disclosed a labelling defect in `StartupFailure.Describe` rather than failing to crash. Per this
+change's Decision 1, a box is ticked when the check ran, not when it passed — 7.1 is ticked with this
+row recording the discrepancy. `report-startup-failures` task 7.1's own text said "rename a `tray-*.png`
+in the build output"; that is corrected in `tasks.md` (settle-win-x64-verification-debt task 5.3),
+since the build output holds no `.png` at all — `Assets\**` are `AvaloniaResource` items compiled into
+`Pisum.Whisper.App.dll`, so the reproduction moves the source file instead.
+
+**The login-time half of 7.3 and all of 7.2 remain open**, as does whether the dialog is foreground
+when the process is started by the `Run` key at login rather than by something already holding the
+foreground — the login-time half of 7.3 is task 5.4 of settle-win-x64-verification-debt; 7.2 needs
+Apple Silicon and is tracked on issue #31.

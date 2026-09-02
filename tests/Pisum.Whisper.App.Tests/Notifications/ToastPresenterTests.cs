@@ -3,6 +3,8 @@ namespace Pisum.Whisper.App.Tests.Notifications;
 using System.Diagnostics;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Pisum.Whisper.App.Notifications;
 using Shouldly;
 
@@ -28,7 +30,7 @@ public sealed class ToastPresenterTests
     [AvaloniaFact]
     public void PresentReturnsBeforeTheWindowExists()
     {
-        var presenter = new ToastPresenter(Dwell);
+        var presenter = new ToastPresenter(Dwell, NullLogger<ToastPresenter>.Instance);
 
         presenter.Present("Recording Error", "No input device found.");
 
@@ -47,7 +49,7 @@ public sealed class ToastPresenterTests
     [AvaloniaFact]
     public async Task PresentCompletesWhenCalledFromANonUiThread()
     {
-        var presenter = new ToastPresenter(Dwell);
+        var presenter = new ToastPresenter(Dwell, NullLogger<ToastPresenter>.Instance);
 
         await Task.Run(() => presenter.Present("Authentication Error", "The configured key was rejected."));
 
@@ -61,7 +63,7 @@ public sealed class ToastPresenterTests
     [AvaloniaFact]
     public void ThreeStackAndAFourthClosesTheOldest()
     {
-        var presenter = new ToastPresenter(Dwell);
+        var presenter = new ToastPresenter(Dwell, NullLogger<ToastPresenter>.Instance);
 
         for (var index = 0; index < 4; index++)
         {
@@ -79,7 +81,7 @@ public sealed class ToastPresenterTests
     [AvaloniaFact]
     public async Task ANotificationGoesAwayOnItsOwn()
     {
-        var presenter = new ToastPresenter(Dwell);
+        var presenter = new ToastPresenter(Dwell, NullLogger<ToastPresenter>.Instance);
 
         presenter.Present("Paste Failed", "The text was copied to the clipboard.");
         Dispatcher.UIThread.RunJobs();
@@ -93,7 +95,7 @@ public sealed class ToastPresenterTests
     [AvaloniaFact]
     public void CloseAllRemovesEveryLiveNotification()
     {
-        var presenter = new ToastPresenter(TimeSpan.FromMinutes(5));
+        var presenter = new ToastPresenter(TimeSpan.FromMinutes(5), NullLogger<ToastPresenter>.Instance);
 
         presenter.Present("Network Error", "the provider could not be reached");
         presenter.Present("Rate Limit Error", "the provider is overloaded");
@@ -103,6 +105,40 @@ public sealed class ToastPresenterTests
         presenter.CloseAll();
 
         presenter.LiveCount.ShouldBe(0);
+    }
+
+    /// <summary>
+    /// Task 4.3 (settle-win-x64-verification-debt) — the readiness gate: a notification raised for a
+    /// UI thread that owns no dispatcher yet is dropped rather than creating one on the calling
+    /// thread, which is what a pooled-thread <c>Present</c> before Avalonia's initialisation would
+    /// otherwise do.
+    /// </summary>
+    [Fact]
+    public void PresentBeforeTheUiThreadHasADispatcherIsDroppedAndLogged()
+    {
+        var logger = new CapturingLogger();
+        var uninitialisedThread = new Thread(() => { });
+        var presenter = new ToastPresenter(Dwell, logger, uninitialisedThread);
+
+        presenter.Present("Startup Error", "Pisum Whisper could not start.");
+
+        presenter.LiveCount.ShouldBe(0);
+        logger.Entries.ShouldContain(entry =>
+            entry.Level == LogLevel.Warning && entry.Message.Contains("Startup Error"));
+    }
+
+    /// <summary>The existing behaviour restated against the gate: once the UI thread has a dispatcher, showing is unaffected.</summary>
+    [AvaloniaFact]
+    public void PresentAfterTheUiThreadHasADispatcherShows()
+    {
+        var presenter = new ToastPresenter(Dwell, NullLogger<ToastPresenter>.Instance);
+
+        presenter.Present("Recording Error", "No input device found.");
+        Dispatcher.UIThread.RunJobs();
+
+        presenter.LiveCount.ShouldBe(1);
+
+        presenter.CloseAll();
     }
 
     /// <summary>Waits on the dispatcher rather than on a thread, because the timer runs on it.</summary>
@@ -117,5 +153,25 @@ public sealed class ToastPresenterTests
         }
 
         return condition();
+    }
+
+    private sealed class CapturingLogger : ILogger<ToastPresenter>
+    {
+        public List<(LogLevel Level, string Message)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            Entries.Add((logLevel, formatter(state, exception)));
+        }
     }
 }
