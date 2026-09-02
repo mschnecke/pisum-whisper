@@ -378,11 +378,13 @@ proposal. Recorded here so change 11 inherits it as a known gap rather than disc
   per state* above for the pixel counts and the black-dot finding. A template image has no input but
   its alpha, so a solid alpha channel is a solid glyph and no observation could differ. What stays
   unobserved is only the pixels on a real menu bar, which nothing else feeds.
-- **Does `spikes -- tray` still reproduce under both appearance modes with the template flag set?**
-  S3 left template support "unconfirmed — only tested under Light". The API half is now answered from
-  the binaries — and answered twice, the second time correcting the first about which type owns the
-  accessors — but the visual result is not. The macOS sizing sharpness glance above rides along on the
-  same hardware pass — one launch, two checks.
+- ~~**Does `spikes -- tray` still reproduce under both appearance modes with the template flag set?**~~
+  **Answered 2026-09-02, see the macOS run under Verification results.** S3 left template support
+  "unconfirmed — only tested under Light". The API half was already answered from the binaries — and
+  answered twice, the second time correcting the first about which type owns the accessors — and the
+  visual half now is too: the glyph inverts correctly between Light and Dark, and the interior holes
+  stay visible in both rather than filling in. This closes the fourth and last open question in this
+  section.
 
 ## Verification results
 
@@ -445,3 +447,23 @@ shipped unnoticed.
 real dictations, real Gemini calls (`gemini-2.5-flash-lite`, 855 ms–9.3 s per call), correct text
 pasted into TextEdit both times. What 6.4 still owes is the refused-microphone-grant case, which
 this run did not exercise.
+
+### macOS run — 2026-09-02 (issue #31, task 9/4.3)
+
+Run on an Apple M4 (macOS 26.6.2): `dotnet spikes/Pisum.Whisper.Spikes/bin/Debug/net10.0/Pisum.Whisper.Spikes.dll tray`,
+once under each appearance mode, switched between runs via
+`osascript -e 'tell application "System Events" to tell appearance preferences to set dark mode to
+true/false'`. The spike's own log line, `theme variant: {ActualThemeVariant}`, confirms Avalonia's
+own theme detection matched the OS setting for both runs; the appearance itself — inversion and hole
+visibility — was confirmed by eye, since neither is observable from a log.
+
+| # | What was checked | Result |
+|---|---|---|
+| 4.3 | Icon renders correctly under Light, `theme variant: Light` in the log | **PASS** — legible, holes visible |
+| 4.3 | Icon inverts correctly under Dark, `theme variant: Dark` in the log | **PASS** — light-on-dark, holes still visible rather than filling in |
+| 4.3 | `IsTemplateIcon set to: True`, 8 runtime swaps, 3-item menu, no exception, in both runs | **PASS**, matching the Windows result in shape |
+
+Confirms the same finding the Windows run recorded for `IsTemplateIcon` on a backend that does not
+consume it (`GetIsTemplateIcon` reading back `True` there without error): here the flag is both stored
+*and* consumed, correctly, in both directions. This closes task 9/4.3 and the fourth open question
+above — the last of the four this change carried.
