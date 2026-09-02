@@ -33,6 +33,20 @@ public sealed class LogDirectory
 
     public string LogFilePath => System.IO.Path.Combine(Path, LogFileName);
 
+    /// <summary>
+    /// Why the directory is unusable, or <c>null</c> if it is usable. Null until
+    /// <see cref="TryCreate"/> has run.
+    /// </summary>
+    /// <remarks>
+    /// The same string <see cref="TryCreate"/> returns, kept rather than discarded. The one thing
+    /// that explains why there is no log is the one thing that cannot be written to it, so it is
+    /// retained here and reported once there is a surface to report it on — which is
+    /// <c>App.ReportStartupConditions</c>, long after the moment it was discovered. This needs no new
+    /// registration: <c>AddFileLogging</c> calls <see cref="TryCreate"/> on the very instance it then
+    /// registers as a singleton.
+    /// </remarks>
+    public string? FailureReason { get; private set; }
+
     public static string DefaultPath()
     {
         return System.IO.Path.Combine(
@@ -51,6 +65,7 @@ public sealed class LogDirectory
         try
         {
             Directory.CreateDirectory(Path);
+            FailureReason = null;
             return null;
         }
         catch (Exception exception) when (exception is IOException
@@ -58,7 +73,8 @@ public sealed class LogDirectory
                                               or ArgumentException
                                               or NotSupportedException)
         {
-            return exception.Message;
+            FailureReason = exception.Message;
+            return FailureReason;
         }
     }
 }

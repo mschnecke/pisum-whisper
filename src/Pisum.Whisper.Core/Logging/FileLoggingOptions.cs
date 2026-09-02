@@ -24,7 +24,7 @@ public sealed class FileLoggingOptions
 
     /// <summary>
     /// Represents the directory configuration used for logging purposes in file-based logging options.
-    /// This property encapsulates the log directory details, including the path where log files are stored
+    /// This property encapsulates the log directory details, including the path where log files are stored,
     /// and provides methods for constructing or accessing log file paths.
     /// </summary>
     public LogDirectory Directory { get; init; } = new();

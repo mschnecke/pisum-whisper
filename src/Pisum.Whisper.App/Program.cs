@@ -10,6 +10,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Pisum.Whisper.Core.Audio;
 using Pisum.Whisper.Core.Autostart;
+using Pisum.Whisper.Core.Diagnostics;
 using Pisum.Whisper.Core.Dictation;
 using Pisum.Whisper.Core.Hotkeys;
 using Pisum.Whisper.Core.Logging;
@@ -18,36 +19,101 @@ using Pisum.Whisper.Core.Output;
 using Pisum.Whisper.Core.Settings;
 using Pisum.Whisper.Core.Transcription;
 using Pisum.Whisper.Platform.Autostart;
+using Pisum.Whisper.Platform.Diagnostics;
 using Pisum.Whisper.Platform.Output;
 using Pisum.Whisper.Platform.Shell;
+using ILogger = Serilog.ILogger;
 
 internal static class Program
 {
+    /// <summary>
+    /// Starts the application, and reports on screen anything that stops it starting.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Four failures happen before this process has any surface of its own — the container failing
+    /// <c>ValidateOnBuild</c>, a settings file that cannot be parsed or cannot be written, and a tray
+    /// asset that will not load. A tray-only process that dies at any of them is indistinguishable
+    /// from one that never launched, which is why the reporter is constructed on the first line: it
+    /// is the only thing here that cannot itself fail to exist.
+    /// </para>
+    /// <para>
+    /// <b><c>using var host</c> must not go inside the <c>try</c>.</b> A <c>using var</c> releases at
+    /// the end of its own block, <em>before</em> the matching <c>catch</c> runs, which would hand the
+    /// catch a disposed host. The host is disposed in the <c>finally</c> instead, after the catch has
+    /// had its use of it.
+    /// </para>
+    /// </remarks>
     [STAThread]
     public static int Main(string[] args)
     {
-        using var host = BuildHost(args);
-
-        // Settings are read once, before the UI exists, so a corrupt file fails at startup naming
-        // the file rather than at first use of whatever happened to read it first. It runs before
-        // the host starts because the log level switch takes its initial value from the loaded
-        // settings when the hosted services start.
-        LoadSettings(host.Services);
-
-        host.Start();
+        var reporter = NativeFatalErrorReporter.Create();
+        ILogger? logger = null;
+        IHost? host = null;
 
         try
         {
-            return BuildAvaloniaApp(host.Services)
-                .StartWithClassicDesktopLifetime(args, ShutdownMode.OnExplicitShutdown);
+            host = BuildHost(args, out logger);
+
+            // Settings are read once, before the UI exists, so a corrupt file fails at startup
+            // naming the file rather than at first use of whatever happened to read it first. It
+            // runs before the host starts because the log level switch takes its initial value from
+            // the loaded settings when the hosted services start.
+            LoadSettings(host.Services);
+
+            host.Start();
+
+            try
+            {
+                return BuildAvaloniaApp(host.Services)
+                    .StartWithClassicDesktopLifetime(args, ShutdownMode.OnExplicitShutdown);
+            }
+            finally
+            {
+                host.StopAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
+            }
+        }
+        catch (Exception exception)
+        {
+            // Where the log would be, rather than where it is: an unusable log directory and a fatal
+            // failure can coincide, and this cannot fail while composing a message about a failure.
+            var (title, message) = StartupFailure.Describe(
+                exception,
+                Path.Combine(LogDirectory.DefaultPath(), LogDirectory.LogFileName));
+
+            logger?.Fatal(exception, "Startup failed: {FailureTitle}", title);
+
+            // Before the dialog, not after. The asynchronous sink drops its queue rather than
+            // draining it if it is never disposed, and the dialog blocks until the user dismisses
+            // it — which at login may be a long time, or never.
+            (logger as IDisposable)?.Dispose();
+            logger = null;
+
+            reporter.Report(title, message);
+
+            // Returned rather than rethrown: letting it leave Main would put the operating system's
+            // own crash dialog on top of the one just shown.
+            return 1;
         }
         finally
         {
-            host.StopAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
+            host?.Dispose();
+            (logger as IDisposable)?.Dispose();
         }
     }
 
-    private static IHost BuildHost(string[] args)
+    /// <summary>
+    /// Builds the host, handing back the Serilog logger it registered.
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="logger"/> is assigned immediately after <c>AddFileLogging</c> and before
+    /// anything that can throw, so the caller's local is written even when <c>builder.Build()</c>
+    /// fails afterwards. That is what lets one catch in <see cref="Main"/> log all four fatal cases.
+    /// There is deliberately <b>no</b> catch of its own here: with the assignment above the caller's
+    /// catch already logs, disposes and reports, and keeping both would write two <c>Fatal</c> lines
+    /// and dispose the logger twice.
+    /// </remarks>
+    private static IHost BuildHost(string[] args, out ILogger logger)
     {
         var builder = Host.CreateApplicationBuilder(args);
 
@@ -61,7 +127,10 @@ internal static class Program
 
         // Before the container, so that the validation failure above is written to the log file.
         // This process has no console in a release build, so stderr is nowhere.
-        builder.Services.AddFileLogging(out var logger);
+        builder.Services.AddFileLogging(out var serilog);
+
+        // Assigned here, before anything below can throw. Main's catch owns this logger from now on.
+        logger = serilog;
 
         // A singleton, because it is cache-authoritative: it reads the file once, and every later
         // read is served from memory.
@@ -114,19 +183,7 @@ internal static class Program
         // singleton once Avalonia is up, and drives the tray icon from its StateChanged.
         builder.Services.AddDictationPipeline();
 
-        try
-        {
-            return builder.Build();
-        }
-        catch (Exception exception)
-        {
-            logger.Fatal(exception, "The service container could not be built.");
-
-            // Nothing else will dispose of it: the container that would have owned it does not exist.
-            // The asynchronous sink discards its queue rather than draining it if it is not disposed.
-            (logger as IDisposable)?.Dispose();
-            throw;
-        }
+        return builder.Build();
     }
 
     private static void LoadSettings(IServiceProvider services)

@@ -121,12 +121,12 @@ under the temp path, or builds a real DI container or generic `Host` — followi
 which is why every class deriving `DictationTestBase`, `FileLoggingTestBase` or
 `GlobalHotkeyServiceTestBase` is one: those bases create a temp home in their constructor.
 `Unit` means neither; in-memory objects and fakes only, including the Gemini tests, which drive a
-real `HttpClient` over a fake handler and never reach the network. The split is 24 / 54 / 4 classes and
-192 / 384 / 4 tests — they sum to 580, so exactly one category applies to every test.
+real `HttpClient` over a fake handler and never reach the network. The split is 28 / 55 / 4 classes and
+219 / 393 / 4 tests — they sum to 616, so exactly one category applies to every test.
 
 ```bash
-dotnet test Pisum.Whisper.slnx --filter-trait Category=Unit          # 192, no I/O at all
-dotnet test Pisum.Whisper.slnx --filter-not-trait Category=Manual    # 576, what CI should run
+dotnet test Pisum.Whisper.slnx --filter-trait Category=Unit          # 219, no I/O at all
+dotnet test Pisum.Whisper.slnx --filter-not-trait Category=Manual    # 612, what CI should run
 ```
 
 Keep the rule mechanical when adding a class: if its constructor or its base's reaches
@@ -611,16 +611,90 @@ diagnostics are `CA1416`, cleared by `[SupportedOSPlatform("windows")]` plus the
 does. Do not add anything to `Directory.Packages.props` for it.
 
 **The transport cannot report a failure raised before the dispatcher loop starts**, and nothing in
-this capability closes that. A corrupt settings file (issue #20) and a `ValidateOnBuild` failure both
-happen in `Main` before `StartWithClassicDesktopLifetime`, so a posted job is enqueued into a loop
-that is never started; a missing tray asset throws out of the `App` constructor. Those stay
-log-and-unwind, and so does `HotkeyAvailability.Failed`, which change 9 deferred here and change 11
-deferred again — it is a startup condition rather than a dictation failure and wanted its own
-proposal. **That proposal now exists** as the off-sequence `report-startup-failures`, which is fully
-planned and **not implemented**: a native modal dialog for the four failures that prevent startup,
-and these degraded conditions reported from `App.OnFrameworkInitializationCompleted` beside
-`ShowFirstLaunch` rather than where they are discovered. Until it lands, everything in this paragraph
-still describes the code.
+*this* capability closes that. A corrupt settings file (issue #20) and a `ValidateOnBuild` failure
+both happen in `Main` before `StartWithClassicDesktopLifetime`, so a posted job is enqueued into a
+loop that is never started; a missing tray asset throws out of the `App` constructor. That limit is
+real and is still the reason `INotificationPresenter` is the transport for none of them — what has
+changed is that the off-sequence `report-startup-failures` now covers them, through the native dialog
+described in *Startup diagnostics* below. `HotkeyAvailability.Failed`, deferred here by change 9 and
+again by change 11, is covered there too, as a notification raised from `App` rather than from where
+it is discovered.
+
+## Startup diagnostics
+
+`Core/Diagnostics/` is the vocabulary and `Platform/Diagnostics/` is the transport, in the shape of
+`AddTextOutput` plus `AddNativeOutput` — except that neither half is registered, which is the point.
+`Program.Main` guards the whole of startup with one `try`/`catch`, and `App.ReportStartupConditions`
+reports the two conditions that leave the application running but degraded.
+
+**There are two transports, and they are split by *when* a failure happens rather than by how bad it
+is.** Severity is the right answer for the wrong reason: what decides which transport is *reachable*
+is whether a dispatcher is pumping.
+
+|              | no dispatcher yet | dispatcher pumping |
+|--------------|-------------------|--------------------|
+| **fatal**    | `ValidateOnBuild`, an unreadable or unwritable settings file, a missing tray asset → native modal dialog | (empty) |
+| **degraded** | an unusable log directory, a hotkey never granted → deferred to `App` | a hotkey revoked while running → toast |
+
+The empty cell is why severity works as a proxy at all: nothing fatal happens after startup, because
+everything after startup is a dictation and `DictationOrchestrator` already catches it. The two
+degraded conditions in the bottom-left cell are **not** reported where they are discovered — they are
+reported from `App.OnFrameworkInitializationCompleted` beside `ShowFirstLaunch`, which is the
+precedent and the same argument. Nothing is buffered, because nothing needs to be: `host.Start()` has
+returned by then so `Availability` is settled, and `LogDirectory.FailureReason` retains the reason
+`TryCreate` used to discard. Both are forced (`Notify`, not `NotifyInformation`) — a hotkey that does
+not work makes the application inert, and a log that is not being written removes the only place the
+user could have found that out. `App` subscribes to `IGlobalHotkeyService.AvailabilityChanged` **and
+then** reads `Availability`, keeping the last reported value: reading first would lose a transition
+landing between the two, which is the tray icon's seeded `ApplyState` reasoning.
+
+**`IFatalErrorReporter` is constructed, never registered, and it must stay that way.** One of its
+four call sites is `builder.Build()` failing, so a reporter resolved from the container is a reporter
+that does not exist exactly when it is needed. `NativeFatalErrorReporter.Create()` returns
+`MessageBoxW` on Windows, `osascript -e 'display dialog'` on macOS, and — diverging from
+`AddNativeOutput` and `AddNativeAutostart`, which throw `PlatformNotSupportedException` — a **no-op**
+on anything else, because this is the thing that reports startup failing and must not be a startup
+failure itself. `NativeFatalErrorReporterRegistrationTests` asserts the omission, so a later change
+that "fixes" it fails a test that says why. `Report` swallows everything for the same reason: losing
+the dialog is bad, losing the exit code and the `Fatal` line behind it is worse.
+
+**`Program` owns the Serilog logger now, and restoring `dispose: true` silently breaks the fatal
+path.** `AddFileLogging` registers it with `services.AddSerilog(serilog, false)` and hands it back
+through an `out` parameter that `BuildHost` assigns *immediately* after that call, before anything
+that can throw — which is what lets one catch in `Main` write a `Fatal` line for a container that
+never finished building. Put `dispose: true` back and the logger has two owners; the container
+disposes it inside the `try`, and the fatal path stops writing anything with no test failing. That is
+what `FileLoggingRegistrationTests.DisposingTheLogger_DrainsTheQueueRatherThanDiscardingIt` and
+`TheContainerDoesNotDisposeTheLogger` are for, and it is why `FileLoggingTestBase` now disposes the
+loggers its hosts were built with. In the catch the logger is disposed **before** the dialog, because
+the asynchronous sink drops its queue rather than draining it and `MessageBoxW` blocks until someone
+dismisses it — at login, possibly never.
+
+**`using var host` must stay out of the `try`.** A `using var` releases at the end of its own block,
+*before* the matching `catch` runs, so putting it inside would hand the catch an already-disposed
+host. `host` is a local disposed in the `finally` instead. `BuildHost` has no catch of its own on
+purpose: with the `out` assignment above, `Main`'s catch already logs, disposes and reports for all
+four fatal cases, and keeping both would write two `Fatal` lines and dispose the logger twice. It
+returns 1 rather than rethrowing, or the operating system's own crash dialog would land on top of
+ours.
+
+**Nothing may call `Report` from an automated test.** `MessageBoxW` pumps its own modal loop and
+blocks until it is dismissed, so a test that showed the dialog would hang the run with no timeout —
+the run would be waiting on a person. What is testable is which type `Create()` returns and the
+AppleScript escaping; the dialogs themselves are verified by hand, and **the macOS pass has not been
+run** (the change's task 7.2, which belongs to the sitting changes 8 to 11 already owe).
+`AppleScript.Escape` is deliberately **not** on `MacOsFatalErrorReporter`: that type carries
+`[SupportedOSPlatform("macos")]`, and calling a macOS-only member from an unguarded test is a CA1416
+error — which would put the one part of the macOS half Windows can verify out of reach of the tests
+that justify it.
+
+**A parse failure's message is passed through unchanged**, and that was measured rather than assumed.
+`SettingsException` embeds `JsonException.Message` and the settings file holds API keys in plaintext,
+so the error templates in `System.Text.Json.dll` at 10.0.8 were read: every reader template formats
+one *offending character*, and `JsonException.Path` names the failing property and never its value.
+Summarising to a line and a position would delete exactly what issue #20 holds up as the actionable
+part. `StartupFailureTests.AParseFailureInsideAnApiKeyDisclosesNoPartOfIt` guards it against a
+genuine parse failure over a document holding a key.
 
 ## Spec-driven workflow (OpenSpec)
 

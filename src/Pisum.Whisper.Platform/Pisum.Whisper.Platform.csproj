@@ -7,6 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- For MacOsFatalErrorReporter.Escape alone: the AppleScript escaping is the one part of the
+         macOS half that can be verified from Windows, and a syntax error there means no dialog at
+         all. -->
+    <InternalsVisibleTo Include="Pisum.Whisper.Platform.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Pisum.Whisper.Core\Pisum.Whisper.Core.csproj" />
   </ItemGroup>
 

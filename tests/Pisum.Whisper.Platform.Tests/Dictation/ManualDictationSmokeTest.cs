@@ -102,6 +102,16 @@ public sealed class ManualDictationSmokeTest
 
         public event EventHandler? Released;
 
+    /// <summary>
+    /// Declared with no-op accessors rather than as a field: this fake is always available and never
+    /// changes, so a field would be an event nothing raises — CS0067 under warnings-as-errors.
+    /// </summary>
+    public event EventHandler<HotkeyAvailability>? AvailabilityChanged
+    {
+        add { }
+        remove { }
+    }
+
         public HotkeyAvailability Availability => HotkeyAvailability.Available;
 
         public HotkeyChord Chord => HotkeyChord.Default;

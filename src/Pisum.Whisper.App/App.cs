@@ -12,6 +12,8 @@ using Pisum.Whisper.App.Notifications;
 using Pisum.Whisper.App.Settings;
 using Pisum.Whisper.App.Settings.ViewModels;
 using Pisum.Whisper.Core.Dictation;
+using Pisum.Whisper.Core.Hotkeys;
+using Pisum.Whisper.Core.Logging;
 using Pisum.Whisper.Core.Notifications;
 using Pisum.Whisper.Core.Settings;
 
@@ -31,6 +33,10 @@ public sealed class App : Application
     private const string WelcomeTitle = "Welcome to Pisum Whisper!";
 
     private const string WelcomeMessage = "Please configure an AI provider to get started.";
+
+    private const string LoggingUnavailableTitle = "Logging Unavailable";
+
+    private const string HotkeyUnavailableTitle = "Hotkey Unavailable";
 
     private readonly IServiceProvider _services;
     private readonly ILogger<App> _logger;
@@ -96,7 +102,16 @@ public sealed class App : Application
             // every real transition, so it can only ever lose to something newer.
             Dispatcher.UIThread.Post(() => ApplyState(dictation.State));
 
-            ShowFirstLaunch(_settings, _services.GetRequiredService<INotificationService>(), ShowSettings);
+            var notifications = _services.GetRequiredService<INotificationService>();
+
+            ShowFirstLaunch(_settings, notifications, ShowSettings);
+
+            // Beside the welcome, and for the same reason it is here rather than where it is known:
+            // both conditions are discovered in Program, before any dispatcher pumps a queue.
+            ReportStartupConditions(
+                _services.GetRequiredService<LogDirectory>(),
+                _services.GetRequiredService<IGlobalHotkeyService>(),
+                notifications);
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -140,6 +155,104 @@ public sealed class App : Application
         // off either, but this is the one message the application cannot afford to have suppressed.
         notifications.Notify(WelcomeTitle, WelcomeMessage);
         showSettings();
+    }
+
+    /// <summary>
+    /// Reports the two conditions that leave the application running but degraded: a log that is not
+    /// being written, and a binding that is not being observed.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>It runs here rather than where the conditions are discovered.</b> Both are found in
+    /// <c>Program</c> — one inside <c>AddFileLogging</c>, the other inside the hotkey service's
+    /// start — and a notification is a window on a dispatcher that is not pumping until this method
+    /// is reached. Reporting from there would enqueue a job into a loop that has not started.
+    /// <see cref="ShowFirstLaunch"/> is the precedent, and it is the same argument.
+    /// </para>
+    /// <para>
+    /// <b>Nothing is buffered, because there is nothing to buffer.</b> Both conditions are still true
+    /// and still queryable by the time this runs: <c>host.Start()</c> has returned, so
+    /// <see cref="IGlobalHotkeyService.Availability"/> is settled, and <see cref="LogDirectory"/> is
+    /// a registered singleton holding the reason it discarded before. A replay queue would store what
+    /// can simply be asked for.
+    /// </para>
+    /// <para>
+    /// <b>Subscribe first, read second.</b> Reading first would lose a transition that landed between
+    /// the two, which is the same reasoning as the tray icon's seeded <c>ApplyState</c>. The last
+    /// reported value is what stops the seed and the event both reporting the same state — and it is
+    /// shared under a lock because the event arrives on whichever thread the hook's run task faulted
+    /// on, while the seed is read on this one.
+    /// </para>
+    /// <para>
+    /// <b>Both are forced.</b> The preference exists to silence chatter; a hotkey that does not work
+    /// makes the application inert, and a log that is not being written removes the only place the
+    /// user could have found that out.
+    /// </para>
+    /// <para>
+    /// Static and taking its collaborators, for the same reason <see cref="ShowFirstLaunch"/> is.
+    /// </para>
+    /// </remarks>
+    internal static void ReportStartupConditions(LogDirectory logs,
+                                                 IGlobalHotkeyService hotkeys,
+                                                 INotificationService notifications)
+    {
+        if (logs.FailureReason is { } reason)
+        {
+            notifications.Notify(
+                LoggingUnavailableTitle,
+                $"Nothing is being written to the log. '{logs.Path}' could not be created: {reason}");
+        }
+
+        var gate = new Lock();
+        HotkeyAvailability? lastReported = null;
+
+        void ReportHotkey(HotkeyAvailability availability)
+        {
+            lock (gate)
+            {
+                if (lastReported == availability)
+                {
+                    return;
+                }
+
+                lastReported = availability;
+            }
+
+            if (availability == HotkeyAvailability.Available)
+            {
+                return;
+            }
+
+            notifications.Notify(HotkeyUnavailableTitle, HotkeyMessageFor(availability));
+        }
+
+        hotkeys.AvailabilityChanged += (_, availability) => ReportHotkey(availability);
+        ReportHotkey(hotkeys.Availability);
+    }
+
+    /// <summary>
+    /// What the user is told when the binding is not being observed.
+    /// </summary>
+    /// <remarks>
+    /// The two permission states are kept apart because their remedies differ, which is the same
+    /// reason <see cref="HotkeyAvailability"/> distinguishes them. The wording follows
+    /// <c>GlobalHotkeyService</c>'s own log lines, shortened to what fits a notification; the detail
+    /// is in the log, where the same failure has already been written at <c>Error</c>.
+    /// </remarks>
+    private static string HotkeyMessageFor(HotkeyAvailability availability)
+    {
+        return availability switch
+        {
+            HotkeyAvailability.PermissionNotGranted =>
+                "Keys are not being observed, because permission to observe them has not been granted. "
+                + "Grant it in System Settings > Privacy & Security > Accessibility, then restart the application.",
+
+            HotkeyAvailability.PermissionRevoked =>
+                "Keys are no longer being observed: access was withdrawn while the application was running. "
+                + "Restore it in System Settings > Privacy & Security > Accessibility, then restart the application.",
+
+            _ => "Keys are not being observed, so the hotkey will do nothing. Check the log for details.",
+        };
     }
 
     private static WindowIcon LoadIcon(string name)

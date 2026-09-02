@@ -16,7 +16,7 @@
   pre-existing finding, not one this change introduced. Verify: recorded in `design.md`'s *Open
   Questions*, struck through in the manner of change 9, with the residual case in *Risks*; 1.2 written
   to match.
-- [ ] 1.2 Add `Core/Diagnostics/IFatalErrorReporter.cs` — one method, `void Report(string title, string message)`
+- [x] 1.2 Add `Core/Diagnostics/IFatalErrorReporter.cs` — one method, `void Report(string title, string message)`
   — and `Core/Diagnostics/StartupFailure.cs`, an `internal static class` whose
   `Describe(Exception exception, string? logFilePath)` returns `(string Title, string Message)`.
   Mirror `DictationFailure.Describe` exactly, **including its rule that the title comes from the
@@ -40,7 +40,7 @@ dismissed, so a test that calls `Report` on Windows opens a modal dialog and han
 timeout, because the run is waiting on a person. What is testable is the type `Create` returns and the
 AppleScript escaping; the dialog itself is verified by hand in section 7.
 
-- [ ] 2.1 Add `Platform/Diagnostics/WindowsFatalErrorReporter`, `[SupportedOSPlatform("windows")]`,
+- [x] 2.1 Add `Platform/Diagnostics/WindowsFatalErrorReporter`, `[SupportedOSPlatform("windows")]`,
   calling `MessageBoxW` from `user32.dll` through `[LibraryImport]` with
   `StringMarshalling = StringMarshalling.Utf16`, `hWnd = IntPtr.Zero` and
   `MB_OK | MB_ICONERROR | MB_SETFOREGROUND | MB_TOPMOST` (`0x00050010`). It pumps its own modal loop,
@@ -51,7 +51,7 @@ AppleScript escaping; the dialog itself is verified by hand in section 7.
   code and the log line behind it is worse than losing the dialog. Verify: `dotnet build
   Pisum.Whisper.slnx` at 0 warnings, and by hand in 7.1 — see the note above for why there is no
   automated test here.
-- [ ] 2.2 Add `Platform/Diagnostics/MacOsFatalErrorReporter`, `[SupportedOSPlatform("macos")]`, running
+- [x] 2.2 Add `Platform/Diagnostics/MacOsFatalErrorReporter`, `[SupportedOSPlatform("macos")]`, running
   `Process.Start("/usr/bin/osascript", ["-e", script])` and `WaitForExit()`, with
   `display dialog "<message>" with title "<title>" buttons {"OK"} default button "OK" with icon stop`.
   **Put the AppleScript escaping in a separate internal static function**, because it is the one part
@@ -62,7 +62,7 @@ AppleScript escaping; the dialog itself is verified by hand in section 7.
   function alone — an embedded quote, an embedded backslash, both together, and a plain string passing
   through unchanged — which **run on Windows**, so only the dialog appearing needs hardware (7.2).
   `Unit` trait.
-- [ ] 2.3 Add `NativeFatalErrorReporter.Create()` — `OperatingSystem.IsWindows()`, then `IsMacOS()`,
+- [x] 2.3 Add `NativeFatalErrorReporter.Create()` — `OperatingSystem.IsWindows()`, then `IsMacOS()`,
   then a **no-op reporter** rather than the `PlatformNotSupportedException` that
   `NativeOutputServiceCollectionExtensions` and `AddNativeAutostart` throw. This one deliberately
   diverges: it is the thing that reports startup failing, so it must not be a startup failure itself.
@@ -76,7 +76,7 @@ AppleScript escaping; the dialog itself is verified by hand in section 7.
 
 ## 3. Guarding startup
 
-- [ ] 3.1 Move ownership of the Serilog logger from the container to `Program`:
+- [x] 3.1 Move ownership of the Serilog logger from the container to `Program`:
   `services.AddSerilog(serilog, false)` in `FileLoggingServiceCollectionExtensions.cs:80`, and
   `BuildHost(string[] args, out ILogger logger)` assigning the out parameter **immediately after
   `AddFileLogging`**, before anything that can throw. At runtime the caller's local is written even
@@ -87,7 +87,7 @@ AppleScript escaping; the dialog itself is verified by hand in section 7.
   writing anything and no test fails. Verify: the new drain test, plus every existing test in
   `Core.Tests/Logging` still green (`dotnet test tests/Pisum.Whisper.Core.Tests --filter-namespace
   Pisum.Whisper.Core.Tests.Logging`). `Integration` trait — real files.
-- [ ] 3.2 Restructure `Program.Main` around one `try`/`catch`, per `design.md`'s decision 4: construct
+- [x] 3.2 Restructure `Program.Main` around one `try`/`catch`, per `design.md`'s decision 4: construct
   the reporter first, hold `IHost? host` and `ILogger? logger` as locals, and in the catch describe,
   log `Fatal`, dispose the logger **before** the dialog so the asynchronous sink drains, null the local
   so the `finally` cannot dispose it twice, report, and `return 1`. **`using var host` must not go
@@ -102,7 +102,7 @@ AppleScript escaping; the dialog itself is verified by hand in section 7.
 
 ## 4. The degraded conditions become readable
 
-- [ ] 4.1 Add `public string? FailureReason { get; private set; }` to `Core/Logging/LogDirectory.cs`,
+- [x] 4.1 Add `public string? FailureReason { get; private set; }` to `Core/Logging/LogDirectory.cs`,
   assigned inside `TryCreate` from the reason it already computes and currently returns and discards.
   The instance `AddFileLogging` calls `TryCreate` on is the instance it registers with
   `services.AddSingleton(options.Directory)`, so the reason survives to `App` with no new registration
@@ -110,7 +110,7 @@ AppleScript escaping; the dialog itself is verified by hand in section 7.
   non-null after a failed one — force the failure portably by pointing the directory at a path whose
   parent is an existing **file**, which makes `Directory.CreateDirectory` throw `IOException` on both
   platforms. `Integration` trait — temp files.
-- [ ] 4.2 Add `event EventHandler<HotkeyAvailability>? AvailabilityChanged;` to `IGlobalHotkeyService`,
+- [x] 4.2 Add `event EventHandler<HotkeyAvailability>? AvailabilityChanged;` to `IGlobalHotkeyService`,
   raised from one private `SetAvailability` in `GlobalHotkeyService` that replaces the three current
   assignments (`:146`, `:175`, and `RecordUnavailable` at `:407`/`:416`/`:425`) and **raises only on an
   actual change**. **None of the three sites is the hook thread** — two are `StartAsync` or its
@@ -125,7 +125,7 @@ AppleScript escaping; the dialog itself is verified by hand in section 7.
 
 ## 5. Reporting them
 
-- [ ] 5.1 Add `internal static void ReportStartupConditions(LogDirectory logs, IGlobalHotkeyService hotkeys, INotificationService notifications)`
+- [x] 5.1 Add `internal static void ReportStartupConditions(LogDirectory logs, IGlobalHotkeyService hotkeys, INotificationService notifications)`
   to `App`, and call it from `OnFrameworkInitializationCompleted` beside the existing
   `ShowFirstLaunch(...)` call. Static and taking its collaborators, for the same reason
   `ShowFirstLaunch` is: constructing an `App` opens tray assets and registers a native tray icon, and a
@@ -154,7 +154,7 @@ AppleScript escaping; the dialog itself is verified by hand in section 7.
   first because it is the only half that is true today**: it describes the tree as it stands and makes
   no claim about code that does not exist. Verify: the stale sentence is gone, the replacement says
   "not implemented", and nothing in it names a type that is not in `src/`.
-- [ ] 6.1b Add a *Startup diagnostics* section to `CLAUDE.md` beside the existing capability sections,
+- [x] 6.1b Add a *Startup diagnostics* section to `CLAUDE.md` beside the existing capability sections,
   carrying (a) the two transports and that they are split by **when** a failure happens rather than by
   how bad it is; (b) that `IFatalErrorReporter` is constructed rather than registered, and why — one of
   its call sites is the container failing to build; (c) that `Program` owns the Serilog logger now, and
