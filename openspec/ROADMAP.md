@@ -80,16 +80,34 @@ Changes **1-11** are implemented and archived under `openspec/changes/archive/`,
 `settings-window`, `notifications` and `autostart` specs synced into `openspec/specs/`. Change **12**
 has `proposal.md` only; its `specs`, `design` and `tasks` are written when its turn comes.
 
-**Changes 8, 9, 10 and 11 all carry unchecked verification tasks**, which is a departure from how
-1-7 were closed and is recorded here rather than left to be discovered. Change 8 owes tasks 6.1, 6.3
-and 6.4 — the end-to-end run with a microphone and a configured key, the budget measurement, and the
-macOS half. Change 9 owes 4.1 to 4.3 — the win-x64 pass by hand, the osx-arm64 pass, and the
-`spikes -- tray` run under both macOS appearance modes, whose Windows half is done and recorded in
-that change's `design.md`. Change 10 owes 6.2 to 6.4. Change 11 owes 7.1 to 7.4 — the win-x64 pass,
-the osx-arm64 pass, the `spikes -- toast` re-run on macOS, and the two open questions in its
-`design.md` that need running rather than reasoning. All four of those changes are archived anyway,
-so **an archived change here does not certify that its capability was verified on hardware**. The
-macOS half of all of it is one Apple Silicon sitting and should be done in one pass.
+**Seven archived changes carry unchecked tasks, twenty in total, and they are not all macOS.** This
+section previously named changes 8 to 11 and called that "a departure from how 1-7 were closed".
+Both halves were wrong: changes 1 and 7 are in the same state, so there was no departure — only the
+recording of it changed.
+
+| Change | Open | Needs |
+|---|---|---|
+| 1 `bootstrap-solution` | 1.4, 1.5a | Apple Silicon; and a 44.1 kHz capture device, which is not a platform question |
+| 7 `add-text-output` | 3.3, 3.5, 3.6, 5.4 | win-x64 for 3.3, Apple Silicon for the rest. The code for 3.3, 3.5 and 3.6 is in the tree — only their manual checks are owed |
+| 8 `add-dictation-pipeline` | 6.1, 6.3, 6.4 | win-x64 for the end-to-end run and the budget measurement; Apple Silicon for 6.4 |
+| 9 `add-tray-icon` | 4.1, 4.2, 4.3 | win-x64 for 4.1; Apple Silicon for the osx-arm64 pass and the `spikes -- tray` run under both appearance modes |
+| 10 `add-settings-window` | 6.2, 6.3, 6.4 | Apple Silicon for 6.2; win-x64 for 6.3 and 6.4 |
+| 11 `add-system-integration` | 7.1, 7.2, 7.3, 7.4 | win-x64 for 7.1; Apple Silicon for 7.2 and the `spikes -- toast` re-run; 7.4 is a headless test plus a glance during 7.1 |
+| `migrate-tests-to-xunit-v3` | 5.4 | win-x64 — confirm Rider still discovers the tests |
+
+**Eight of the twenty need nothing but the Windows machine this is developed on**, and a ninth is
+7.4's headless test. Calling the whole of it "one Apple Silicon sitting" is what has kept those
+sitting. Ten do need Apple Silicon and should be done in one pass; one needs a 44.1 kHz input device
+and is not about either platform.
+
+**An unchecked box does not mean the work never ran, and this section is where that was learned.**
+Change 1's macOS tasks did run, under issue #15 on an Apple M4, and the results have been in that
+change's `design.md` matrix since 2026-08-28 — but the boxes went unticked and were counted as
+outstanding twice before being reconciled on 2026-09-02. Two came back `FAIL`: 1.3b's documented
+fallback is what change 7 shipped, while 1.4's fallback is 1.4 itself, which is why it alone stays
+open. Every one of these changes is archived regardless, so **an archived change here does not
+certify that its capability was verified on hardware** — and a ticked box certifies that a check ran,
+not that it passed.
 
 This is deliberate. The four spikes in change 1 can invalidate design decisions downstream — if
 SharpHook cannot report key release, or miniaudio cannot resample, the affected designs change rather

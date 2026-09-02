@@ -11,14 +11,21 @@
 ## 1b. Spikes — macOS half (BLOCKED — no Apple Silicon hardware)
 
 Deferred, not abandoned. Each task below has a named fallback in the Platform verification matrix in
-`design.md`, and this change stays open until they are run. The `spikes/` harness is kept in the
-repository precisely so these are re-run rather than re-written.
+`design.md`. The `spikes/` harness is kept in the repository precisely so these are re-run rather than
+re-written.
 
-- [ ] 1.2 Run the SharpHook spike on macOS. Verify: both edges logged; record whether the hook needs the main thread and whether a CFRunLoop is required, and confirm or falsify the expectation recorded by task 1.9. Note the Accessibility prompt behaviour.
-- [ ] 1.3b Run the `EventSimulator` spike on macOS, sending Cmd+V. Verify: known clipboard text is pasted into a focused text editor.
-- [ ] 1.4 Set up a stable development code-signing identity for macOS and sign the spike binary. Verify: grant Accessibility once, rebuild, rerun, and confirm the grant persists without re-prompting.
-- [ ] 1.5b Run the SoundFlow capture spike on macOS. Verify: opens at 48 kHz mono float32 and delivers the expected sample count, including on a device whose native rate differs.
-- [ ] 1.6b Run the `TrayIcon` spike on macOS. Verify: visible in the menu bar and the image swap is reflected; record whether the tooltip shows on `NSStatusItem` and whether template images are supported.
+**These were run under issue #15 on an Apple M4 (macOS 26.6.2), which closed on 2026-08-28.** The
+matrix in `design.md` carries the results, two of which are `FAIL`. The boxes were left unticked at
+the time and are reconciled here, because an unticked box that means "ran, and failed" is
+indistinguishable from one that means "never ran" — and the second reading is what put these back on
+the outstanding list twice. **A `FAIL` is a task that ran.** Only 1.4 is still owed, and it is owed
+because the matrix names this task as its own remedy.
+
+- [x] 1.2 Run the SharpHook spike on macOS. Verify: both edges logged; record whether the hook needs the main thread and whether a CFRunLoop is required, and confirm or falsify the expectation recorded by task 1.9. Note the Accessibility prompt behaviour. **PASS** — both edges reported, and `combined` showed the hook co-existing with Avalonia's run loop, which was the highest open risk in the project.
+- [x] 1.3b Run the `EventSimulator` spike on macOS, sending Cmd+V. Verify: known clipboard text is pasted into a focused text editor. **FAIL** — the documented fallback, clipboard-only delivery with a manual-paste message, is what change 7 shipped, so the failure is answered rather than outstanding.
+- [ ] 1.4 Set up a stable development code-signing identity for macOS and sign the spike binary. Verify: grant Accessibility once, rebuild, rerun, and confirm the grant persists without re-prompting. **Ran under #15 and came back FAIL, and is therefore the one box here that stays open**: the matrix names this task as the fallback for its own failure, so running it produced work rather than a result. Needs Apple Silicon.
+- [x] 1.5b Run the SoundFlow capture spike on macOS. Verify: opens at 48 kHz mono float32 and delivers the expected sample count, including on a device whose native rate differs. **PASS.** Note that the Windows half of this row is still `PARTIAL`, for the reason 1.5a records — that is a different gap, and not a macOS one.
+- [x] 1.6b Run the `TrayIcon` spike on macOS. Verify: visible in the menu bar and the image swap is reflected; record whether the tooltip shows on `NSStatusItem` and whether template images are supported. **PASS**, with one cell short: template-image support was exercised only under Light appearance. That residue did not stay here — it is change 9's task 4.3, which runs `spikes -- tray` under both appearance modes.
 
 ## 2. Solution skeleton
 
