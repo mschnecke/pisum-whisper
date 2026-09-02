@@ -207,7 +207,7 @@ public sealed class SettingsStore
         {
             json = File.ReadAllText(FilePath);
         }
-        catch (IOException exception)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             throw new SettingsException(
                 $"The settings file '{FilePath}' could not be read: {exception.Message}", exception);
