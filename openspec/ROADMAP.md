@@ -92,35 +92,39 @@ has `proposal.md` only; its `specs`, `design` and `tasks` are written when its t
 by-hand checks has partly run** — 7.1's corrupt-settings reproduction, on 2026-09-02, which closed
 issue #20 — so all three join the table below rather than closing with it.
 
-**Eight archived changes carry unchecked tasks, twenty-three in total, and they are not all macOS.** This
+**Seven archived changes carry unchecked tasks, eleven in total, and they are not all macOS.** This
 section previously named changes 8 to 11 and called that "a departure from how 1-7 were closed".
 Both halves were wrong: changes 1 and 7 are in the same state, so there was no departure — only the
-recording of it changed.
+recording of it changed. Change 9's row is gone as of 2026-09-02: issue #31 closed all three of its
+open tasks, along with every other macOS task from changes 1 and 7 except the ones this table still
+lists, in one sitting on an Apple M4.
 
 | Change | Open | Needs |
 |---|---|---|
-| 1 `bootstrap-solution` | 1.4, 1.5a | Apple Silicon; and a 44.1 kHz capture device, which is not a platform question |
-| 7 `add-text-output` | 3.3, 3.5, 3.6, 5.4 | win-x64 for 3.3, Apple Silicon for the rest. The code for 3.3, 3.5 and 3.6 is in the tree — only their manual checks are owed |
-| 8 `add-dictation-pipeline` | 6.1, 6.3, 6.4 | win-x64 for the end-to-end run and the budget measurement; Apple Silicon for 6.4 |
-| 9 `add-tray-icon` | 4.1, 4.2, 4.3 | win-x64 for 4.1; Apple Silicon for the osx-arm64 pass and the `spikes -- tray` run under both appearance modes |
-| 10 `add-settings-window` | 6.2, 6.3, 6.4 | Apple Silicon for 6.2; win-x64 for 6.3 and 6.4 |
-| 11 `add-system-integration` | 7.1, 7.2, 7.3, 7.4 | win-x64 for 7.1; Apple Silicon for 7.2 and the `spikes -- toast` re-run; 7.4 is a headless test plus a glance during 7.1 |
+| 1 `bootstrap-solution` | 1.5a | a 44.1 kHz capture device, which is not a platform question |
+| 7 `add-text-output` | 3.3 | win-x64. The code is in the tree — only the manual check is owed |
+| 8 `add-dictation-pipeline` | 6.3, 6.4 | win-x64 for the budget measurement; Apple Silicon for 6.4's refused-microphone case — its end-to-end half closed 2026-09-02, confirmed twice over by changes 9 and 11's own macOS runs |
+| 10 `add-settings-window` | 6.4 | win-x64 |
+| 11 `add-system-integration` | 7.1, 7.4 | win-x64 for 7.1; 7.4 is a headless test plus a glance during 7.1 |
 | `migrate-tests-to-xunit-v3` | 5.4 | win-x64 — confirm Rider still discovers the tests |
 | `report-startup-failures` | 7.1, 7.2, 7.3 | win-x64 for 7.1 and 7.3; Apple Silicon for 7.2. 7.1's corrupt-settings reproduction ran on 2026-09-02 and closed #20; its other three, and 7.3 at login, are still owed. The `osascript` dialog has never been drawn |
 
-**Ten of the twenty-three need nothing but the Windows machine this is developed on**, and an
-eleventh is 11's 7.4 headless test. Calling the whole of it "one Apple Silicon sitting" is what has
-kept those sitting. Eleven do need Apple Silicon and should be done in one pass; one needs a 44.1 kHz
-input device and is not about either platform.
+**Seven of the eleven need nothing but the Windows machine this is developed on**, and an eighth is
+11's 7.4 headless test. Two do need Apple Silicon and should be done in one pass — issue #31's
+successor, once hardware is available again; one needs a 44.1 kHz input device and is not about
+either platform.
 
 **An unchecked box does not mean the work never ran, and this section is where that was learned.**
 Change 1's macOS tasks did run, under issue #15 on an Apple M4, and the results have been in that
 change's `design.md` matrix since 2026-08-28 — but the boxes went unticked and were counted as
 outstanding twice before being reconciled on 2026-09-02. Two came back `FAIL`: 1.3b's documented
-fallback is what change 7 shipped, while 1.4's fallback is 1.4 itself, which is why it alone stays
-open. Every one of these changes is archived regardless, so **an archived change here does not
-certify that its capability was verified on hardware** — and a ticked box certifies that a check ran,
-not that it passed.
+fallback is what change 7 shipped, while 1.4 came back `FAIL` with no fallback but itself — the task
+of establishing a signing identity. Re-run under issue #31, also on 2026-09-02, it closed the other
+way: the grant that matters belongs to Rider, the terminal every command in that session inherited,
+not to the binary's own signature, so no signing identity was ever built and none was needed inside
+that ancestry. Every one of these changes is archived regardless, so **an archived change here does
+not certify that its capability was verified on hardware** — and a ticked box certifies that a check
+ran, not that it passed.
 
 This is deliberate. The four spikes in change 1 can invalidate design decisions downstream — if
 SharpHook cannot report key release, or miniaudio cannot resample, the affected designs change rather
