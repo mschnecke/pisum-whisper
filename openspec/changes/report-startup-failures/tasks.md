@@ -157,7 +157,7 @@ AppleScript escaping; the dialog itself is verified by hand in section 7.
   proposal" — this change is that proposal, so the paragraph is false the moment this lands. Verify:
   all five are written down, the stale paragraph is gone, and `git show --stat` confirms the
   `CLAUDE.md` change lands with the code it describes rather than after it.
-- [ ] 6.2 Update `openspec/ROADMAP.md`. Add `report-startup-failures` to the *Off-sequence changes*
+- [x] 6.2 Update `openspec/ROADMAP.md`. Add `report-startup-failures` to the *Off-sequence changes*
   table with what it is and what it blocks (nothing — change 12 does not depend on it), since the
   roadmap's own standing decision is that off-sequence work gets a section rather than a number.
   Correct *Artifact status*, which lists changes 8 to 11 as owing verification but does not yet know

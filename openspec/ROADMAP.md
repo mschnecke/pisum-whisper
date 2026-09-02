@@ -65,11 +65,19 @@ on the pipeline the twelve rows above sequence.
 | Change | What it is | Blocks |
 |---|---|---|
 | `migrate-tests-to-xunit-v3` | MSTest to xUnit v3 across both test projects; `dotnet test` moves to Microsoft.Testing.Platform | 10 |
+| `report-startup-failures` | A native modal dialog for the four failures that prevent startup, and the notification transport for the two degraded conditions that reach nobody today | nothing |
 
 `add-settings-window` depends on it: Avalonia ships first-party headless test integration for xUnit
 and NUnit only — there is no `Avalonia.Headless.MSTest` and there never has been — so change 10
 cannot write a headless test for its window until this is in place. That is the whole reason the
 migration ran before change 9 rather than whenever it became convenient.
+
+`report-startup-failures` blocks nothing, and change 12 does not depend on it. It is off-sequence for
+the same reason the migration is — it adds a capability to a pipeline that is already built rather
+than a stage to the pipeline — and it exists because changes 9 and 11 each deferred
+`HotkeyAvailability.Failed` to the next change along, and change 11's own *Risks* recorded that its
+transport could not reach a failure raised before the dispatcher loop starts. It also closes issue
+#20. It is dependent on change 11 for the degraded half only; the dialog half depends on nothing.
 
 
 ## Artifact status
@@ -79,6 +87,9 @@ Changes **1-11** are implemented and archived under `openspec/changes/archive/`,
 `global-hotkey`, `gemini-transcription`, `text-output`, `dictation-pipeline`, `tray-icon`,
 `settings-window`, `notifications` and `autostart` specs synced into `openspec/specs/`. Change **12**
 has `proposal.md` only; its `specs`, `design` and `tasks` are written when its turn comes.
+`report-startup-failures` is active and fully planned — proposal, design, tasks and three delta specs
+— with nothing implemented; its own section 7 adds three more by-hand checks to the table below when
+it lands, one of which needs Apple Silicon.
 
 **Seven archived changes carry unchecked tasks, twenty in total, and they are not all macOS.** This
 section previously named changes 8 to 11 and called that "a departure from how 1-7 were closed".
