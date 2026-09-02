@@ -60,8 +60,22 @@ fallback logic is needed, and the comment above the deleted arm goes with it.
 ## Why this over matching origin
 
 The issue's second suggested option — have `Describe` check where the exception came from rather
-than its runtime type — is rejected below. Wrapping at the source keeps `Describe` a pure type
-switch, consistent with every other arm, and matches the convention `Read()` already set.
+than its runtime type — is rejected, but not because no such signal ever exists. The codebase already
+disambiguates an ambiguous exception type this way twice: `GeminiProvider.SendWithRetryAsync` catches
+`HttpRequestException or TaskCanceledException` only `when (!cancellationToken.IsCancellationRequested)`,
+telling the client's own request timeout apart from a caller-driven cancellation that happens to raise
+the same type; `DictationOrchestrator.RunAsync` catches `OperationCanceledException` only
+`when (_shutdown.IsCancellationRequested)`, telling a deliberate quit apart from the transcription
+budget expiring. Both work because a `CancellationToken` carries a state flag —
+`IsCancellationRequested` — that says whose cancellation this is, checkable at the catch site with no
+wrapping needed.
+
+`IOException`/`UnauthorizedAccessException` have no equivalent: a failed `File.Move` carries no bit
+saying "this was a settings write," and the deciding code (`StartupFailure.Describe`, reached through
+`Program.Main`'s top-level catch) sits far from the throw site — unlike the two examples above, which
+catch immediately at the one call that can raise the ambiguous type. Wrapping at the source is the
+substitute for that missing flag, and it is also the convention `Read()` already set for this exact
+class of failure (settings I/O). `Describe` stays a pure type switch, consistent with every other arm.
 
 ## Platform
 
@@ -72,10 +86,12 @@ permission-denied target on both).
 
 ## Rejected alternatives
 
-- **Have `Describe` inspect the exception's origin (e.g. its `StackTrace`) instead of its type.**
-  Rejected: there is no cheap, reliable origin signal on a caught `Exception` short of matching
-  `StackTrace` by substring, which is exactly the message-text matching `DictationFailure` and
-  `StartupFailure` both deliberately avoid ("Failures are described, never matched.").
+- **Have `Describe` inspect the exception's origin instead of its type, the way the two
+  cancellation-token cases above do.** Rejected: those work because a `CancellationToken` carries a
+  state flag naming whose cancellation it is; `IOException` carries no equivalent, so the only way to
+  "inspect origin" here is matching `StackTrace` by substring — exactly the message-text matching
+  `DictationFailure` and `StartupFailure` both deliberately avoid ("Failures are described, never
+  matched.").
 - **Keep the broad `IOException` arm and add a narrower `FileNotFoundException` exclusion.**
   Rejected: treats the symptom (one subclass) rather than the cause (any unrelated `IOException`
   reaching `Describe` unwrapped) — the next unrelated `IOException` would reproduce the bug again.
