@@ -405,8 +405,9 @@ container to `Program` is behaviourally identical on the success path. If a late
   issue #20 holds up as the actionable part of the report, in exchange for a handful of leading
   characters in a case that requires two corruptions to coincide.
 - **Does `MessageBoxW` come to the foreground from a process with no window and no owner?**
-  `MB_SETFOREGROUND` is specified to, but foreground-activation rules on Windows 11 are permissive
-  about refusing. One run of issue #20's reproduction settles it.
+  *Answered for an interactive launch, see Verification results:* foreground, topmost and uncovered.
+  What remains is the launch the question was written about — from the `Run` key at login, where
+  no foreground process has handed the right on. Tracked on issue #30 as the remainder of 7.3.
 - **Does `osascript`'s dialog come to the front when the calling process is not in the dock?** It runs
   in Script Editor's context, which activates — but `ShowInDock = false` is set on Avalonia's options
   and Avalonia is not up at that point, so what this process looks like to the window server is not
@@ -414,3 +415,31 @@ container to `Program` is behaviourally identical on the success path. If a late
 - **Should [1] also degrade the settings window's Logging tab?** That tab shows the log directory path
   and offers "Open Log Folder", both of which mislead when the directory could not be created. Out of
   scope here by the banner non-goal's reasoning, but it is the same defect one surface over.
+
+## Verification results
+
+Run on 2026-09-02 on win-x64 (Windows 11 Pro 10.0.26200) against a Release build of `main` at
+`aeb1e15`, started through `Start-Process` from an interactive session rather than from Explorer —
+equivalent for the purpose here, since a Release build has no console sink and a `WinExe` started
+that way is attached to no console. **Only the corrupt-settings reproduction of 7.1 was run**, the one
+issue #20 describes; the other three reproductions and every macOS row are still open, so 7.1 and 7.2
+stay unticked. The settings file was backed up by hash first and restored byte for byte afterwards.
+
+| # | What was checked | Result |
+|---|---|---|
+| 7.1 | `~/.pisum-whisper.json` replaced with `{ "startWithSystem": true, "hotkey": { BROKEN` and the application launched | **PASS** — a `Settings Error` dialog 683 ms after launch, owned by the launched process, naming the file, `Path: $.hotkey`, `BytePositionInLine: 39` and the log path; dismissing it (by posting `WM_CLOSE`, which a `MB_OK` box answers as OK) exits with code 1; the log gains `[FTL] Startup failed: Settings Error` with the full `SettingsException` beneath it; the corrupt file's hash is unchanged after exit |
+| 7.3 | Whether `MessageBoxW` comes to the foreground from a process with no window and no owner | **PASS for an interactive launch** — `GetForegroundWindow` returned the dialog, `WS_EX_TOPMOST` was set, and `WindowFromPoint` at its centre and both corners resolved to the dialog, so nothing covered it. The login-time launch was not observed |
+
+**Issue #20 closes on the first row.** What it reported was a log file byte-identical before and after
+the failure; the same reproduction now leaves the `Fatal` line and the exception behind it, drained
+before the dialog is shown, and the process ends with a non-zero exit code instead of an unhandled
+exception on a stderr nothing reads.
+
+**What was disclosed is what 1.1 predicted.** The dialog and the log quote the one offending character
+(`'B'`) and name the property (`$.hotkey`); no value from the file appears in either.
+
+**Three reproductions of 7.1 were not run, and the login-time half of 7.3 was not either.** An
+unwritable settings file with none present, `AddNativeOutput` commented out to fail `ValidateOnBuild`,
+and a renamed `tray-*.png` all remain, as does whether the dialog is foreground when the process is
+started by the `Run` key at login rather than by something already holding the foreground. All four
+are tracked on issue #30.
