@@ -1,49 +1,52 @@
 ## Why
 
 A tray-only process that fails before its tray icon exists is indistinguishable from one that never
-launched. Three failures do this today: a settings file that is not valid JSON (issue #20), a
-container that fails `ValidateOnBuild`, and a missing macOS tray asset.
+launched. Four failures do this: settings that are invalid JSON (issue #20) or unwritable on a first
+launch, a container failing `ValidateOnBuild`, and a missing macOS tray asset.
 
-Three more leave it running but degraded, reported only where nobody looks. A log directory that
-cannot be created silences the log itself — a release build then produces no output anywhere, and the
-three above lose their fallback. Access to observe keys never granted, or withdrawn while running,
-reaches only the settings window's Hotkey tab, which change 10's own remarks call "a smaller thing
-than telling a user who never opens this window".
+Three more leave it running but degraded, where nobody looks. An uncreatable log directory silences
+the log itself, so the four above lose their fallback. Keys never granted, or withdrawn while
+running, reach only the settings window's Hotkey tab.
 
 ## What Changes
 
 - Add `IFatalErrorReporter` over a native modal dialog — `MessageBoxW` on Windows,
-  `osascript -e 'display dialog'` on macOS. Both are P/Invoke or `Process.Start` and need no Avalonia
-  and no dispatcher, which is what lets them run before either exists.
+  `osascript -e 'display dialog'` on macOS. Neither needs Avalonia or a dispatcher, so it runs before
+  either exists.
 - Guard `Program.LoadSettings`, the container build and the Avalonia start: log `Fatal`, dispose the
-  logger so its asynchronous sink drains, report, exit. Issue #20's four-line fix is a strict subset.
-- Surface the degraded cases through `add-system-integration`'s notification transport rather than a
-  dialog, because they do not prevent startup: a log directory that could not be created, and
-  `HotkeyAvailability` other than `Available`. The Hotkey tab banner is unchanged.
+  logger so its sink drains, report, exit. Catch broadly, not `SettingsException` —
+  `SettingsStore.Write` is unguarded, so issue #20's narrower fix leaves an unwritable file silent.
+- Report both degraded conditions from `App.OnFrameworkInitializationCompleted`, beside
+  `ShowFirstLaunch` — **not** where they are discovered, before any dispatcher pumps. Both are
+  queryable state by then, so nothing is buffered: `LogDirectory` retains the reason `TryCreate`
+  discards, and `Availability` is settled once `host.Start()` returns. Both forced.
+- Add an availability-changed event to `IGlobalHotkeyService`: withdrawal is recorded in
+  `RunHookAsync`'s catch long after `StartAsync` returned, and nothing observes it.
 
-Reference: **none, which is a finding rather than an omission.** The reference returns a `Result`
-into a Tauri command called from its Svelte frontend, so it always has a webview to show the error in.
-Invented rather than re-expressed, as the clipboard restore was.
+Reference: **none, a finding rather than an omission** — the reference reports through a Tauri
+command with a webview always present.
 
 ## Capabilities
 
 ### New Capabilities
-- `startup-diagnostics`: a failure that prevents startup is reported to the user, not only to a log that may not exist.
+- `startup-diagnostics`: a failure preventing startup reaches the user, not only a log.
 
 ### Modified Capabilities
-- `global-hotkey`: a binding that cannot be observed is surfaced without the user opening the settings window.
+- `global-hotkey`: availability changes are observable and surfaced without opening the settings window.
+- `file-logging`: an uncreatable log directory is retained as state, not only logged.
 
 ## Impact
 
-Off-sequence, so no number, per `ROADMAP.md`'s own rule. The notification half depends on
-`add-system-integration`; the dialog half depends on nothing and can land first. Retires change 9's
-twice-deferred `HotkeyAvailability.Failed` item and the startup gap in
-`add-system-integration`'s *Risks*.
+Off-sequence, so no number, per `ROADMAP.md`. `add-system-integration` is archived, so both halves
+can land now; the dialog half depends on nothing and can go first. Retires change 9's
+twice-deferred `HotkeyAvailability.Failed` item and change 11's recorded startup gap. The macOS
+dialog needs the Apple Silicon pass 8 to 11 owe.
 
 ## Non-goals
 
-- No in-app error console, crash reporter or error history.
-- No repair of a corrupt settings file, and **no starting with in-memory defaults**: it holds API
-  keys a settings window would then overwrite.
+- No in-app error console, crash reporter or history.
+- No repair of a corrupt settings file, and **no in-memory defaults**: it holds API keys a settings
+  window would overwrite.
 - No fourth tray icon state; change 9 rejected that.
-- No change to the Hotkey tab's banner.
+- No change to the Hotkey tab's banner, already stale on revocation; fixing that is
+  `settings-window`'s.
