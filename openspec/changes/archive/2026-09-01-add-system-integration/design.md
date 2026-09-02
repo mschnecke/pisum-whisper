@@ -473,3 +473,48 @@ Both throwaway edits were reverted with `git checkout -- src/Pisum.Whisper.App/P
 after their run; `git status` was clean apart from the intended `ToastPresenter` and test changes
 before either edit and after both. No transcript text, API key or clipboard content is implicated by
 either run.
+
+### macOS run — 2026-09-02 (issue #31, task 11/7.2)
+
+Run on an Apple M4 (macOS 26.6.2), Debug build launched as the apphost binary directly, `logLevel` at
+`debug`. `NotificationServiceTests` (4/4) confirmed passing beforehand, covering the `Notify` /
+`NotifyInformation` gating logic this run does not re-derive.
+
+| # | What was checked | Result |
+|---|---|---|
+| 7.2 | Toast position: top right, below the menu bar | **PASS** — triggered via the "Transcription In Progress" site (pressing the hotkey again mid-transcription); confirmed by direct observation |
+| 7.2 | Toast does not activate the application | **PASS** — focus stayed with the field being typed into throughout |
+| 7.2 | `ShowTrayNotifications` off suppresses a suppressible site | **PASS** — the identical trigger logged `The hotkey was pressed while a transcription is in progress...` both times; no toast appeared with the preference off, one appeared with it on |
+| 7.2 | `~/Library/LaunchAgents/net.pisum.whisper.plist` appears | **PASS** — `Label net.pisum.whisper`, `ProgramArguments` pointing at the Debug build output (expected under a dev build, per *Risks*), `RunAtLoad true` |
+| 7.2 | Logging out and back in starts the application | **Not run as a literal logout** — see below |
+
+**The login-time launch was verified with `launchctl bootstrap gui/$(id -u)
+~/Library/LaunchAgents/net.pisum.whisper.plist` instead of an actual logout**, which would have ended
+the interactive session driving this verification. `bootstrap` makes launchd load and run the plist
+exactly as `RunAtLoad` would at login, without a session-ending logout; `launchctl print` confirmed
+`state = running` afterward and a genuinely new process (a different PID from any manually-launched
+instance, which was killed first for an unambiguous read).
+
+**That process came up with no working hotkey, and this is a real, useful finding rather than a
+regression.** Its log carried `libuiohook: run: Accessibility API is disabled!` and the
+`HotkeyAvailability.Failed` message — the app itself started cleanly (tray icon, dispatcher running,
+no crash), exactly the bounded-startup behaviour `global-hotkey`'s spec documents, but the hotkey did
+not work. Every other check this session ran through Rider's process ancestry, which already holds a
+persistent Accessibility grant (see task 1.4); launchd starts the app as its **own** independent
+process, which had never been granted anything. This is the "binary run outside Rider's ancestry"
+task 1.4 recorded as untested and could not reach — now reached, indirectly, through this task.
+
+**Once Accessibility was granted directly to `Pisum.Whisper.App` (System Settings → Privacy &
+Security → Accessibility) and the process restarted with `launchctl kickstart -k`, the hotkey
+registered cleanly** (`Observing the hotkey Meta+Shift+Space.`, no error) and a real hold-to-record
+dictation completed end to end — `Transcribing a 1.8 s recording...`, `Transcription complete: 138
+characters.`, `Delivered 138 characters: "Pasted".` This closes 7.2's login-time check: the mechanism
+works, but a fresh install needs one manual Accessibility grant to the app itself before the hotkey
+is live — consistent with, and now the first direct evidence for, task 1.4's finding that a signing
+identity was not needed *inside* Rider's ancestry precisely because the grant riding along was
+Rider's, not the app's own.
+
+**Not investigated, out of scope for this task:** the transcript produced by the test dictation was an
+unexpected conversational refusal rather than plain transcription, which points at the active preset's
+system prompt content rather than at anything this task verifies. Recorded so it is not mistaken for a
+transcription-pipeline defect by whoever next reads this log.
