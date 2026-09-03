@@ -139,6 +139,34 @@ lists, in one sitting on an Apple M4.
 | `migrate-tests-to-xunit-v3` | 5.4 | win-x64 — confirm Rider still discovers the tests |
 | `report-startup-failures` | 7.2, 7.3 | Apple Silicon for 7.2; win-x64 for 7.3's login-time half. 7.1 (all four fatal-dialog reproductions, closing #20) and 7.3's interactive-launch half both ran 2026-09-02. The `osascript` dialog has never been drawn |
 
+**Counting the archive gives 17, not 10, and both numbers are right.** `grep -c '^- \[ \]'` across
+`openspec/changes/archive/*/tasks.md` returns seventeen unchecked boxes in eight changes. The seven
+rows above hold exactly ten of them. The other seven belong to
+`settle-win-x64-verification-debt`, and **six of those seven are proxies** — its tasks are pointers
+at other changes' tasks, and each one says so in its own title:
+
+| Its box | Is | Row above |
+|---|---|---|
+| 2.4 | **10 / 6.4** | `add-settings-window` |
+| 2.5 | **7 / 3.3** | `add-text-output` |
+| 3.1 | **8 / 6.3** | `add-dictation-pipeline` |
+| 4.1 | **11 / 7.1, and the alt-tab half of 7.4** | `add-system-integration` |
+| 5.4 | **7.3 at login** | `report-startup-failures` |
+| 6.1 | **migrate-tests / 5.4** | `migrate-tests-to-xunit-v3` |
+
+Ticking one of those would tick its target too; they are one piece of work filed twice, on purpose,
+because that change's job was to run other changes' checks. So this table counts **distinct work**
+and the box count double-books. Neither is wrong, and the arithmetic was written down nowhere until
+2026-09-03 — a reader who audited the table against the archive found a seven-box discrepancy and no
+way to tell which side of it was in error.
+
+**The seventh box is not a proxy, and it can no longer be done as written.**
+`settle-win-x64-verification-debt`'s 7.2 says to post a results table on issue #30 as a comment and
+then close it. #30 was closed on 2026-09-02 without the comment. So it is a real eleventh item that
+this table does not carry, it is a close-out rather than a check, and closing it now means deciding
+what to do about an issue that is already shut — which is the same decision the paragraph below
+leaves open.
+
 **None of the ten is tracked by an issue.** #30 (win-x64) and #31 (Apple Silicon) were both closed
 on 2026-09-02 with work still open — #30 while six of its eleven checks had not run, #31 with change
 8's refused-microphone case abandoned rather than completed. This table is the only surviving
