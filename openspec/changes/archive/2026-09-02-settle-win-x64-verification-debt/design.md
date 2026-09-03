@@ -419,6 +419,50 @@ not a platform one, and the number decided here holds on both.
 - **The `notifications` requirement is verified on one platform** and states behaviour on both. →
   Said in the record and in #31.
 
+## Verification results
+
+Decision 1's index: one row per check, naming the archived section that holds the record rather than
+repeating it. Written 2026-09-03, which is later than the run — task 7.1 went unticked when this
+change was archived, and this table is the part of it that was owed.
+
+**Five of the eleven checks ran.** The change was archived anyway, which is the roadmap's rule
+working as intended rather than a slip: an archived change does not certify that its capability was
+verified on hardware.
+
+| Check | Task | Ran | Record |
+|---|---|---|---|
+| 8 / 6.1 — a dictation end to end, hold and toggle | 2.1 | yes | `add-dictation-pipeline`'s *Verification results* |
+| 9 / 4.1 — Release build, overflow placement, tooltip live-refresh | 2.2 | yes | `add-tray-icon`'s *Verification results* |
+| 10 / 6.3 — the 400 ms commit delay | 2.3 | yes | `add-settings-window`'s *Verification results* |
+| 10 / 6.4 — the hotkey recorder suspends matching | 2.4 | **no** | — |
+| 7 / 3.3 — the transcript stays out of clipboard history | 2.5 | **no** | — |
+| 8 / 6.3 — the transcription budget, measured | 3.1 | **no** | — |
+| 11 / 7.1, and the alt-tab half of 7.4 | 4.1 | **no** | — |
+| 11 / 7.4 — the blocking-dispatcher experiment | 4.2 | yes | `add-system-integration`'s *Verification results* |
+| 11 / 7.4 — the `FromThread` readiness gate | 4.3 | yes | `add-system-integration`'s *Verification results* |
+| `report-startup-failures` / 7.1 — unwritable settings, and the driver | 5.1 | yes | `report-startup-failures`'s *Verification results* |
+| `report-startup-failures` / 7.1 — `ValidateOnBuild` | 5.2 | yes | `report-startup-failures`'s *Verification results* |
+| `report-startup-failures` / 7.1 — missing tray asset | 5.3 | yes | `report-startup-failures`'s *Verification results* |
+| `report-startup-failures` / 7.3 — the dialog at login | 5.4 | **no** | — |
+| `migrate-tests-to-xunit-v3` / 5.4 — Rider still discovers the tests | 6.1 | **no** | — |
+
+`report-startup-failures`' 7.1 is closed by rows 5.1 to 5.3 **plus** the corrupt-settings
+reproduction, which ran earlier under commit `ec8fe69` and closed issue #20 — the run that Decision
+1 cites as the "Record …" commit pattern this change deliberately did not follow.
+
+**No constant moved.** Task 2.3 judged `SettingsEditor.CommitDelay` and left it at 400 ms; task 3.1,
+which is the only thing that could have moved `GeminiHttpClient.Timeout` or
+`DictationOrchestrator.DefaultTranscriptionBudget`, did not run. So 400 ms, 60 s and 120 s all
+stand, and `CLAUDE.md` still agrees with the code — task 7.1's verification clause, checked
+2026-09-03.
+
+**The six unrun checks are not lost.** Each is still an unchecked box in the archived change that
+asked it, and `ROADMAP.md`'s *Artifact status* table lists every one. That is why task 7.1's
+instruction to drop the win-x64 entries from that table was **not** carried out: it was written
+expecting all eleven to run, and dropping rows for checks that never happened would make the roadmap
+claim work that nobody did. The table was recomputed instead, under issue #31's rollup, and is
+accurate at ten open tasks across seven changes.
+
 ## Open Questions
 
 Each is settled by a task of this change and struck through in the archived design that asked it.

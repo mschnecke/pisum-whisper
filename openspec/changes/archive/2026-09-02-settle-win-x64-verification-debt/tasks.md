@@ -155,7 +155,7 @@
 
 ## 7. Bookkeeping
 
-- [ ] 7.1 Documents: this change's `design.md` gains a *Verification results* table with one row per
+- [x] 7.1 Documents. **Done 2026-09-03**, later than the run and not by the sitting that owed it. Every clause carried out except one: the *Artifact status* table does **not** drop its win-x64 entries, because the clause assumed all eleven checks would run and six did not — dropping rows for checks nobody performed would make the roadmap claim work that never happened. That table had already been recomputed under issue #31's rollup and is accurate at ten open tasks across seven changes. Also found and corrected while verifying: issues #30 and #31 were both closed with work still open, and `README.md`, `CLAUDE.md` and `ROADMAP.md` all still described them as tracking it. Original text: this change's `design.md` gains a *Verification results* table with one row per
   check pointing at the archived section; `ROADMAP.md`'s *Artifact status* table drops the win-x64
   entries from its seven rows and its "Ten of the twenty-three" paragraph is rewritten to what
   remains; the *Off-sequence changes* table gains a row for this change and *Standing decisions*

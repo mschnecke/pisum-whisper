@@ -120,7 +120,7 @@ has `proposal.md` only; its `specs`, `design` and `tasks` are written when its t
 full, and 7.3 partly has** — the corrupt-settings reproduction that closed issue #20, three more
 fatal-dialog reproductions run the same day under `settle-win-x64-verification-debt`, and 7.3's
 interactive-launch half alongside them. What is left is 7.2's Apple Silicon pass and 7.3's
-login-time half, tracked on issue #30, so it still joins the table below rather than closing with it.
+login-time half, so it still joins the table below rather than closing with it.
 
 **Seven archived changes carry unchecked tasks, ten in total, and they are not all macOS.** This
 section previously named changes 8 to 11 and called that "a departure from how 1-7 were closed".
@@ -137,7 +137,13 @@ lists, in one sitting on an Apple M4.
 | 10 `add-settings-window` | 6.4 | win-x64 |
 | 11 `add-system-integration` | 7.1, 7.4 | win-x64 for 7.1; 7.4 is a headless test plus a glance during 7.1 |
 | `migrate-tests-to-xunit-v3` | 5.4 | win-x64 — confirm Rider still discovers the tests |
-| `report-startup-failures` | 7.2, 7.3 | Apple Silicon for 7.2; win-x64 for 7.3's login-time half, tracked on issue #30. 7.1 (all four fatal-dialog reproductions, closing #20) and 7.3's interactive-launch half both ran 2026-09-02. The `osascript` dialog has never been drawn |
+| `report-startup-failures` | 7.2, 7.3 | Apple Silicon for 7.2; win-x64 for 7.3's login-time half. 7.1 (all four fatal-dialog reproductions, closing #20) and 7.3's interactive-launch half both ran 2026-09-02. The `osascript` dialog has never been drawn |
+
+**None of the ten is tracked by an issue.** #30 (win-x64) and #31 (Apple Silicon) were both closed
+on 2026-09-02 with work still open — #30 while six of its eleven checks had not run, #31 with change
+8's refused-microphone case abandoned rather than completed. This table is the only surviving
+record, which is the state the *Standing decisions* rule on moving open by-hand tasks to a tracking
+issue exists to prevent. Reopening the two, or opening one successor, is an open decision.
 
 **Six of the ten need nothing but the Windows machine this is developed on**, and a seventh is
 11's 7.4 headless test. Two do need Apple Silicon and should be done in one pass — issue #31's
@@ -181,6 +187,27 @@ Recorded so they are not repeatedly re-litigated, and not mistaken for oversight
   precedent set by tracking change 1's macOS verification as issue #15 — would hide the fact that
   change 10 now depends on it. The *Off-sequence changes* section above answers both, and the next
   piece of numberless work belongs there too rather than re-opening this.
+
+- **A verification run that only records is a commit; one that changes anything is a change.**
+  Recording a run into the archived `design.md` that asked for it, ticking its box and updating this
+  file is a `Record …` commit against the tracking issue — the pattern commit `ec8fe69` set when it
+  closed issue #20. It becomes a change when the run does more than record: moves a constant a spec
+  names, discovers a requirement the code does not meet, or produces design that does not belong in
+  an archived change's `design.md` beside decisions made weeks earlier. Striking a question through
+  with its answer is the archive's convention; adding new design there is not.
+  `settle-win-x64-verification-debt` is the worked example of the second case and its Decision 1
+  carries the argument.
+- **By-hand tasks still open when a change is archived move to a tracking issue.** Issues #30 and
+  #31 did this after the fact, for win-x64 and Apple Silicon respectively, and #49 does it for a
+  suite that does not pass unattended. Doing it at archive time rather than afterwards is the rule
+  because an unchecked box inside an archived `tasks.md` is visible to nobody who is not already
+  reading that change — which is how eleven checks sat under an Apple Silicon heading that six of
+  them did not belong to.
+- **A harness written to drive a desktop-session check is kept under `spikes/`, not thrown away in a
+  scratchpad.** `spikes -- fatal` is the instance: it drives the launch-observe-dismiss half of a
+  fatal-startup reproduction, was written for `settle-win-x64-verification-debt`'s task 5.1, and is
+  kept so change 12's CI can run it and so the next person reproducing one of these does not rewrite
+  it. The state setup each reproduction needs stays by hand; that is not what the rule is about.
 
 The reference repository is the behavioural specification — wire formats, the recording state machine
 and its timing constants, the settings schema, and the error taxonomy all come from it. It is not a

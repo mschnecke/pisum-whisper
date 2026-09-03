@@ -156,7 +156,16 @@ again. Two of its rows are held by work that has not happened:
   change 12's Start-menu shortcut carries an AUMID, and the control run recorded in change 11's
   `design.md` — a WinForms balloon beside it — is the experiment that would settle them.
 
-Deleting the harness is a decision for whoever no longer wants those two runs, and the two macOS
+`fatal` (added by `settle-win-x64-verification-debt`'s task 5.1) is a third holder, and a different
+kind: it is not a question but a **driver**. It launches an executable, waits for a top-level window
+of that process whose title matches, posts `WM_CLOSE` — which an `MB_OK` box answers as OK — waits
+for exit, and prints the exit code and the newest `[FTL]` line from the log. It is Windows-only and
+says so when run elsewhere. It exists because the four fatal-startup reproductions share that
+launch-observe-dismiss half, and it was kept rather than left in a scratchpad so change 12's CI can
+run it. The state setup each reproduction needs — moving a settings file aside, commenting out a
+registration, moving a tray asset — stays by hand.
+
+Deleting the harness is a decision for whoever no longer wants those three runs, and the two macOS
 `FAIL` rows, re-runnable — not an oversight.
 
 ```bash
@@ -168,6 +177,7 @@ dotnet run --project spikes/Pisum.Whisper.Spikes -- tray       # tray icon, tool
 dotnet run --project spikes/Pisum.Whisper.Spikes -- notify     # Shell_NotifyIcon balloons, three trials
 dotnet run --project spikes/Pisum.Whisper.Spikes -- toast      # an application-drawn notification, measured
 dotnet run --project spikes/Pisum.Whisper.Spikes -- combined   # hook + Avalonia run loop together
+dotnet run --project spikes/Pisum.Whisper.Spikes -- fatal <exe> <title>   # a fatal-startup repro
 dotnet run --project spikes/Pisum.Whisper.Spikes -- api <assembly> [filter]
 ```
 
@@ -763,29 +773,41 @@ write that never reaches disk was an unobserved task exception, not a report —
 `settings-window` delta is the one `SettingsEditor.Commit()` and `PresetsViewModel`'s notify-and-reload
 handling below now implement; it too is synced.
 
-**Changes 8, 10, 11 and `report-startup-failures` were all archived with their manual verification
-still open** — 8's tasks 6.3 and 6.4, 10's 6.4, 11's 7.1 and 7.4, and `report-startup-failures`'s 7.2
-and 7.3. `report-startup-failures`'s 7.1 closed 2026-09-02, all four fatal-dialog reproductions run —
-the corrupt-settings one closed issue #20, the other three ran later that day under
+**Seven archived changes carry unchecked manual-verification tasks, ten in total** — 1's 1.5a, 7's
+3.3, 8's 6.3 and 6.4, 10's 6.4, 11's 7.1 and 7.4, `migrate-tests-to-xunit-v3`'s 5.4, and
+`report-startup-failures`'s 7.2 and 7.3. An earlier version of this sentence named only 8, 10, 11
+and `report-startup-failures`; `ROADMAP.md` corrected the same error in its *Artifact status*
+section and this is the same correction — changes 1, 7 and the xUnit migration are in exactly the
+same state, so there was never a departure to explain, only three rows left out of the count.
+
+`report-startup-failures`'s 7.1 closed 2026-09-02, all four fatal-dialog reproductions run — the
+corrupt-settings one closed issue #20, the other three ran later that day under
 `settle-win-x64-verification-debt` — and 7.3's interactive-launch half passed alongside them, leaving
-only its login-time half, tracked on issue #30. Every one of these open items still needs a person at
-a machine, and the macOS ones need Apple Silicon with Accessibility granted. An archived change here
-therefore does **not** certify
-that its capability was verified on hardware: what each still owes, and the open design questions
-those runs would settle, stay in that change's archived `design.md` and are reflected nowhere under
-`openspec/specs/`. Read the archived `tasks.md` before treating a capability spec as verified
-behaviour rather than intended behaviour. The macOS verification change 1 left unfinished was tracked
-by issue #15 rather than by an open change, and closed on 2026-08-28; issue #31 carried the same
-shape forward for changes 1, 7, 8, 9, 10 and 11, and ran everything but 8's refused-microphone case
-on 2026-09-02 — which is why it stays open rather than closing the way #15 did. Change 9's manual
-verification is entirely closed as a result, which is why it is absent from the list this paragraph
-opens with. Drive
-the workflow with the `/opsx:*` commands (`explore`, `propose`, `apply`, `sync`, `archive`); the
-backing skills are in `.claude/skills/openspec-*`. The bottom of `openspec/config.yaml` carries the
-project context and the per-artifact rules, and both are **live, not the commented-out template**:
-`proposal`, `design` and `tasks` each have rules, `specs` deliberately has none, and the `openspec`
-CLI is not installed on this machine — so `/opsx:archive` and `/opsx:sync` are run by reading the
-change folder directly, and a spec sync is the no-rules case either way.
+only its login-time half. Every one of these open items still needs a person at a machine, and the
+macOS ones need Apple Silicon with Accessibility granted.
+
+**All ten are currently tracked by nothing.** Issues #30 (win-x64) and #31 (Apple Silicon) were both
+closed on 2026-09-02 with work still open — #30 while six of its eleven checks had not run, #31 with
+change 8's refused-microphone case abandoned rather than completed. `ROADMAP.md`'s *Artifact status*
+table is therefore the only surviving record, and that is exactly the state the standing decision
+about moving open by-hand tasks to a tracking issue exists to prevent. Verified 2026-09-03: both
+report `CLOSED`.
+
+An archived change here therefore does **not** certify that its capability was verified on hardware:
+what each still owes, and the open design questions those runs would settle, stay in that change's
+archived `design.md` and are reflected nowhere under `openspec/specs/`. Read the archived `tasks.md`
+before treating a capability spec as verified behaviour rather than intended behaviour. The macOS
+verification change 1 left unfinished was tracked by issue #15 rather than by an open change, and
+closed on 2026-08-28; issue #31 carried the same shape forward for changes 1, 7, 8, 9, 10 and 11,
+and ran everything but 8's refused-microphone case on 2026-09-02 — then closed anyway, unlike #15,
+which had nothing left. Change 9's manual verification is entirely closed as a result, which is why
+it is absent from the list this paragraph opens with. Drive the workflow with the `/opsx:*` commands
+(`explore`, `propose`, `apply`, `sync`, `archive`); the backing skills are in
+`.claude/skills/openspec-*`. The bottom of `openspec/config.yaml` carries the project context and
+the per-artifact rules, and both are **live, not the commented-out template**: `proposal`, `design`
+and `tasks` each have rules, `specs` deliberately has none, and the `openspec` CLI is not installed
+on this machine — so `/opsx:archive` and `/opsx:sync` are run by reading the change folder directly,
+and a spec sync is the no-rules case either way.
 
 **A commit that only touches `openspec/` must say so in its subject line.** A proposal's *What
 Changes* section is a list of imperatives — "Replace `MSTest` with `xunit.v3`", "Rewrite the
