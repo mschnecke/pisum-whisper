@@ -72,7 +72,7 @@ Ordered by when each was proposed.
 | `settle-win-x64-verification-debt` | The eleven by-hand checks across seven archived changes that need nothing but the Windows machine this is developed on | nothing | Archived 2026-09-02, closes #30 |
 | `surface-settings-save-failures` | A settings write that never reached disk became an unobserved task exception, so the window looked like the save had worked | nothing | Archived 2026-09-02, closes #37 |
 | `ready-the-suite-for-ci` | Five write-failure tests whose `FileShare.None` arrangement only fails on Windows, and a latency test that gates itself instead of being filtered by CI, so the suite passes unattended on both platforms | **12** | Archived 2026-09-03, closes #49; win-x64 debt open on #50 |
-| `fix-stale-autostart-registration` | The reconciler asked "is something registered", so a registration naming an executable that is no longer this one read as agreement and was never rewritten — an install over a build went on launching the build at every login | nothing | Active; found by change 12's task 3.2 and reproduced on Apple Silicon 2026-09-03 |
+| `fix-stale-autostart-registration` | The reconciler asked "is something registered", so a registration naming an executable that is no longer this one read as agreement and was never rewritten — an install over a build went on launching the build at every login | nothing | Archived 2026-09-03; found by change 12's task 3.2 and reproduced on Apple Silicon the same day; win-x64 check 5.2 open, tracked by nothing |
 
 `add-settings-window` depends on `migrate-tests-to-xunit-v3`: Avalonia ships first-party headless
 test integration for xUnit and NUnit only — there is no `Avalonia.Headless.MSTest` and there never
@@ -127,9 +127,9 @@ Changes **1-11** are implemented and archived under `openspec/changes/archive/`,
 `global-hotkey`, `gemini-transcription`, `text-output`, `dictation-pipeline`, `tray-icon`,
 `settings-window`, `notifications` and `autostart` specs synced into `openspec/specs/`. Change **12**
 is **implemented** on `change/12-add-packaging-ci`, with all four artifacts written and its `packaging`
-delta spec waiting to be synced when it archives. `fix-stale-autostart-registration` is active
-alongside it, on the same branch, carrying an `autostart` delta of its own — it is change 12's own
-finding, and change 12's task 9.4 asks a question that this is the answer to.
+delta spec waiting to be synced when it archives. `fix-stale-autostart-registration` archived on
+2026-09-03 with its `autostart` delta synced — it is change 12's own finding, and change 12's task 9.4
+asks a question that this is the answer to.
 `report-startup-failures` is implemented and archived as well, on 2026-09-02, with its
 `file-logging`, `global-hotkey` and new `startup-diagnostics` specs synced. **7.1 has since closed in
 full, and 7.3 partly has** — the corrupt-settings reproduction that closed issue #20, three more
@@ -137,9 +137,9 @@ fatal-dialog reproductions run the same day under `settle-win-x64-verification-d
 interactive-launch half alongside them. What is left is 7.2's Apple Silicon pass and 7.3's
 login-time half, so it still joins the table below rather than closing with it.
 
-**Eight archived changes carry unchecked tasks in the table below, thirteen in total, and they are
-not all macOS.** Counting `settle-win-x64-verification-debt`'s own seven boxes as well gives twenty
-across nine changes; the paragraph under the table reconciles the two. **Change 12's row is the ninth
+**Nine archived changes carry unchecked tasks in the table below, fourteen in total, and they are
+not all macOS.** Counting `settle-win-x64-verification-debt`'s own seven boxes as well gives twenty-one
+across ten changes; the paragraph under the table reconciles the two. **Change 12's row is the tenth
 and is not one of them**: it is active rather than archived, so its five boxes are not in the archive
 count and will not be until it moves. It is listed here anyway because #52 was opened while it was
 still active, which is the standing decision working rather than an exception to it. This
@@ -159,11 +159,12 @@ lists, in one sitting on an Apple M4.
 | `migrate-tests-to-xunit-v3` | 5.4 | win-x64 — confirm Rider still discovers the tests |
 | `report-startup-failures` | 7.2, 7.3 | Apple Silicon for 7.2; win-x64 for 7.3's login-time half. 7.1 (all four fatal-dialog reproductions, closing #20) and 7.3's interactive-launch half both ran 2026-09-02. The `osascript` dialog has never been drawn |
 | `ready-the-suite-for-ci` | 1.1, 5.2, 5.3 | win-x64 for all three — the T1 failure-injection probe, the CI command, and the Windows half of the alone-runs. Tracked by [#50](https://github.com/mschnecke/pisum-whisper/issues/50), opened before the archive rather than after — the first row here to be, and no longer the only one |
+| `fix-stale-autostart-registration` | 5.2 | win-x64 — with `HKCU\...\Run\Pisum Whisper` naming another path, confirm the value is rewritten and the log line says repointed rather than enabled. Its Apple Silicon twin 5.1 ran 2026-09-03 and passed. Tracked by nothing |
 | 12 `add-packaging-ci` | 9.1–9.5 | a clean Windows 11 x64 machine for 9.1, a clean Apple Silicon Mac for 9.2 and 9.3, both for 9.4 and 9.5. Tracked by [#52](https://github.com/mschnecke/pisum-whisper/issues/52), the second row opened before its archive. Three of the five close a box above as well: **9.2** the macOS half of 8 / 6.4, **9.4** the login half of 11 / 7.1, **9.5** `report-startup-failures` / 7.2 |
 
-**Counting the archive gives 20, not 13, and both numbers are right.** `grep -c '^- \[ \]'` across
-`openspec/changes/archive/*/tasks.md` returns twenty unchecked boxes in nine changes. The eight
-rows above hold exactly thirteen of them. The other seven belong to
+**Counting the archive gives 21, not 14, and both numbers are right.** `grep -c '^- \[ \]'` across
+`openspec/changes/archive/*/tasks.md` returns twenty-one unchecked boxes in ten changes. The nine
+rows above hold exactly fourteen of them. The other seven belong to
 `settle-win-x64-verification-debt`, and **six of those seven are proxies** — its tasks are pointers
 at other changes' tasks, and each one says so in its own title:
 
@@ -188,8 +189,8 @@ because running other changes' checks was that change's whole job. Change 12's 9
 its own checks — install from the `.pkg`, autostart at login from an installed build, a startup
 dialog from an installed build — which happen to be the first setup in which another change's open
 box is answerable at all. So they are counted **once**, in change 12's row, and the row names what
-else each would tick; they are not added to the three rows above. The five make eighteen open boxes
-across nine rows, thirteen of them in the archive.
+else each would tick; they are not added to the three rows above. The five make nineteen open boxes
+across ten rows, fourteen of them in the archive.
 
 **The seventh box is not a proxy, and it can no longer be done as written.**
 `settle-win-x64-verification-debt`'s 7.2 says to post a results table on issue #30 as a comment and
@@ -198,16 +199,16 @@ this table does not carry, it is a close-out rather than a check, and closing it
 what to do about an issue that is already shut — which is the same decision the paragraph below
 leaves open.
 
-**None of the ten is tracked by an issue** — the ten being the thirteen archived boxes less
+**None of the eleven is tracked by an issue** — the eleven being the fourteen archived boxes less
 `ready-the-suite-for-ci`'s three, which #50 carries; change 12's five are on #52. #30 (win-x64) and
 #31 (Apple Silicon) were both closed on 2026-09-02 with work still open — #30 while six of its eleven
 checks had not run, #31 with change 8's refused-microphone case abandoned rather than completed. For
-those ten this table is the only surviving record, which is the state the *Standing decisions* rule
+those eleven this table is the only surviving record, which is the state the *Standing decisions* rule
 on moving open by-hand tasks to a tracking issue exists to prevent. Reopening the two, or opening one
 successor, is an open decision. Three of them would be ticked by change 12's run anyway, which is a
 reason to sequence #52 first rather than a reason to leave them untracked.
 
-**Six of the ten need nothing but the Windows machine this is developed on**, and a seventh is
+**Seven of the eleven need nothing but the Windows machine this is developed on**, and an eighth is
 11's 7.4 headless test. Two do need Apple Silicon and should be done in one pass — issue #31's
 successor, once hardware is available again; one needs a 44.1 kHz input device and is not about
 either platform.
