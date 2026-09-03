@@ -62,16 +62,21 @@ Everything from #8 onward is strictly sequential.
 Work that is real and tracked but carries no number, because it adds no capability and does not sit
 on the pipeline the twelve rows above sequence.
 
-| Change | What it is | Blocks |
-|---|---|---|
-| `migrate-tests-to-xunit-v3` | MSTest to xUnit v3 across both test projects; `dotnet test` moves to Microsoft.Testing.Platform | 10 |
-| `report-startup-failures` | A native modal dialog for the four failures that prevent startup, and the notification transport for the two degraded conditions that reach nobody today | nothing |
-| `ready-the-suite-for-ci` | Five write-failure tests whose `FileShare.None` arrangement only fails on Windows, and a latency test that gates itself instead of being filtered by CI, so the suite passes unattended on both platforms | **12** |
+Ordered by when each was proposed.
 
-`add-settings-window` depends on it: Avalonia ships first-party headless test integration for xUnit
-and NUnit only — there is no `Avalonia.Headless.MSTest` and there never has been — so change 10
-cannot write a headless test for its window until this is in place. That is the whole reason the
-migration ran before change 9 rather than whenever it became convenient.
+| Change | What it is | Blocks | Status |
+|---|---|---|---|
+| `migrate-tests-to-xunit-v3` | MSTest to xUnit v3 across both test projects; `dotnet test` moves to Microsoft.Testing.Platform | **10** | Archived 2026-09-01 |
+| `report-startup-failures` | A native modal dialog for the four failures that prevent startup, and the notification transport for the two degraded conditions that reach nobody today | nothing | Archived 2026-09-02, closes #20 |
+| `fix-startup-ioexception-mislabeling` | `StartupFailure.Describe` matched on exception *type*, so a missing tray asset's `FileNotFoundException` was reported as a settings error — telling the user the file holding their API keys was broken when it never was | nothing numbered; `surface-settings-save-failures` builds on it | Archived 2026-09-02, closes #34 |
+| `settle-win-x64-verification-debt` | The eleven by-hand checks across seven archived changes that need nothing but the Windows machine this is developed on | nothing | Archived 2026-09-02, closes #30 |
+| `surface-settings-save-failures` | A settings write that never reached disk became an unobserved task exception, so the window looked like the save had worked | nothing | Archived 2026-09-02, closes #37 |
+| `ready-the-suite-for-ci` | Five write-failure tests whose `FileShare.None` arrangement only fails on Windows, and a latency test that gates itself instead of being filtered by CI, so the suite passes unattended on both platforms | **12** | Active, #49 |
+
+`add-settings-window` depends on `migrate-tests-to-xunit-v3`: Avalonia ships first-party headless
+test integration for xUnit and NUnit only — there is no `Avalonia.Headless.MSTest` and there never
+has been — so change 10 cannot write a headless test for its window until it is in place. That is
+the whole reason the migration ran before change 9 rather than whenever it became convenient.
 
 `report-startup-failures` blocks nothing, and change 12 does not depend on it. It is off-sequence for
 the same reason the migration is — it adds a capability to a pipeline that is already built rather
@@ -89,6 +94,18 @@ which blocks `File.Move` on Windows and not on macOS, where `rename(2)` ignores 
 open descriptors. They were found by hand during issue #31's sitting, reported in PR #48's
 description, and left for an owner that PR's archive no longer has. Change 12's task group 5 cannot
 land green until this does. Tracked on issue #49.
+
+**Three rows were missing until 2026-09-03, and the omission has a shape worth naming.** The table
+listed the two changes that were *planned* as off-sequence work and none of the three that began as
+a bug report — `fix-startup-ioexception-mislabeling` (#34), `settle-win-x64-verification-debt` (#30)
+and `surface-settings-save-failures` (#37) were each proposed, implemented and archived without the
+row being added. So a reader counting off-sequence changes here found two while the archive held
+five. In `settle-win-x64-verification-debt`'s case this was not an oversight at all: **its own task
+7.1 says "the *Off-sequence changes* table gains a row for this change", and that task is
+unchecked** — the change was archived with eight open boxes, one of which was adding itself here.
+The rest of 7.1 is still owed and is not done by this correction: the *Artifact status* table's
+win-x64 entries, the three *Standing decisions* rules it specifies, and its `CLAUDE.md` and
+`README.md` edits.
 
 
 ## Artifact status
