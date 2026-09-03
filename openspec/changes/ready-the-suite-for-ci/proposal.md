@@ -23,11 +23,11 @@ everyone to ignore it.
   destination replaces it; neither platform renames over one. Reported in PR #48, owner long
   archived.
 - **Four `ToastPresenterTests` stop depending on what ran before them.** They assert `LiveCount`
-  after `Present`, which since `settle-win-x64-verification-debt`'s `Dispatcher.FromThread`
-  readiness gate returns early when no dispatcher is registered for the captured thread. Alone they
-  fail; beside siblings most pass; across 38 suite runs they failed 10 times, four of those in the
-  six run under deliberate CPU starvation. **A green result there is contamination, not
-  evidence** — which is how a correct gate silently regressed four tests whose boxes were ticked.
+  after `Present`, and the job `Present` posts is **discarded, not deferred**, on the first
+  dispatcher cycle of a fresh headless session. Alone all four fail; beside siblings most pass;
+  across 38 suite runs they failed 10 times, four in the six run under CPU starvation. **A green
+  result there is contamination, not evidence.** One of them asserts three notifications and passes
+  alone *because* the first is eaten.
 - **The rotation latency test gates itself** on an environment variable shaped like
   `ManualTests.Enabled`, reporting **skipped with its reason** rather than vanishing behind a
   `--filter-not-method` nobody reads. *Its flakiness is `migrate-tests-to-xunit-v3`'s Windows
