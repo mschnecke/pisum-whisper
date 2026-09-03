@@ -1,46 +1,55 @@
+# Package and release the application
+
 ## Why
 
-Everything so far runs under `dotnet run`. That is precisely the configuration in which the two
-hardest platform behaviours are least trustworthy: macOS ties Accessibility grants to a binary's code
-signature, so an unsigned or rebuilt-each-time binary re-prompts forever, and Windows toasts need an
-AUMID that only an installed Start-menu shortcut provides. **The app is not verified until it is
+Everything so far runs under `dotnet run` — the configuration in which the platform behaviours are
+least trustworthy, since macOS ties the Accessibility grant to a binary's code identity and neither
+platform has launched this application from an install. **The app is not verified until it is
 verified from an installed build.**
 
 ## What Changes
 
-- Publish profiles: `win-x64` and `osx-arm64`, self-contained, ReadyToRun.
-- Windows: an MSI that installs a Start-menu shortcut **carrying the AUMID**, satisfying the
-  requirement recorded in `add-system-integration`.
-- macOS: assemble a `Pisum Whisper.app` bundle with `Info.plist` declaring `LSUIElement` (menu-bar
-  only), `NSMicrophoneUsageDescription` and `CFBundleIdentifier = net.pisum.whisper`; then codesign
-  with the hardened runtime and entitlements, and notarize.
-- Establish a **stable signing identity for development**, so Accessibility grants survive rebuilds.
-  The reference ships unsigned and strips the quarantine attribute in a postinstall script; that
-  papers over the symptom and leaves developers re-granting permission on every build.
-- GitHub Actions matrix over `windows-latest` and `macos-latest`, producing both artifacts and
-  running the unit test suite — the reference's CI runs no tests at all.
-- Document the required prerequisites and permissions in `README.md`.
+- Publish `win-x64` and `osx-arm64`: self-contained, ReadyToRun, not trimmed, not single-file.
+- Windows: a WiX v6 MSI with a Start-menu shortcut carrying an AUMID.
+- macOS: assemble `Pisum Whisper.app` — `Info.plist` declaring `LSUIElement`,
+  `NSMicrophoneUsageDescription` and `CFBundleIdentifier = net.pisum.whisper` — inside a `.pkg`
+  whose postinstall clears the quarantine attribute.
+- **Ship unsigned on both platforms, deliberately.** *This reverses the first draft*, which called
+  the reference's quarantine strip "papering over the symptom" and set out to establish a signing
+  identity. The reference has shipped eighteen releases unsigned through a public Homebrew cask, a
+  Developer ID is a purchase, and an unsigned `.pkg` is the only shape keeping the install to one
+  step. The price — the Accessibility grant re-prompting after every update, an ad-hoc signature's
+  identity being its cdhash — is told to the user in `README.md` and the cask caveats, not hidden.
+- An application icon: `App/Assets/` holds tray glyphs only.
+- GitHub Actions: `ci.yml` builds and tests on `windows-latest` and `macos-latest`; `release.yml`
+  publishes both installers on a `v*` tag. The reference's CI runs no tests at all.
+- A Homebrew cask in `mschnecke/homebrew-pisum-whisper`; a Chocolatey package pushed to MyGet.
+- `README.md`: prerequisites, permissions, and both unsigned-install detours.
 
-Reference: `.github/workflows/`, `scripts/create-macos-pkg.sh` and `packages/` in the reference repo.
-Note that the repository remote is GitHub, so `gh` is the CLI, not `glab`.
+Reference: `.github/workflows/`, `scripts/create-macos-pkg.sh`, `scripts/postinstall`, `packages/`,
+and its tap's `casks/pisum-transcript.rb`.
 
 ## Capabilities
 
 ### New Capabilities
-- `packaging`: the application is built, signed and distributed as an installable artifact for Windows x64 and macOS Apple Silicon.
+- `packaging`: the application is built, released by CI, and distributed as an installable artifact
+  for Windows x64 and macOS Apple Silicon.
 
 ### Modified Capabilities
 _None._
 
 ## Impact
 
-Depends on every preceding change. Verification here is the real acceptance test for the whole
-sequence: install on clean machines and confirm the hotkey, microphone and paste all work from the
-installed build, and that the permission prompts appear once and stick.
+Depends on every preceding change; verification here is the whole sequence's acceptance test.
+
+**One claim is withdrawn.** The first draft said the shortcut's AUMID satisfies "the requirement
+recorded in `add-system-integration`". Change 11 records the opposite — it drew its own notification
+window so as to place *no* requirement here. The AUMID is set anyway, reviving `spikes -- notify`'s
+three unanswered questions, but it satisfies nothing.
 
 ## Non-goals
 
-- No Chocolatey package and no Homebrew cask. The reference has both; they are a distribution
-  decision that can follow once the installers themselves are proven.
+- No code signing and no notarization.
 - No auto-update mechanism.
-- No Linux target, and no win-arm64 or osx-x64.
+- No Linux target, no win-arm64, no osx-x64.
+- No version-bump automation; the tag is written by hand.
