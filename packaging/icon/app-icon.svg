@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- The application icon. Not a tray glyph: `App/Assets/tray-idle.win.svg` is a 16 pt monochrome
+       silhouette drawn to survive being reduced to pure alpha as a macOS template image, and on its
+       own at 512 pt it reads as nothing. This takes that drawing's geometry - the same bubble path
+       and the same three transcript lines, at the same 16-unit coordinates - and sets it on a
+       filled ground (design D10).
+
+       The transcript lines are still HOLES rather than light-coloured fills, exactly as the tray
+       glyph draws them, so they read as the ground showing through the bubble at every size rather
+       than as a second colour that has to be told apart from the first. Here they are subpaths of
+       the bubble under `fill-rule="evenodd"` instead of the tray glyph's luminance mask: a mask
+       with `maskUnits="userSpaceOnUse"` resolves in the user space established BY the element's own
+       transform, so a mask written in glyph units beside a transformed path is applied twice and
+       silently cuts nothing. Even-odd needs no second coordinate system. -->
+  <defs>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#54687F"/>
+      <stop offset="1" stop-color="#2B3646"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#ground)"/>
+
+  <g transform="translate(168 174) scale(43)">
+    <path fill="#F5F7FA" fill-rule="evenodd"
+          d="M 4 1.5 H 12 A 2.5 2.5 0 0 1 14.5 4 V 9 A 2.5 2.5 0 0 1 12 11.5 H 7 L 4 14.2 L 4 11.5 A 2.5 2.5 0 0 1 1.5 9 V 4 A 2.5 2.5 0 0 1 4 1.5 Z
+             M 4.95 3.2  H 11.05 A 0.65 0.65 0 0 1 11.05 4.5  H 4.95 A 0.65 0.65 0 0 1 4.95 3.2  Z
+             M 4.95 5.85 H 8.85  A 0.65 0.65 0 0 1 8.85  7.15 H 4.95 A 0.65 0.65 0 0 1 4.95 5.85 Z
+             M 4.95 8.5  H 10.05 A 0.65 0.65 0 0 1 10.05 9.8  H 4.95 A 0.65 0.65 0 0 1 4.95 8.5  Z"/>
+  </g>
+</svg>

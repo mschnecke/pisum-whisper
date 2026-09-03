@@ -51,13 +51,28 @@ public sealed class WindowsAutostart : IAutostartService
         _subKey = subKey;
     }
 
-    public bool IsEnabled()
+    public AutostartRegistration Read()
     {
         try
         {
             using var key = Registry.CurrentUser.OpenSubKey(_subKey);
+            var value = key?.GetValue(ValueName);
 
-            return key?.GetValue(ValueName) is not null;
+            if (value is null)
+            {
+                return AutostartRegistration.Absent;
+            }
+
+            // Everything else is Stale, including a value of some other kind: SetValue overwrites
+            // whatever is there, so anything that is not the command this would write now is one
+            // write away from being right. Environment.ProcessPath is null only for a host that
+            // cannot name its own executable, and a registration cannot be claimed as ours without
+            // it — Stale rather than a throw, so the setting being off can still remove it.
+            return value is string command
+                   && Environment.ProcessPath is { } path
+                   && command == Quote(path)
+                ? AutostartRegistration.Current
+                : AutostartRegistration.Stale;
         }
         catch (Exception exception) when (IsRegistryFailure(exception))
         {
@@ -73,10 +88,9 @@ public sealed class WindowsAutostart : IAutostartService
         {
             using var key = Registry.CurrentUser.CreateSubKey(_subKey);
 
-            // Quoted, because a path under "Program Files" would otherwise be read as a command and
-            // its first space as an argument separator. SetValue replaces, so enabling twice leaves
-            // one value rather than two.
-            key.SetValue(ValueName, $"\"{ExecutablePath()}\"", RegistryValueKind.String);
+            // SetValue replaces, so enabling twice leaves one value rather than two — and repointing
+            // a stale one needs no separate delete.
+            key.SetValue(ValueName, Quote(ExecutablePath()), RegistryValueKind.String);
         }
         catch (Exception exception) when (IsRegistryFailure(exception))
         {
@@ -104,12 +118,27 @@ public sealed class WindowsAutostart : IAutostartService
     }
 
     /// <summary>
+    /// The command a login registration for <paramref name="path"/> is, written in one place so that
+    /// <see cref="Read"/> compares against exactly what <see cref="Enable"/> writes rather than
+    /// re-deriving it and drifting from it.
+    /// </summary>
+    /// <remarks>
+    /// Quoted, because a path under <i>Program Files</i> would otherwise be read as a command and its
+    /// first space as an argument separator.
+    /// </remarks>
+    private static string Quote(string path)
+    {
+        return $"\"{path}\"";
+    }
+
+    /// <summary>
     /// What the login registration points at.
     /// </summary>
     /// <remarks>
     /// Whatever the process was launched as, with no heuristic about what it looks like. Under
-    /// <c>dotnet run</c> that is the build output, which is a developer's own doing and is recorded
-    /// in the change's <i>Risks</i> rather than guessed at here.
+    /// <c>dotnet run</c> that is the build output, which is a developer's own doing; the installed
+    /// build registers the installed path, and <see cref="AutostartReconciler"/> rewrites the one
+    /// into the other on the first launch after an install.
     /// </remarks>
     private static string ExecutablePath()
     {

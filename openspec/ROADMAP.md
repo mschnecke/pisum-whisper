@@ -62,15 +62,22 @@ Everything from #8 onward is strictly sequential.
 Work that is real and tracked but carries no number, because it adds no capability and does not sit
 on the pipeline the twelve rows above sequence.
 
-| Change | What it is | Blocks |
-|---|---|---|
-| `migrate-tests-to-xunit-v3` | MSTest to xUnit v3 across both test projects; `dotnet test` moves to Microsoft.Testing.Platform | 10 |
-| `report-startup-failures` | A native modal dialog for the four failures that prevent startup, and the notification transport for the two degraded conditions that reach nobody today | nothing |
+Ordered by when each was proposed.
 
-`add-settings-window` depends on it: Avalonia ships first-party headless test integration for xUnit
-and NUnit only — there is no `Avalonia.Headless.MSTest` and there never has been — so change 10
-cannot write a headless test for its window until this is in place. That is the whole reason the
-migration ran before change 9 rather than whenever it became convenient.
+| Change | What it is | Blocks | Status |
+|---|---|---|---|
+| `migrate-tests-to-xunit-v3` | MSTest to xUnit v3 across both test projects; `dotnet test` moves to Microsoft.Testing.Platform | **10** | Archived 2026-09-01 |
+| `report-startup-failures` | A native modal dialog for the four failures that prevent startup, and the notification transport for the two degraded conditions that reach nobody today | nothing | Archived 2026-09-02, closes #20 |
+| `fix-startup-ioexception-mislabeling` | `StartupFailure.Describe` matched on exception *type*, so a missing tray asset's `FileNotFoundException` was reported as a settings error — telling the user the file holding their API keys was broken when it never was | nothing numbered; `surface-settings-save-failures` builds on it | Archived 2026-09-02, closes #34 |
+| `settle-win-x64-verification-debt` | The eleven by-hand checks across seven archived changes that need nothing but the Windows machine this is developed on | nothing | Archived 2026-09-02, closes #30 |
+| `surface-settings-save-failures` | A settings write that never reached disk became an unobserved task exception, so the window looked like the save had worked | nothing | Archived 2026-09-02, closes #37 |
+| `ready-the-suite-for-ci` | Five write-failure tests whose `FileShare.None` arrangement only fails on Windows, and a latency test that gates itself instead of being filtered by CI, so the suite passes unattended on both platforms | **12** | Archived 2026-09-03, closes #49; win-x64 debt open on #50 |
+| `fix-stale-autostart-registration` | The reconciler asked "is something registered", so a registration naming an executable that is no longer this one read as agreement and was never rewritten — an install over a build went on launching the build at every login | nothing | Active; found by change 12's task 3.2 and reproduced on Apple Silicon 2026-09-03 |
+
+`add-settings-window` depends on `migrate-tests-to-xunit-v3`: Avalonia ships first-party headless
+test integration for xUnit and NUnit only — there is no `Avalonia.Headless.MSTest` and there never
+has been — so change 10 cannot write a headless test for its window until it is in place. That is
+the whole reason the migration ran before change 9 rather than whenever it became convenient.
 
 `report-startup-failures` blocks nothing, and change 12 does not depend on it. It is off-sequence for
 the same reason the migration is — it adds a capability to a pipeline that is already built rather
@@ -79,6 +86,39 @@ than a stage to the pipeline — and it exists because changes 9 and 11 each def
 transport could not reach a failure raised before the dispatcher loop starts. It also closes issue
 #20. It is dependent on change 11 for the degraded half only; the dialog half depends on nothing.
 
+`ready-the-suite-for-ci` is the first off-sequence change that **blocked a numbered one**, and it is
+implemented and archived as of 2026-09-03. Change 12 adds the first CI this repository has had, and
+on `main` its macOS leg would have been red before a line of packaging was written: measured
+2026-09-03, `dotnet test --filter-not-trait Category=Manual`
+gives 625 selected, 615 passed, **5 failed**, 5 skipped. The five are `PresetsViewModelTests` and
+`SettingsEditorTests` write-failure tests that hold the settings file open with `FileShare.None` —
+which blocks `File.Move` on Windows and not on macOS, where `rename(2)` ignores the destination's
+open descriptors. They were found by hand during issue #31's sitting, reported in PR #48's
+description, and left for an owner that PR's archive no longer has. Change 12's task group 5 cannot
+land green until this does. Tracked on issue #49.
+
+**Its win-x64 debt was opened as #50 before archiving, not after, and that is the point.** Everything
+in the change is implemented and verified on Apple Silicon — sixteen full runs, ten at normal load
+and six under fourteen busy loops on a ten-core machine, all 625 selected / 619 passed / 6 skipped /
+0 failed, plus every repaired test run alone. Three checks need the Windows machine and cannot be
+run from a Mac: the T1 failure-injection probe (task 1.1), the CI command on win-x64 (5.2), and the
+Windows half of the alone-runs (5.3). Issues #30 and #31 were both closed on 2026-09-02 with work
+still open, which is how the *Artifact status* table below became the only surviving record of ten
+by-hand tasks. Opening #50 while this change is still active is the standing decision applied one
+step earlier than it has been before.
+
+**Three rows were missing until 2026-09-03, and the omission has a shape worth naming.** The table
+listed the two changes that were *planned* as off-sequence work and none of the three that began as
+a bug report — `fix-startup-ioexception-mislabeling` (#34), `settle-win-x64-verification-debt` (#30)
+and `surface-settings-save-failures` (#37) were each proposed, implemented and archived without the
+row being added. So a reader counting off-sequence changes here found two while the archive held
+five. In `settle-win-x64-verification-debt`'s case this was not an oversight at all: **its own task
+7.1 says "the *Off-sequence changes* table gains a row for this change", and that task is
+unchecked** — the change was archived with eight open boxes, one of which was adding itself here.
+The rest of 7.1 is still owed and is not done by this correction: the *Artifact status* table's
+win-x64 entries, the three *Standing decisions* rules it specifies, and its `CLAUDE.md` and
+`README.md` edits.
+
 
 ## Artifact status
 
@@ -86,15 +126,23 @@ Changes **1-11** are implemented and archived under `openspec/changes/archive/`,
 `application-host`, `settings-persistence`, `file-logging`, `audio-capture`, `audio-encoding`,
 `global-hotkey`, `gemini-transcription`, `text-output`, `dictation-pipeline`, `tray-icon`,
 `settings-window`, `notifications` and `autostart` specs synced into `openspec/specs/`. Change **12**
-has `proposal.md` only; its `specs`, `design` and `tasks` are written when its turn comes.
+is **implemented** on `change/12-add-packaging-ci`, with all four artifacts written and its `packaging`
+delta spec waiting to be synced when it archives. `fix-stale-autostart-registration` is active
+alongside it, on the same branch, carrying an `autostart` delta of its own — it is change 12's own
+finding, and change 12's task 9.4 asks a question that this is the answer to.
 `report-startup-failures` is implemented and archived as well, on 2026-09-02, with its
 `file-logging`, `global-hotkey` and new `startup-diagnostics` specs synced. **7.1 has since closed in
 full, and 7.3 partly has** — the corrupt-settings reproduction that closed issue #20, three more
 fatal-dialog reproductions run the same day under `settle-win-x64-verification-debt`, and 7.3's
 interactive-launch half alongside them. What is left is 7.2's Apple Silicon pass and 7.3's
-login-time half, tracked on issue #30, so it still joins the table below rather than closing with it.
+login-time half, so it still joins the table below rather than closing with it.
 
-**Seven archived changes carry unchecked tasks, ten in total, and they are not all macOS.** This
+**Eight archived changes carry unchecked tasks in the table below, thirteen in total, and they are
+not all macOS.** Counting `settle-win-x64-verification-debt`'s own seven boxes as well gives twenty
+across nine changes; the paragraph under the table reconciles the two. **Change 12's row is the ninth
+and is not one of them**: it is active rather than archived, so its five boxes are not in the archive
+count and will not be until it moves. It is listed here anyway because #52 was opened while it was
+still active, which is the standing decision working rather than an exception to it. This
 section previously named changes 8 to 11 and called that "a departure from how 1-7 were closed".
 Both halves were wrong: changes 1 and 7 are in the same state, so there was no departure — only the
 recording of it changed. Change 9's row is gone as of 2026-09-02: issue #31 closed all three of its
@@ -109,7 +157,55 @@ lists, in one sitting on an Apple M4.
 | 10 `add-settings-window` | 6.4 | win-x64 |
 | 11 `add-system-integration` | 7.1, 7.4 | win-x64 for 7.1; 7.4 is a headless test plus a glance during 7.1 |
 | `migrate-tests-to-xunit-v3` | 5.4 | win-x64 — confirm Rider still discovers the tests |
-| `report-startup-failures` | 7.2, 7.3 | Apple Silicon for 7.2; win-x64 for 7.3's login-time half, tracked on issue #30. 7.1 (all four fatal-dialog reproductions, closing #20) and 7.3's interactive-launch half both ran 2026-09-02. The `osascript` dialog has never been drawn |
+| `report-startup-failures` | 7.2, 7.3 | Apple Silicon for 7.2; win-x64 for 7.3's login-time half. 7.1 (all four fatal-dialog reproductions, closing #20) and 7.3's interactive-launch half both ran 2026-09-02. The `osascript` dialog has never been drawn |
+| `ready-the-suite-for-ci` | 1.1, 5.2, 5.3 | win-x64 for all three — the T1 failure-injection probe, the CI command, and the Windows half of the alone-runs. Tracked by [#50](https://github.com/mschnecke/pisum-whisper/issues/50), opened before the archive rather than after — the first row here to be, and no longer the only one |
+| 12 `add-packaging-ci` | 9.1–9.5 | a clean Windows 11 x64 machine for 9.1, a clean Apple Silicon Mac for 9.2 and 9.3, both for 9.4 and 9.5. Tracked by [#52](https://github.com/mschnecke/pisum-whisper/issues/52), the second row opened before its archive. Three of the five close a box above as well: **9.2** the macOS half of 8 / 6.4, **9.4** the login half of 11 / 7.1, **9.5** `report-startup-failures` / 7.2 |
+
+**Counting the archive gives 20, not 13, and both numbers are right.** `grep -c '^- \[ \]'` across
+`openspec/changes/archive/*/tasks.md` returns twenty unchecked boxes in nine changes. The eight
+rows above hold exactly thirteen of them. The other seven belong to
+`settle-win-x64-verification-debt`, and **six of those seven are proxies** — its tasks are pointers
+at other changes' tasks, and each one says so in its own title:
+
+| Its box | Is | Row above |
+|---|---|---|
+| 2.4 | **10 / 6.4** | `add-settings-window` |
+| 2.5 | **7 / 3.3** | `add-text-output` |
+| 3.1 | **8 / 6.3** | `add-dictation-pipeline` |
+| 4.1 | **11 / 7.1, and the alt-tab half of 7.4** | `add-system-integration` |
+| 5.4 | **7.3 at login** | `report-startup-failures` |
+| 6.1 | **migrate-tests / 5.4** | `migrate-tests-to-xunit-v3` |
+
+Ticking one of those would tick its target too; they are one piece of work filed twice, on purpose,
+because that change's job was to run other changes' checks. So this table counts **distinct work**
+and the box count double-books. Neither is wrong, and the arithmetic was written down nowhere until
+2026-09-03 — a reader who audited the table against the archive found a seven-box discrepancy and no
+way to tell which side of it was in error.
+
+**Change 12's three double-bookings are the mirror of that table, not the same thing.**
+`settle-win-x64-verification-debt`'s six boxes were *only ever* someone else's work, filed twice
+because running other changes' checks was that change's whole job. Change 12's 9.2, 9.4 and 9.5 are
+its own checks — install from the `.pkg`, autostart at login from an installed build, a startup
+dialog from an installed build — which happen to be the first setup in which another change's open
+box is answerable at all. So they are counted **once**, in change 12's row, and the row names what
+else each would tick; they are not added to the three rows above. The five make eighteen open boxes
+across nine rows, thirteen of them in the archive.
+
+**The seventh box is not a proxy, and it can no longer be done as written.**
+`settle-win-x64-verification-debt`'s 7.2 says to post a results table on issue #30 as a comment and
+then close it. #30 was closed on 2026-09-02 without the comment. So it is a real eleventh item that
+this table does not carry, it is a close-out rather than a check, and closing it now means deciding
+what to do about an issue that is already shut — which is the same decision the paragraph below
+leaves open.
+
+**None of the ten is tracked by an issue** — the ten being the thirteen archived boxes less
+`ready-the-suite-for-ci`'s three, which #50 carries; change 12's five are on #52. #30 (win-x64) and
+#31 (Apple Silicon) were both closed on 2026-09-02 with work still open — #30 while six of its eleven
+checks had not run, #31 with change 8's refused-microphone case abandoned rather than completed. For
+those ten this table is the only surviving record, which is the state the *Standing decisions* rule
+on moving open by-hand tasks to a tracking issue exists to prevent. Reopening the two, or opening one
+successor, is an open decision. Three of them would be ticked by change 12's run anyway, which is a
+reason to sequence #52 first rather than a reason to leave them untracked.
 
 **Six of the ten need nothing but the Windows machine this is developed on**, and a seventh is
 11's 7.4 headless test. Two do need Apple Silicon and should be done in one pass — issue #31's
@@ -130,8 +226,10 @@ ran, not that it passed.
 
 This is deliberate. The four spikes in change 1 can invalidate design decisions downstream — if
 SharpHook cannot report key release, or miniaudio cannot resample, the affected designs change rather
-than the code. Writing detailed task breakdowns for change 12 today would produce artifacts that are
-stale before anyone reads them.
+than the code. This paragraph used to end by saying that writing a detailed task breakdown for change
+12 today would produce artifacts stale before anyone read them; that was true while its risks were
+unmeasured and stopped being true once it was planned and implemented, so the reasoning stands and
+the example has been retired.
 
 ## Standing decisions
 
@@ -153,6 +251,27 @@ Recorded so they are not repeatedly re-litigated, and not mistaken for oversight
   precedent set by tracking change 1's macOS verification as issue #15 — would hide the fact that
   change 10 now depends on it. The *Off-sequence changes* section above answers both, and the next
   piece of numberless work belongs there too rather than re-opening this.
+
+- **A verification run that only records is a commit; one that changes anything is a change.**
+  Recording a run into the archived `design.md` that asked for it, ticking its box and updating this
+  file is a `Record …` commit against the tracking issue — the pattern commit `ec8fe69` set when it
+  closed issue #20. It becomes a change when the run does more than record: moves a constant a spec
+  names, discovers a requirement the code does not meet, or produces design that does not belong in
+  an archived change's `design.md` beside decisions made weeks earlier. Striking a question through
+  with its answer is the archive's convention; adding new design there is not.
+  `settle-win-x64-verification-debt` is the worked example of the second case and its Decision 1
+  carries the argument.
+- **By-hand tasks still open when a change is archived move to a tracking issue.** Issues #30 and
+  #31 did this after the fact, for win-x64 and Apple Silicon respectively, and #49 does it for a
+  suite that does not pass unattended. Doing it at archive time rather than afterwards is the rule
+  because an unchecked box inside an archived `tasks.md` is visible to nobody who is not already
+  reading that change — which is how eleven checks sat under an Apple Silicon heading that six of
+  them did not belong to.
+- **A harness written to drive a desktop-session check is kept under `spikes/`, not thrown away in a
+  scratchpad.** `spikes -- fatal` is the instance: it drives the launch-observe-dismiss half of a
+  fatal-startup reproduction, was written for `settle-win-x64-verification-debt`'s task 5.1, and is
+  kept so change 12's CI can run it and so the next person reproducing one of these does not rewrite
+  it. The state setup each reproduction needs stays by hand; that is not what the rule is about.
 
 The reference repository is the behavioural specification — wire formats, the recording state machine
 and its timing constants, the settings schema, and the error taxonomy all come from it. It is not a

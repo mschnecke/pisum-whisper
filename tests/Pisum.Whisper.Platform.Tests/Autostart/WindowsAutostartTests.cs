@@ -51,12 +51,56 @@ public sealed class WindowsAutostartTests : IDisposable
     {
         var autostart = Create();
 
-        autostart.IsEnabled().ShouldBeFalse();
+        autostart.Read().ShouldBe(AutostartRegistration.Absent);
 
         autostart.Enable();
 
-        autostart.IsEnabled().ShouldBeTrue();
+        autostart.Read().ShouldBe(AutostartRegistration.Current);
         Value().ShouldBe($"\"{Environment.ProcessPath}\"");
+    }
+
+    /// <summary>
+    /// A registration naming something else — the install that replaced the build a developer
+    /// was running — is <c>Stale</c>, not <c>Absent</c> and emphatically not <c>Current</c>. Reading it
+    /// as merely "registered" is what let the machine go on launching the old path at every login
+    /// while the setting truthfully reported that start-at-login was on.
+    /// </summary>
+    [Fact(
+        Skip = "The Windows registry is not reachable on this operating system",
+        SkipUnless = nameof(WindowsOnly.Enabled),
+        SkipType = typeof(WindowsOnly))]
+    public void ARegistrationNamingAnotherExecutableIsStaleAndIsRepointedByEnabling()
+    {
+        var autostart = Create();
+
+        Write("\"C:\\Program Files\\Somewhere Else\\Pisum.Whisper.App.exe\"");
+
+        autostart.Read().ShouldBe(AutostartRegistration.Stale);
+
+        autostart.Enable();
+
+        autostart.Read().ShouldBe(AutostartRegistration.Current);
+        Value().ShouldBe($"\"{Environment.ProcessPath}\"");
+        ValueCount().ShouldBe(1);
+    }
+
+    /// <summary>
+    /// An unquoted path is stale even when it names this very executable. The quoting is not
+    /// cosmetic — without it a path under <i>Program Files</i> is read as a command and its first
+    /// space as an argument separator — so a registration written that way is one that will not
+    /// launch, and rewriting it is the point.
+    /// </summary>
+    [Fact(
+        Skip = "The Windows registry is not reachable on this operating system",
+        SkipUnless = nameof(WindowsOnly.Enabled),
+        SkipType = typeof(WindowsOnly))]
+    public void AnUnquotedRegistrationOfThisExecutableIsStale()
+    {
+        var autostart = Create();
+
+        Write(Environment.ProcessPath!);
+
+        autostart.Read().ShouldBe(AutostartRegistration.Stale);
     }
 
     /// <summary>
@@ -75,7 +119,7 @@ public sealed class WindowsAutostartTests : IDisposable
         autostart.Enable();
 
         ValueCount().ShouldBe(1);
-        autostart.IsEnabled().ShouldBeTrue();
+        autostart.Read().ShouldBe(AutostartRegistration.Current);
     }
 
     [Fact(
@@ -89,7 +133,7 @@ public sealed class WindowsAutostartTests : IDisposable
         autostart.Enable();
         autostart.Disable();
 
-        autostart.IsEnabled().ShouldBeFalse();
+        autostart.Read().ShouldBe(AutostartRegistration.Absent);
         ValueCount().ShouldBe(0);
     }
 
@@ -104,7 +148,7 @@ public sealed class WindowsAutostartTests : IDisposable
 
         Should.NotThrow(autostart.Disable);
 
-        autostart.IsEnabled().ShouldBeFalse();
+        autostart.Read().ShouldBe(AutostartRegistration.Absent);
     }
 
     /// <summary>Nothing is created merely by asking, so a read never leaves a key behind.</summary>
@@ -112,9 +156,9 @@ public sealed class WindowsAutostartTests : IDisposable
         Skip = "The Windows registry is not reachable on this operating system",
         SkipUnless = nameof(WindowsOnly.Enabled),
         SkipType = typeof(WindowsOnly))]
-    public void ReadingAnAbsentKeyIsFalseRatherThanAFailure()
+    public void ReadingAnAbsentKeyIsAbsentRatherThanAFailure()
     {
-        Create().IsEnabled().ShouldBeFalse();
+        Create().Read().ShouldBe(AutostartRegistration.Absent);
 
         KeyExists().ShouldBeFalse();
     }
@@ -122,6 +166,14 @@ public sealed class WindowsAutostartTests : IDisposable
     private IAutostartService Create()
     {
         return new WindowsAutostart(_subKey);
+    }
+
+    /// <summary>Puts a registration there that this class did not write, which is the whole arrangement.</summary>
+    private void Write(string command)
+    {
+        using var key = Registry.CurrentUser.CreateSubKey(_subKey);
+
+        key.SetValue("Pisum Whisper", command);
     }
 
     private string? Value()

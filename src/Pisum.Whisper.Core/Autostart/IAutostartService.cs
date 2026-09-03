@@ -11,9 +11,19 @@ namespace Pisum.Whisper.Core.Autostart;
 /// </remarks>
 public interface IAutostartService
 {
-    /// <summary>Whether this application is registered to start at login.</summary>
+    /// <summary>
+    /// What the login registration says: nothing, something that is not this application's current
+    /// registration, or this application's current registration.
+    /// </summary>
+    /// <remarks>
+    /// <b>Not a boolean.</b> <c>Current</c> means the registration would be written identically by
+    /// <see cref="Enable"/> right now, so a registration naming a different executable reads as
+    /// <see cref="AutostartRegistration.Stale"/> rather than as "enabled" — which is the only thing
+    /// that lets <see cref="AutostartReconciler"/> repoint it. See
+    /// <see cref="AutostartRegistration"/>.
+    /// </remarks>
     /// <exception cref="AutostartException">The registration could not be read.</exception>
-    bool IsEnabled();
+    AutostartRegistration Read();
 
     /// <summary>
     /// Registers this application to start at login. Registering while already registered leaves one

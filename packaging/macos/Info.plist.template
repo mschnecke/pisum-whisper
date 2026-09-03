@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+
+  <key>CFBundleName</key>
+  <string>Pisum Whisper</string>
+  <key>CFBundleDisplayName</key>
+  <string>Pisum Whisper</string>
+
+  <!-- The same string MacOsAutostart.Label already holds, so the bundle identity and the
+       launch-agent label are one fact rather than two that can drift. It is also what
+       `codesign --identifier` stamps and what the Homebrew cask's `uninstall pkgutil:` names. -->
+  <key>CFBundleIdentifier</key>
+  <string>net.pisum.whisper</string>
+
+  <key>CFBundleExecutable</key>
+  <string>Pisum.Whisper.App</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+
+  <!-- Resources/AppIcon.icns; the extension is deliberately omitted, as AppKit expects. -->
+  <key>CFBundleIconFile</key>
+  <string>AppIcon</string>
+
+  <!-- Substituted by build-app.sh from its one argument (design D8). -->
+  <key>CFBundleShortVersionString</key>
+  <string>__VERSION__</string>
+  <key>CFBundleVersion</key>
+  <string>__VERSION__</string>
+
+  <!-- Measured, not guessed: `vtool -show-build-version` on the published osx-arm64 apphost
+       reports minos 12.0, so anything lower would advertise a system the binary cannot run on. -->
+  <key>LSMinimumSystemVersion</key>
+  <string>12.0</string>
+
+  <!-- Shown verbatim in the system's microphone prompt. Without it the prompt is attributed to
+       whatever launched the process - a terminal, in every run this project has made so far. -->
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Pisum Whisper records from the microphone while you hold the dictation hotkey, and sends that recording to Google Gemini to be transcribed.</string>
+
+  <!-- Menu-bar only: no Dock icon, no application menu. This and
+       MacOSPlatformOptions { ShowInDock = false } in Program.BuildAvaloniaApp do the same job by
+       different means and both stay - the plist key is what the operating system reads before the
+       process starts, the Avalonia option governs a `dotnet run` that has no bundle at all. -->
+  <key>LSUIElement</key>
+  <true/>
+
+  <key>NSHighResolutionCapable</key>
+  <true/>
+</dict>
+</plist>

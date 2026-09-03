@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  packaging/windows/Pisum.Whisper.wxs — the whole MSI, for WiX v6 (design D4).
+
+  Built by build-msi.ps1, which publishes into `publish\` beside this file and passes the version
+  and both source paths as preprocessor variables. There is no heat/HeatWave harvesting step and no
+  generated component list to keep in sync: WiX 5 introduced <Files>, which takes the published
+  directory whole.
+
+  The two source paths are absolute and passed in rather than written here relative, because WiX
+  resolves neither of them against this file. A SourceFile is resolved against the *current
+  directory*, and a <Files> pattern against the current directory plus the enclosing Directory/@Name
+  chain - so run from the repository root, as CI runs it, `..\icon\app-icon.ico` was looked for
+  outside the checkout (WIX0103) and `publish\**` under a `Pisum Whisper\` directory that has never
+  existed (WIX8601, then WIX8600 harvesting nothing).
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+
+  <!-- Per-machine, into Program Files. Per-user would avoid elevation, but Chocolatey installs
+       elevated and drives the MSI with /qn, which is the per-machine convention, and nothing in the
+       product is machine-wide either way — settings are ~/.pisum-whisper.json and autostart is
+       HKCU\...\Run — so the install scope is a distribution decision, not a behavioural one.
+
+       Version is the numeric core of the release version: Windows Installer's ProductVersion is
+       major.minor.build with no pre-release part, so build-msi.ps1 strips anything after a '-'
+       before passing it here. The full string, pre-release and all, still reaches the file name,
+       the Info.plist and the nuspec. -->
+  <Package
+      Name="Pisum Whisper"
+      Manufacturer="Michael Schnecke"
+      Version="$(var.Version)"
+      UpgradeCode="318506DD-2DE9-4CF4-8D37-FF21156A2A8B"
+      Scope="perMachine"
+      Compressed="yes">
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Pisum Whisper is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- The installed-programs list: an icon, and no Modify or Repair, because there is nothing to
+         modify — no feature tree, no install-location choice (design Non-Goals). -->
+    <Icon Id="AppIcon.ico" SourceFile="$(var.IconFile)" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <Property Id="ARPNOREPAIR" Value="1" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/mschnecke/pisum-whisper" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Pisum Whisper">
+        <Files Include="$(var.PublishDir)\**" />
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Component Id="StartMenuShortcut" Guid="5FE4B3FB-C76C-4F36-965C-013E56C40E06">
+        <Shortcut
+            Id="PisumWhisperShortcut"
+            Name="Pisum Whisper"
+            Description="Hotkey-driven dictation"
+            Target="[INSTALLFOLDER]Pisum.Whisper.App.exe"
+            WorkingDirectory="INSTALLFOLDER"
+            Icon="AppIcon.ico">
+          <!-- The application user model identity. This satisfies NO requirement of change 11,
+               which chose a drawn Avalonia window as its notification transport precisely so that
+               it placed none here. What it buys is that the `notify` spike's three observational
+               questions — held open in the tree, unrun, for exactly this moment — become
+               answerable, because a Shell_NotifyIcon balloon and a WinUI toast both need a
+               Start-menu shortcut carrying an AUMID before they reach a notification platform at
+               all. Answering them is a follow-up, not this change (design D4). -->
+          <ShortcutProperty Key="System.AppUserModel.ID" Value="net.pisum.whisper" />
+        </Shortcut>
+        <!-- A per-machine component needs a per-machine key path; the shortcut itself cannot be
+             one. HKLM rather than HKCU, or ICE38/ICE64 would object on a per-machine install. -->
+        <RegistryValue
+            Root="HKLM"
+            Key="Software\Pisum\Whisper"
+            Name="StartMenuShortcut"
+            Type="integer"
+            Value="1"
+            KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+
+  </Package>
+</Wix>

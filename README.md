@@ -9,8 +9,8 @@ local Whisper inference is out of scope.
 
 ## Status
 
-Under construction. Work is sequenced as twelve ordered changes in
-[`openspec/ROADMAP.md`](openspec/ROADMAP.md); changes 1 through 11 of 12 have landed, which means the
+Under construction, but installable. Work is sequenced as twelve ordered changes in
+[`openspec/ROADMAP.md`](openspec/ROADMAP.md); **all twelve have now landed in code**, which means the
 solution builds and starts as a tray-only process, reads its settings from
 `~/.pisum-whisper.json`, creating that file on first run and repairing it when it has gone stale,
 writes a rolling log to `~/.pisum-whisper/logs/`, can capture microphone audio and encode it to Opus
@@ -19,10 +19,11 @@ failures — observes the configured global hotkey, both edges of it, withheld f
 application has focus and re-bindable without a restart, can deliver a transcript at the cursor
 through the clipboard and a synthetic paste, and wires all of that into one dictation: hold the
 hotkey to record, release to transcribe and paste, with the tray icon reporting which of idle,
-recording and transcribing it is in. On top of that it now has a settings window for every one of
-those settings, tells you when a dictation fails, and can register itself to start at login.
+recording and transcribing it is in. On top of that it has a settings window for every one of those
+settings, tells you when a dictation fails, can register itself to start at login, and — change 12 —
+ships as an installer for each platform, built and released by continuous integration.
 
-Off that numbered sequence, it also now reports the failures that happen *before* any of the above
+Off that numbered sequence, it also reports the failures that happen *before* any of the above
 exists: a failure that stops it starting reaches you as a native dialog rather than a silent exit,
 and the two conditions that let it start but leave it unable to work — a log directory it could not
 create, and a hotkey it is not being allowed to observe — are reported once there is a tray icon to
@@ -35,43 +36,119 @@ permission denied, a network drive gone — used to look like it had worked, bec
 awaiting the write. It is now reported on screen, and a failed preset save reverts to what is actually
 saved rather than continuing to show the edit.
 
-Only **change 12, packaging and CI**, is outstanding: there is no installer, no signed binary and no
-release pipeline, so the application is run from a build.
-
-One thing still qualifies all of it. Dictation has now been run end to end by hand — on win-x64 in
+One thing still qualifies all of it. Dictation has been run end to end by hand — on win-x64 in
 both hold and toggle mode, and on macOS too, as a byproduct of changes 9 and 11's own verification
-runs — but changes 8, 10, 11 and `report-startup-failures` were each archived with a piece of their
-manual verification still open: 8's transcription-budget measurement (win-x64) and its macOS
-refused-microphone case, whose one verification attempt was abandoned rather than completed; 10's
-win-x64 hotkey-recorder check; 11's win-x64 first-launch pass and a headless dispatcher test; and
-`report-startup-failures`'s Apple Silicon pass and the login-time half of its Windows foreground
-check. The capabilities are complete in code and covered by tests; what remains is measurement and a
-handful of by-hand checks, not a demonstration that the pipeline works at all — though the startup
-dialogs themselves have so far only been drawn on Windows, never on macOS.
+runs — but **nine** archived changes were each left with a piece of their manual verification open,
+and change 12 adds five checks of its own that need a clean machine of each kind: an install from
+the `.msi` and from the `.pkg`, whether the Accessibility grant survives an update, autostart from an
+installed build, and a startup dialog from one. Those five are tracked by
+[#52](https://github.com/mschnecke/pisum-whisper/issues/52), and `ready-the-suite-for-ci`'s three
+win-x64 checks by [#50](https://github.com/mschnecke/pisum-whisper/issues/50); the rest are recorded
+only in `openspec/ROADMAP.md`'s *Artifact status* table. The capabilities are complete in code and
+covered by tests; what remains is measurement and a handful of by-hand checks, not a demonstration
+that the pipeline works at all — though the startup dialogs themselves have so far only been drawn
+on Windows, never on macOS.
 
 macOS is **more thoroughly verified now**. Change 1's spikes were re-run on an Apple M4 (macOS
 26.6.2) under [issue #15](https://github.com/mschnecke/pisum-whisper/issues/15), now closed: the
 global hook, its co-existence with Avalonia's run loop, capture and the menu-bar icon all pass.
 [Issue #31](https://github.com/mschnecke/pisum-whisper/issues/31) carried the same sitting forward
 for changes 1, 7, 8, 9, 10 and 11 on 2026-09-02, and resolved both of the original spike's two
-**FAIL** cells: the synthetic paste a foreign application would not accept turns out not to reproduce
-through the shipped `TextOutput`/`MacOsClipboard`/`MacOsPasteProbe` path, which pastes correctly and
-repeatably, and the Accessibility grant does survive a rebuild when the process is launched through
-Rider (still unverified outside that ancestry, or for a packaged app — deferred to change 12). A real
-dictation has now run end to end on macOS as part of that sitting. Issue #31 stays open only for
-change 8's refused-microphone case, whose one verification attempt was abandoned rather than
-completed. See the *Platform verification* matrix in
+**FAIL** cells: the synthetic paste a foreign application would not accept turns out not to
+reproduce through the shipped `TextOutput`/`MacOsClipboard`/`MacOsPasteProbe` path, which pastes
+correctly and repeatably, and the Accessibility grant does survive a rebuild when the process is
+launched through Rider. Whether it survives an *update* to an installed build is change 12's open
+question and is unanswered. Issue #31 was
+closed on 2026-09-02 with change 8's refused-microphone case still outstanding — its one
+verification attempt was abandoned rather than completed. See the *Platform
+verification* matrix in
 [`design.md`](openspec/changes/archive/2026-08-27-bootstrap-solution/design.md) for the detail.
+
+
+## Install
+
+Both installers are **unsigned** — no Apple Developer ID, no Windows code-signing certificate. That
+is a deliberate decision, not an omission, and the two places it costs you something are called out
+below. Nothing else is needed: each installer carries its own .NET runtime, so a machine with no
+.NET installed is fine.
+
+### macOS (Apple Silicon, macOS 12 or later)
+
+```bash
+brew tap mschnecke/pisum-whisper
+brew install --cask pisum-whisper
+```
+
+Or download `Pisum.Whisper_<version>_osx-arm64.pkg` from the
+[latest release](https://github.com/mschnecke/pisum-whisper/releases) and open it. Either route runs
+the same installer, which puts **Pisum Whisper.app** in `/Applications` and clears the quarantine
+attribute, so it opens from Finder with no "unidentified developer" warning and no right-click-Open
+detour.
+
+Then, once, before it can do anything:
+
+1. Launch it. It is a menu-bar application — look in the menu bar, not the Dock.
+2. Open **System Settings → Privacy & Security → Accessibility** and enable **Pisum Whisper**. It
+   needs this twice over: the global hotkey installs a system-wide event tap, and pasting the
+   transcript synthesises Cmd+V.
+3. **Quit and relaunch it.** macOS does not reliably hand a new grant to a running process.
+4. Enter a Gemini API key on the settings window's **Providers** tab, and dictate. The microphone is
+   prompted for separately, the first time you record.
+
+**You will have to grant Accessibility again after every update.** Without a Developer ID signature
+macOS has no stable identity to recognise the new build by, so it treats each version as a different
+application. This is the price of shipping unsigned and it is the one most likely to annoy you.
+
+### Windows (x64, Windows 10 or later)
+
+```powershell
+choco install pisum-whisper --source https://www.myget.org/F/mschnecke/api/v3/index.json
+```
+
+Or download `Pisum.Whisper_<version>_win-x64.msi` from the
+[latest release](https://github.com/mschnecke/pisum-whisper/releases) and run it.
+
+**SmartScreen will warn you** — "Windows protected your PC" — because the installer is unsigned and
+has no download reputation. To continue: click **More info**, then **Run anyway**. There is no way
+around this short of a code-signing certificate; if you would rather not, build from source with the
+instructions below.
+
+The installer is per-machine and asks for elevation. It adds a **Pisum Whisper** Start-menu shortcut
+and an entry in *Apps & Features*. Launch it from the Start menu, then enter a Gemini API key on the
+settings window's **Providers** tab. On Windows 11 a newly registered tray icon goes into the hidden
+overflow, so click the `^` chevron in the notification area to find it. No permission grant is
+needed for the hotkey or for pasting.
+
+### Uninstalling
+
+Uninstalling removes the application and nothing else: `~/.pisum-whisper.json` and
+`~/.pisum-whisper/logs/` stay, because they hold the API keys and presets you entered and a
+reinstall is not a request to discard them.
+
+| | |
+|---|---|
+| Windows | *Apps & Features*, or `choco uninstall pisum-whisper` |
+| macOS | `brew uninstall --cask pisum-whisper`, or drag `/Applications/Pisum Whisper.app` to the Trash |
+| macOS, data as well | `brew uninstall --zap --cask pisum-whisper` — also removes the settings file, the logs and the launch agent |
 
 ## Prerequisites
 
-- **.NET SDK `10.0.400`** — pinned in `global.json`, so a different patch level will refuse to build.
-  Get it from <https://dotnet.microsoft.com/download/dotnet/10.0>.
+To *use* it, once installed:
+
 - A working microphone.
 - A **Google Gemini API key** ([aistudio.google.com](https://aistudio.google.com/app/apikey)).
 
-No other tooling is required. All packages come from nuget.org; the repository ships a `NuGet.config`
-that pins that source, so a machine configured for private feeds still restores correctly.
+To *build* it:
+
+- **.NET SDK `10.0.400`** — pinned in `global.json`, so a different patch level will refuse to build.
+  Get it from <https://dotnet.microsoft.com/download/dotnet/10.0>.
+
+No other tooling is required for a build or a test run. All packages come from nuget.org; the
+repository ships a `NuGet.config` that pins that source, so a machine configured for private feeds
+still restores correctly. Building an *installer* needs one tool more per platform — the WiX v6
+.NET tool on Windows, and nothing but the Xcode Command Line Tools on macOS; see
+[`packaging/README.md`](packaging/README.md).
+
 
 ## Build and run
 
@@ -146,9 +223,12 @@ per-user registration needing no elevation:
 | Windows | a `Pisum Whisper` value under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` |
 | macOS | a LaunchAgent plist at `~/Library/LaunchAgents/net.pisum.whisper.plist` |
 
-Under `dotnet run` the registered path is the build output, which is expected until change 12 ships
-packaging. A registration that cannot be written costs you autostart and is logged; it never stops
-the application from starting.
+What gets registered is the path of the executable that is running: the build output under `dotnet
+run`, and `/Applications/Pisum Whisper.app/Contents/MacOS/Pisum.Whisper.App` or the installed
+`Pisum.Whisper.App.exe` for an installed build. If a registration is already there but names a
+different executable — the build you had been running before you installed, say — it is rewritten on
+the next launch rather than left pointing at the old path. A registration that cannot be written costs
+you autostart and is logged; it never stops the application from starting.
 
 ## Logs
 
@@ -206,6 +286,8 @@ app says so, which is expected behaviour rather than a defect.
 | `tests/Pisum.Whisper.Core.Tests` | xUnit v3, FakeItEasy, Shouldly |
 | `tests/Pisum.Whisper.Platform.Tests` | native registration, and the manual clipboard round trip |
 | `tests/Pisum.Whisper.App.Tests` | the settings window and toasts, on `Avalonia.Headless.XUnit` |
+| `packaging/` | the installers: the icon, the WiX source, the macOS bundle and `.pkg` scripts, the Chocolatey package |
+| `.github/workflows/` | `ci.yml` builds, tests and packages both platforms on every pull request; `release.yml` publishes on a `v*` tag |
 | `spikes/` | throwaway de-risking spikes, outside the solution |
 | `openspec/` | the spec-driven change workflow that drives this repository |
 

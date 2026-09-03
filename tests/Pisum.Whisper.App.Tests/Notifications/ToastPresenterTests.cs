@@ -13,13 +13,25 @@ using Shouldly;
 /// away on its own.
 /// </summary>
 /// <remarks>
-/// The dwell is injected at a few milliseconds, so nothing here waits the six seconds the running
-/// application uses.
+/// The dwell is injected, so nothing here waits the six seconds the running application uses. Only
+/// <see cref="ANotificationGoesAwayOnItsOwn"/> takes a short one; see <c>Unreachable</c> for why the
+/// rest take a dwell they cannot reach instead.
 /// </remarks>
 [Trait(Traits.Category, Traits.Categories.Integration)]
 public sealed class ToastPresenterTests
 {
     private static readonly TimeSpan Dwell = TimeSpan.FromMilliseconds(30);
+
+    /// <summary>
+    /// A dwell no test can race. The first <see cref="ToastWindow"/> of a headless session makes the
+    /// <c>RunJobs</c> call that shows it about 135 ms long, and <c>Show</c> starts the dismissal
+    /// timer inside that call — so a notification on the 30 ms <see cref="Dwell"/> is shown and taken
+    /// away again before the assertion reads <c>LiveCount</c>. Every test below that asserts a
+    /// notification is <i>up</i> uses this instead; none of them is a statement about how long one
+    /// stays. <see cref="ANotificationGoesAwayOnItsOwn"/> is the one that is, and it keeps
+    /// <see cref="Dwell"/>.
+    /// </summary>
+    private static readonly TimeSpan Unreachable = TimeSpan.FromMinutes(5);
 
     /// <summary>
     /// The rule the whole transport is chosen for: two call sites run on the hotkey's dispatch loop,
@@ -30,7 +42,7 @@ public sealed class ToastPresenterTests
     [AvaloniaFact]
     public void PresentReturnsBeforeTheWindowExists()
     {
-        var presenter = new ToastPresenter(Dwell, NullLogger<ToastPresenter>.Instance);
+        var presenter = new ToastPresenter(Unreachable, NullLogger<ToastPresenter>.Instance);
 
         presenter.Present("Recording Error", "No input device found.");
 
@@ -49,7 +61,7 @@ public sealed class ToastPresenterTests
     [AvaloniaFact]
     public async Task PresentCompletesWhenCalledFromANonUiThread()
     {
-        var presenter = new ToastPresenter(Dwell, NullLogger<ToastPresenter>.Instance);
+        var presenter = new ToastPresenter(Unreachable, NullLogger<ToastPresenter>.Instance);
 
         await Task.Run(() => presenter.Present("Authentication Error", "The configured key was rejected."));
 
@@ -63,13 +75,22 @@ public sealed class ToastPresenterTests
     [AvaloniaFact]
     public void ThreeStackAndAFourthClosesTheOldest()
     {
-        var presenter = new ToastPresenter(Dwell, NullLogger<ToastPresenter>.Instance);
+        var presenter = new ToastPresenter(Unreachable, NullLogger<ToastPresenter>.Instance);
 
-        for (var index = 0; index < 4; index++)
+        for (var index = 0; index < 3; index++)
         {
             presenter.Present($"Error {index}", "something went wrong");
         }
 
+        Dispatcher.UIThread.RunJobs();
+
+        // Three presented and three standing, which is what makes the assertion after the fourth
+        // mean the MaxConcurrent cap. Before this test stopped racing its own dwell it presented
+        // four and asserted three without this line, and got three because the first was dismissed
+        // during the show — it depended on the defect rather than tolerating it.
+        presenter.LiveCount.ShouldBe(3);
+
+        presenter.Present("Error 3", "something went wrong");
         Dispatcher.UIThread.RunJobs();
 
         presenter.LiveCount.ShouldBe(3);
@@ -78,9 +99,16 @@ public sealed class ToastPresenterTests
         presenter.LiveCount.ShouldBe(0);
     }
 
+    /// <summary>
+    /// The one test here that is about the dwell, so it cannot take <see cref="Unreachable"/>. It
+    /// pays the first window's cost up front instead: constructed and shown on the test thread, with
+    /// no timer running, so the ~135 ms is spent before <c>Present</c> starts one.
+    /// </summary>
     [AvaloniaFact]
     public async Task ANotificationGoesAwayOnItsOwn()
     {
+        new ToastWindow("Warming", "the first window of a headless session is the slow one").Show();
+
         var presenter = new ToastPresenter(Dwell, NullLogger<ToastPresenter>.Instance);
 
         presenter.Present("Paste Failed", "The text was copied to the clipboard.");
@@ -95,7 +123,7 @@ public sealed class ToastPresenterTests
     [AvaloniaFact]
     public void CloseAllRemovesEveryLiveNotification()
     {
-        var presenter = new ToastPresenter(TimeSpan.FromMinutes(5), NullLogger<ToastPresenter>.Instance);
+        var presenter = new ToastPresenter(Unreachable, NullLogger<ToastPresenter>.Instance);
 
         presenter.Present("Network Error", "the provider could not be reached");
         presenter.Present("Rate Limit Error", "the provider is overloaded");
@@ -131,7 +159,7 @@ public sealed class ToastPresenterTests
     [AvaloniaFact]
     public void PresentAfterTheUiThreadHasADispatcherShows()
     {
-        var presenter = new ToastPresenter(Dwell, NullLogger<ToastPresenter>.Instance);
+        var presenter = new ToastPresenter(Unreachable, NullLogger<ToastPresenter>.Instance);
 
         presenter.Present("Recording Error", "No input device found.");
         Dispatcher.UIThread.RunJobs();

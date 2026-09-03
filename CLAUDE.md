@@ -78,6 +78,21 @@ dotnet test tests/Pisum.Whisper.Core.Tests --filter-namespace Pisum.Whisper.Core
 `Avalonia.Headless.XUnit` 12.1.1 is compiled against — 4.0.0 resolves silently against a major it was
 not built for, and the breakage would land in the settings window rather than here.
 
+**A test that cannot run somewhere declares itself skipped; it is never filtered out by the runner
+invocation.** That is the rule `ready-the-suite-for-ci` settled, and it is why the CI command carries
+exactly one filter and will only ever need one. A skip prints its reason in the runner output beside
+the test; a `--filter-not-method` in a workflow file prints nothing at all and silently drops the
+count by one. There are **three gates**, all the same shape — an `internal static` class with an
+`Enabled` property, named in `SkipUnless` and `SkipType`:
+
+| gate | opts in with | what it holds |
+|---|---|---|
+| `ManualTests` | `PISUM_WHISPER_RUN_MANUAL` | 4 tests needing a real mic, clipboard, keyboard or API key |
+| `WindowsOnly` | *(the running OS)* | 5 `WindowsAutostartTests`, which reach the registry |
+| `TimingTests` | `PISUM_WHISPER_RUN_TIMING` | 1 test whose p99.9 latency bound measures the machine |
+
+So a macOS run reports 6 skipped and a Windows run 1, each with its reason, and neither needs a flag.
+
 **The four manual tests need an environment variable, because a skipped test cannot be run.** xUnit
 has no runner option for it: `-explicit` covers explicit tests only. So `ManualCaptureSmokeTest`,
 `ManualTranscriptionSmokeTest`, `ManualClipboardRoundTrip` and `ManualDictationSmokeTest` are gated on
@@ -97,10 +112,16 @@ letting two run beside the suite is how you get a failure that means nothing.
 statics, no environment mutation, and every fixture builds its own
 `Path.Combine(Path.GetTempPath(), "pisum-whisper-tests", Guid.NewGuid().ToString("n"))`. Do not add
 `[assembly: CollectionBehavior(DisableTestParallelization = true)]`; if a new test needs isolation,
-isolate that class. The one that does is `FileLoggingRotationTests`, which asserts a p99.9 write
-latency under 500 µs and therefore measures the machine as much as the code — it sits in a
-`DisableParallelization` collection and is **still occasionally over the bound**. A lone failure
-there is a busy machine, not a regression in the logging path; two in a row is worth looking at. The
+isolate that class. The one that does is `FileLoggingRotationTests`, which sits in a
+`DisableParallelization` collection because one of its five tests,
+`WritesDoNotStallTheCallingThreadWhenTheFileRolls`, asserts a p99.9 write latency under 500 µs and
+therefore measures the machine as much as the code. **That one test is now gated on `TimingTests`**
+and reports skipped; the other four still run, which is what the collection is for. Serialising was
+not enough on its own — it was still occasionally over the bound — and the bound is `file-logging`'s
+to set, so `ready-the-suite-for-ci` gated it rather than relaxing or deleting it. The flakiness is a
+**Windows** measurement, roughly three failures in twenty-two runs on the developer machine; it
+failed 0 of 38 runs on Apple Silicon, six of them under deliberate CPU starvation. If it turns out
+not to flake on Windows either, the honest follow-up is removing the gate. The
 other thing parallelism exposed is subtler and worth copying: **`SimpleGlobalHook.IsRunning` is not a
 readiness signal.** It turns true before the provider's dispatch proc is installed, and an event
 posted in that window is answered with `Success` and then dropped for good — no later wait recovers
@@ -122,11 +143,11 @@ which is why every class deriving `DictationTestBase`, `FileLoggingTestBase` or
 `GlobalHotkeyServiceTestBase` is one: those bases create a temp home in their constructor.
 `Unit` means neither; in-memory objects and fakes only, including the Gemini tests, which drive a
 real `HttpClient` over a fake handler and never reach the network. The split is 28 / 55 / 4 classes and
-223 / 393 / 4 tests — they sum to 620, so exactly one category applies to every test.
+224 / 401 / 4 tests — they sum to 629, so exactly one category applies to every test.
 
 ```bash
-dotnet test Pisum.Whisper.slnx --filter-trait Category=Unit          # 223, no I/O at all
-dotnet test Pisum.Whisper.slnx --filter-not-trait Category=Manual    # 616, what CI should run
+dotnet test Pisum.Whisper.slnx --filter-trait Category=Unit          # 224, no I/O at all
+dotnet test Pisum.Whisper.slnx --filter-not-trait Category=Manual    # 625, what CI runs
 ```
 
 Keep the rule mechanical when adding a class: if its constructor or its base's reaches
@@ -156,7 +177,16 @@ again. Two of its rows are held by work that has not happened:
   change 12's Start-menu shortcut carries an AUMID, and the control run recorded in change 11's
   `design.md` — a WinForms balloon beside it — is the experiment that would settle them.
 
-Deleting the harness is a decision for whoever no longer wants those two runs, and the two macOS
+`fatal` (added by `settle-win-x64-verification-debt`'s task 5.1) is a third holder, and a different
+kind: it is not a question but a **driver**. It launches an executable, waits for a top-level window
+of that process whose title matches, posts `WM_CLOSE` — which an `MB_OK` box answers as OK — waits
+for exit, and prints the exit code and the newest `[FTL]` line from the log. It is Windows-only and
+says so when run elsewhere. It exists because the four fatal-startup reproductions share that
+launch-observe-dismiss half, and it was kept rather than left in a scratchpad so change 12's CI can
+run it. The state setup each reproduction needs — moving a settings file aside, commenting out a
+registration, moving a tray asset — stays by hand.
+
+Deleting the harness is a decision for whoever no longer wants those three runs, and the two macOS
 `FAIL` rows, re-runnable — not an oversight.
 
 ```bash
@@ -168,6 +198,7 @@ dotnet run --project spikes/Pisum.Whisper.Spikes -- tray       # tray icon, tool
 dotnet run --project spikes/Pisum.Whisper.Spikes -- notify     # Shell_NotifyIcon balloons, three trials
 dotnet run --project spikes/Pisum.Whisper.Spikes -- toast      # an application-drawn notification, measured
 dotnet run --project spikes/Pisum.Whisper.Spikes -- combined   # hook + Avalonia run loop together
+dotnet run --project spikes/Pisum.Whisper.Spikes -- fatal <exe> <title>   # a fatal-startup repro
 dotnet run --project spikes/Pisum.Whisper.Spikes -- api <assembly> [filter]
 ```
 
@@ -558,7 +589,17 @@ application's lifetime to this window the day someone changes that.
 **`[AvaloniaFact]` tests serialize on one dispatcher** regardless of the suite's parallel-by-class, so
 `tests/Pisum.Whisper.App.Tests` is slower per test than the other two and the parallelism notes above
 do not apply to it. Isolation stays at the default `PerTest`: `PerAssembly` documents itself as unsafe
-for tests touching global state, which a settings window backed by a file-writing singleton is. The
+for tests touching global state, which a settings window backed by a file-writing singleton is.
+**`PerTest` is not sufficient either, and it is worth knowing why.** It resets the dispatcher before
+every test, but it cannot reset what Avalonia pays once per *process*: the first `ToastWindow` of a
+run costs about 135 ms where the second costs 0.8 ms. So a test that reads a value a timer can change
+— `ToastPresenter.LiveCount` after a `Present`, with a dwell injected at 30 ms — passes or fails
+according to whether a neighbour already paid that cost, which is exactly how four
+`ToastPresenterTests` sat green in the suite while failing every time they were run alone. The
+lesson generalises past those four: in this assembly, **run a new `[AvaloniaFact]` on its own before
+believing it**, and never write one whose assertion races a wall-clock timer. `ready-the-suite-for-ci`
+fixed those by giving the tests a dwell they cannot reach rather than by changing the isolation mode.
+The
 assembly declares `[assembly: AvaloniaTestApplication(typeof(TestAppBuilder))]`, and `TestAppBuilder`
 builds a bare `Application` with only `FluentTheme` — it cannot point at `App`, whose constructor takes
 an `IServiceProvider` and whose initialisation resolves an orchestrator and registers a tray icon.
@@ -619,7 +660,7 @@ and activate an accessory application, spending exactly the focus the first sent
 `App.OnExit` closes what is still open, so a toast cannot outlive the dispatcher that owns it.
 
 **Autostart is reconciled, not toggled, and it reads before it writes.** `AutostartReconciler` is an
-`IHostedService` that compares `IAutostartService.IsEnabled()` with `Current.StartWithSystem` in
+`IHostedService` that compares `IAutostartService.Read()` with `Current.StartWithSystem` in
 `StartAsync` and on every `SettingsStore.Changed`, and writes only on a mismatch. Driving it from
 `GeneralViewModel`'s switch instead is the same amount of code and covers less: reconciling also
 covers the first launch, a settings file edited by hand and a registration some other tool removed,
@@ -628,6 +669,22 @@ through one path with one test. Reading first is the fix for a mistake already i
 and here the same shape would be a registry mutation on every save rather than a no-op. An
 `AutostartException` is caught and logged: a machine that refuses a `Run` value must not cost the
 user their dictation hotkey.
+
+**`Read` answers with three states and not a boolean, and the missing third one was a real defect.**
+`AutostartRegistration` is `Absent`, `Stale` or `Current`, where `Current` means *the registration is
+byte-for-byte what `Enable` would write right now* — the quoted `Run` command on Windows, the whole
+plist text on macOS, both compared against `Environment.ProcessPath`. It used to be `IsEnabled()`, and
+a registration naming an executable that is no longer this one answered `true`, agreed with an enabled
+setting, and was therefore never rewritten: **an install over a build a developer had been running
+went on launching the build output at every login**, while the General tab truthfully reported that
+start-at-login was on. Reproduced on this machine and fixed —
+`AutostartReconcilerTests.AStaleRegistrationIsRepointedAtTheRunningExecutable` is the guard and fails
+without it. Three consequences to keep: `Stale` is repointed with a single `Enable`, because both
+native implementations overwrite rather than append; the log line says `repointed at this executable`
+rather than `enabled`, because a registration that had to be corrected is not the same event as one
+created; and comparing the *whole* macOS plist rather than parsing out `ProgramArguments` is
+deliberate — it needs no parser and catches label and format drift too, and a cosmetically different
+plist being rewritten into the canonical one is harmless and happens once.
 
 Both native locations are injected, defaulting to the real ones, and that is what makes both halves
 testable — a private `HKCU` subkey on Windows, a temp directory on macOS. The macOS half writes only
@@ -737,6 +794,81 @@ Summarising to a line and a position would delete exactly what issue #20 holds u
 part. `StartupFailureTests.AParseFailureInsideAnApiKeyDisclosesNoPartOfIt` guards it against a
 genuine parse failure over a document holding a key.
 
+## Packaging and release
+
+`packaging/` holds everything that turns a build into an installer and nothing that is compiled into
+one; `.github/workflows/` holds the two workflows that run it. `ci.yml` builds, tests and packages
+both platforms on every pull request, and `release.yml` publishes both installers plus the two
+package-manager updates on a `v*` tag. Each script takes the version as its one argument and is the
+same command a person runs, so no step of a release exists only inside a workflow file. One version
+reaches every artifact, from the tag: `release.yml` strips the `v` and passes it to publish, to the
+WiX build, to the `Info.plist` substitution, to `pkgbuild` and to the nuspec, with
+`Directory.Build.props`'s `<Version>0.1.0</Version>` the development default that a release always
+overrides.
+
+**Both platforms ship unsigned, by decision, and two consequences follow that are not free.** No
+Apple Developer ID and no Windows code-signing certificate: the reference has shipped eighteen
+releases unsigned through a public Homebrew cask, and a Developer ID is a purchase. So
+
+- **the `.pkg`'s `postinstall` `xattr -rd com.apple.quarantine` is load-bearing, not a hack.** It is
+  what lets an unsigned bundle open from Finder with no Gatekeeper detour, and it is only available
+  because a `.pkg` has a root script — a `.dmg` or a zipped `.app` has none. The artifact format and
+  the signing decision are one decision, not two, which is why "why not ship a zip" has an answer.
+- **the macOS Accessibility grant is lost on every update**, because without a Developer ID macOS
+  has no stable identity to recognise the new build by. Ad-hoc signing does not fix this: an ad-hoc
+  signature's identity is its cdhash, which changes with the binary. It is disclosed in `README.md`
+  and in the cask's `caveats` rather than hidden, and reversing it is buying a certificate and
+  adding two `--sign` flags.
+
+What the ad-hoc re-sign *does* fix is worth keeping: `codesign --force --deep --sign - --identifier
+net.pisum.whisper` on the assembled bundle turns the SDK's `Identifier=apphost`, `Info.plist=not
+bound`, `Sealed Resources=none` into the real identifier with the plist bound and the resources
+sealed — so `LSUIElement` and the microphone purpose string are covered by the signature rather than
+loose beside it. arm64 Mach-O must carry at least an ad-hoc signature to execute at all, so
+"unsigned" here has always meant *no Developer ID*, never *no signature*.
+
+**The directory is `packaging/`, and it must not be renamed to `packages/`.** `.gitignore` carries
+`**/[Pp]ackages/*`, which is the reference project's name for this directory — so under that name
+every file in it is silently untracked, and the failure mode is a directory that is created,
+populated, committed empty, and a release that fails with no diff to look at. `git check-ignore -v
+packaging/windows/x` prints nothing and is the check.
+
+**Two native `.pdb` files are deleted after publish and the three managed ones are kept.** Measured
+on `win-x64`: `libSkiaSharp.pdb` is 84 MB and `libHarfBuzzSharp.pdb` 21 MB, so two files are 100 MB
+of a 228 MB payload, and they are native symbol files for third-party C++ nobody here will ever load
+into a debugger. Deleting them takes the payload to 128 MB. `-p:DebugType=none` would remove all
+five in one property and is rejected for exactly that reason: `DictationOrchestrator`'s catch-all
+and `StartupFailure.Describe` both log exceptions, and a stack trace without line numbers from an
+installed build is the report that cannot be acted on. 0.2 MB is not a trade. The pair is not
+published on `osx-arm64` at all, so `build-app.sh` deletes whatever is there rather than requiring
+both.
+
+**The Start-menu shortcut's AUMID satisfies nothing.** `<ShortcutProperty Key="System.AppUserModel.ID"
+Value="net.pisum.whisper" />` is set because a `Shell_NotifyIcon` balloon and a WinUI toast both need
+one before they reach a notification platform at all — and change 11 chose a drawn Avalonia window
+precisely so that it placed *no* requirement here. What the AUMID buys is that `spikes -- notify`'s
+three observational questions, held in the tree unrun for exactly this moment, become answerable
+alongside change 11's WinForms balloon control run. Answering them is a follow-up, not this change,
+and an earlier draft of change 12's proposal claiming the AUMID satisfied a change 11 requirement
+was withdrawn.
+
+**Nothing in the `.wxs` resolves against the `.wxs`.** An earlier version of this paragraph said
+`<Files Include="publish\**" />` resolved relative to it; that is wrong in both halves, and the
+first CI run is what proved it. A `SourceFile` is resolved against the **current directory**, and a
+`<Files>` pattern against the current directory **plus the enclosing `Directory/@Name` chain** — so
+from the repository root, which is where CI invokes the script, `..\icon\app-icon.ico` was looked
+for outside the checkout (WIX0103) and `publish\**` under a `Pisum Whisper\` directory that has
+never existed (WIX8601, and then WIX8600 harvesting nothing). Both paths are therefore absolute
+`-define` values built by `build-msi.ps1` — `PublishDir` and `IconFile` — which also means the
+`.wxs` no longer builds by hand without them, the same way `Version` already made it so. The payload
+still goes to `packaging/windows/publish/`, where a `.gitignore` keeps 128 MB untracked, and there
+is still no `heat` step and no generated component list, because WiX 5 introduced `<Files>`.
+
+One smaller thing the scripts encode. **Windows Installer's `ProductVersion` is `major.minor.build`
+and nothing else**, so `build-msi.ps1` strips any pre-release suffix before passing it to `wix build` while the
+file name, the `Info.plist` and the nuspec keep the full string: a `v0.1.0-rc.1` tag produces
+`Pisum.Whisper_0.1.0-rc.1_win-x64.msi` whose ARP version reads `0.1.0`.
+
 ## Spec-driven workflow (OpenSpec)
 
 `openspec/config.yaml` sets `schema: spec-driven`. Change proposals live in `openspec/changes/`,
@@ -746,12 +878,22 @@ labelled `change:NN`. **Changes 1 through 11 are archived** and their `applicati
 `settings-persistence`, `file-logging`, `audio-capture`, `audio-encoding`, `global-hotkey`,
 `gemini-transcription`, `text-output`, `dictation-pipeline`, `tray-icon`, `settings-window`,
 `notifications` and `autostart` specs are synced, so read every one of them from `openspec/specs/`
-like any other. Only change 12 (`add-packaging-ci` — `packaging`) is still active, and it is a lone
-`proposal.md` — no design, no tasks and no delta specs — so it is not archivable as it stands.
-`migrate-tests-to-xunit-v3`, `report-startup-failures`, `fix-startup-ioexception-mislabeling` and
-`surface-settings-save-failures` are archived as well; they carry no number, by the roadmap's own rule
-that off-sequence work gets a section instead of one. The second added `startup-diagnostics` and
-extended `file-logging` and `global-hotkey`, and all three are synced. The third closed issue #34,
+like any other. Two changes are active. Change 12 (`add-packaging-ci` — `packaging`) carries
+all four artifacts — `proposal.md`, `design.md`, `tasks.md` and a `packaging` delta spec — and
+`fix-stale-autostart-registration` carries four of its own with an `autostart` delta, being change
+12's own finding: a login registration naming an executable that is no longer this one was read as
+agreement and never rewritten. Its
+implementation has landed on `change/12-add-packaging-ci`; what is still open in `tasks.md` is the
+work that needs a Windows machine, a clean Mac, two repository secrets, a pushed tag, or a commit to
+the tap — read that file rather than assuming either extreme. An earlier version of this sentence
+called it "a lone `proposal.md` — no design, no tasks and no delta specs"; that was true until the
+planning commit on `change/12-add-packaging-ci`, and the delta spec is now the thing to sync when it
+archives.
+`migrate-tests-to-xunit-v3`, `report-startup-failures`, `fix-startup-ioexception-mislabeling`,
+`surface-settings-save-failures` and `ready-the-suite-for-ci` are archived as well; they carry no
+number, by the roadmap's own rule that off-sequence work gets a section instead of one. The second
+added `startup-diagnostics` and extended `file-logging` and `global-hotkey`, and all three are
+synced. The third closed issue #34,
 which `report-startup-failures`'s own archived `design.md` had already reproduced and deliberately
 deferred: `SettingsStore.Read` and `Write` now both wrap `IOException` and `UnauthorizedAccessException`
 into `SettingsException`, so `StartupFailure.Describe` no longer carries a type-matching arm that
@@ -761,31 +903,66 @@ failure is reported the same way on first launch and on a later save; both delta
 `startup-diagnostics` and `settings-persistence` — are synced. The fourth closed issue #37 — a settings
 write that never reaches disk was an unobserved task exception, not a report — and its
 `settings-window` delta is the one `SettingsEditor.Commit()` and `PresetsViewModel`'s notify-and-reload
-handling below now implement; it too is synced.
+handling below now implement; it too is synced. The fifth is the only one of them that **declared no
+delta spec at all** — its `specs` artifact is `skipped`, because making five write-failure tests
+portable, taking five `ToastPresenterTests` off a dwell race and gating one latency test changes no
+capability's behaviour — so archiving it synced nothing, and no `openspec/specs/` file moved.
 
-**Changes 8, 10, 11 and `report-startup-failures` were all archived with their manual verification
-still open** — 8's tasks 6.3 and 6.4, 10's 6.4, 11's 7.1 and 7.4, and `report-startup-failures`'s 7.2
-and 7.3. `report-startup-failures`'s 7.1 closed 2026-09-02, all four fatal-dialog reproductions run —
-the corrupt-settings one closed issue #20, the other three ran later that day under
+**Nine archived changes carry unchecked manual-verification tasks, twenty boxes in total** — 1's
+1.5a, 7's 3.3, 8's 6.3 and 6.4, 10's 6.4, 11's 7.1 and 7.4, `migrate-tests-to-xunit-v3`'s 5.4,
+`report-startup-failures`'s 7.2 and 7.3, `settle-win-x64-verification-debt`'s seven, and
+`ready-the-suite-for-ci`'s 1.1, 5.2 and 5.3. **Twenty boxes are fourteen pieces of work**: six of
+`settle-win-x64-verification-debt`'s seven are proxies pointing at another change's task and would
+tick it too, which `ROADMAP.md`'s *Artifact status* section sets out box by box. Trust that table
+over any count written here.
+
+This sentence has now been wrong twice in the same way, and the shape is worth naming. It first
+named only 8, 10, 11 and `report-startup-failures` and called that a departure; then it said seven
+changes and ten, which counted the distinct work but not the archive. Both times the error was
+counting from memory rather than from `grep -c '^- \[ \]' openspec/changes/archive/*/tasks.md`,
+which is one command and settles it. Run it before amending this paragraph.
+
+`report-startup-failures`'s 7.1 closed 2026-09-02, all four fatal-dialog reproductions run — the
+corrupt-settings one closed issue #20, the other three ran later that day under
 `settle-win-x64-verification-debt` — and 7.3's interactive-launch half passed alongside them, leaving
-only its login-time half, tracked on issue #30. Every one of these open items still needs a person at
-a machine, and the macOS ones need Apple Silicon with Accessibility granted. An archived change here
-therefore does **not** certify
-that its capability was verified on hardware: what each still owes, and the open design questions
-those runs would settle, stay in that change's archived `design.md` and are reflected nowhere under
-`openspec/specs/`. Read the archived `tasks.md` before treating a capability spec as verified
-behaviour rather than intended behaviour. The macOS verification change 1 left unfinished was tracked
-by issue #15 rather than by an open change, and closed on 2026-08-28; issue #31 carried the same
-shape forward for changes 1, 7, 8, 9, 10 and 11, and ran everything but 8's refused-microphone case
-on 2026-09-02 — which is why it stays open rather than closing the way #15 did. Change 9's manual
-verification is entirely closed as a result, which is why it is absent from the list this paragraph
-opens with. Drive
-the workflow with the `/opsx:*` commands (`explore`, `propose`, `apply`, `sync`, `archive`); the
-backing skills are in `.claude/skills/openspec-*`. The bottom of `openspec/config.yaml` carries the
-project context and the per-artifact rules, and both are **live, not the commented-out template**:
-`proposal`, `design` and `tasks` each have rules, `specs` deliberately has none, and the `openspec`
-CLI is not installed on this machine — so `/opsx:archive` and `/opsx:sync` are run by reading the
-change folder directly, and a spec sync is the no-rules case either way.
+only its login-time half. Every one of these open items still needs a person at a machine, and the
+macOS ones need Apple Silicon with Accessibility granted.
+
+**All but three are tracked by nothing.** Issues #30 (win-x64) and #31 (Apple Silicon) were both
+closed on 2026-09-02 with work still open — #30 while six of its eleven checks had not run, #31 with
+change 8's refused-microphone case abandoned rather than completed. `ROADMAP.md`'s *Artifact status*
+table is therefore the only surviving record, and that is exactly the state the standing decision
+about moving open by-hand tasks to a tracking issue exists to prevent. Verified 2026-09-03: both
+report `CLOSED`.
+
+The three exceptions are `ready-the-suite-for-ci`'s, and they are the standing decision finally
+applied **before** the archive rather than after it: issue
+[#50](https://github.com/mschnecke/pisum-whisper/issues/50) was opened while that change was still
+active, names its 1.1, 5.2 and 5.3, and is open. That is the
+pattern to copy when change 12 archives with by-hand tasks left — open the tracking issue first, and
+the archive stops being the only place the debt is written down.
+
+An archived change here therefore does **not** certify that its capability was verified on hardware:
+what each still owes, and the open design questions those runs would settle, stay in that change's
+archived `design.md` and are reflected nowhere under `openspec/specs/`. Read the archived `tasks.md`
+before treating a capability spec as verified behaviour rather than intended behaviour. The macOS
+verification change 1 left unfinished was tracked by issue #15 rather than by an open change, and
+closed on 2026-08-28; issue #31 carried the same shape forward for changes 1, 7, 8, 9, 10 and 11,
+and ran everything but 8's refused-microphone case on 2026-09-02 — then closed anyway, unlike #15,
+which had nothing left. Change 9's manual verification is entirely closed as a result, which is why
+it is absent from the list this paragraph opens with. Drive the workflow with the `/opsx:*` commands
+(`explore`, `propose`, `apply`, `sync`, `archive`); the backing skills are in
+`.claude/skills/openspec-*`. The bottom of `openspec/config.yaml` carries the project context and
+the per-artifact rules, and both are **live, not the commented-out template**: `proposal`, `design`
+and `tasks` each have rules, `specs` deliberately has none — so a spec sync is the no-rules case.
+**The `openspec` CLI is installed** — 1.11.0, at `/opt/homebrew/bin/openspec` — and an earlier
+version of this sentence said it was not, which sent `/opsx:archive` and `/opsx:sync` down a
+read-the-folder-by-hand path they no longer need. `openspec list --json`, `openspec status --change
+"<name>" --json` and `openspec instructions <artifact> --change "<name>" --json` all work and are
+what those commands should drive; `status` is the one that matters, because its `artifacts` array
+distinguishes `skipped` from merely absent, which reading the folder cannot. There is still no
+`openspec archive` step taken here — the move is `mv` into `openspec/changes/archive/`, so that the
+date prefix and the "already exists" check stay visible.
 
 **A commit that only touches `openspec/` must say so in its subject line.** A proposal's *What
 Changes* section is a list of imperatives — "Replace `MSTest` with `xunit.v3`", "Rewrite the

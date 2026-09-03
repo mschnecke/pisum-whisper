@@ -202,16 +202,21 @@ public sealed class SettingsEditorTests : SettingsEditorTestBase
         var notifications = new RecordingNotificationService();
         var editor = NewEditor(notifications: notifications);
 
-        // Locking the settings file exclusively forces the commit's File.Move to fail with a real
-        // IOException, the same shape a network drive going away or another process holding the file
-        // would produce — without deleting the test's own temp directory, which Dispose still needs.
-        using (File.Open(Store.FilePath, FileMode.Open, FileAccess.Read, FileShare.None))
-        {
-            editor.Edit(settings => settings.AudioFormat = AudioFormat.Wav);
-            CompleteQuietWindow();
+        // A directory where the settings file belongs: File.Move cannot replace one on either
+        // platform, so the commit's write fails with a real IOException. It stands in for the
+        // failures this path exists for — disk full, permission denied, a network drive gone from
+        // under the home directory — none of which a test can arrange portably. The FileShare.None
+        // lock it replaces only failed on Windows, where File.Move is MoveFileEx and consults the
+        // destination's sharing mode; macOS renames with rename(2), which ignores open descriptors
+        // entirely and let the write succeed. It adds to the test's own temp directory rather than
+        // removing it, so Dispose's recursive delete still cleans up.
+        File.Delete(Store.FilePath);
+        Directory.CreateDirectory(Store.FilePath);
 
-            await WaitForAsync(() => notifications.Forced.Count == 1);
-        }
+        editor.Edit(settings => settings.AudioFormat = AudioFormat.Wav);
+        CompleteQuietWindow();
+
+        await WaitForAsync(() => notifications.Forced.Count == 1);
 
         notifications.Forced.ShouldHaveSingleItem();
         notifications.Forced[0].Title.ShouldBe("Settings Not Saved");

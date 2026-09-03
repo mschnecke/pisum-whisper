@@ -6,9 +6,14 @@ using Pisum.Whisper.Core.Autostart;
 /// A login registration in memory, counting every read and every write so that "wrote nothing"
 /// is assertable rather than inferred.
 /// </summary>
+/// <remarks>
+/// <see cref="Registration"/> is the whole state, and it is the three-valued one rather than a flag:
+/// the case this fake exists to let a test reach is
+/// <see cref="AutostartRegistration.Stale"/> — registered, and pointing somewhere else.
+/// </remarks>
 public sealed class FakeAutostartService : IAutostartService
 {
-    public bool Registered { get; set; }
+    public AutostartRegistration Registration { get; set; }
 
     public int Reads { get; private set; }
 
@@ -22,12 +27,12 @@ public sealed class FakeAutostartService : IAutostartService
     /// <summary>Set to make every call throw, as a locked registry key or a machine policy does.</summary>
     public AutostartException? Failure { get; set; }
 
-    public bool IsEnabled()
+    public AutostartRegistration Read()
     {
         Reads++;
         Throw();
 
-        return Registered;
+        return Registration;
     }
 
     public void Enable()
@@ -35,7 +40,9 @@ public sealed class FakeAutostartService : IAutostartService
         Enables++;
         Throw();
 
-        Registered = true;
+        // Enable overwrites, so it lands on Current from Absent and from Stale alike — which is what
+        // makes repointing one call rather than a delete and a create.
+        Registration = AutostartRegistration.Current;
     }
 
     public void Disable()
@@ -43,7 +50,7 @@ public sealed class FakeAutostartService : IAutostartService
         Disables++;
         Throw();
 
-        Registered = false;
+        Registration = AutostartRegistration.Absent;
     }
 
     private void Throw()

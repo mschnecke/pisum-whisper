@@ -94,7 +94,8 @@ public sealed class FileLoggingRotationTests : FileLoggingTestBase
         File.ReadAllText(Logs.LogFilePath).ShouldContain("RECENT CONTENT FROM AN EARLIER RUN");
     }
 
-    [Fact]
+    [Fact(Skip = "A p99.9 latency bound measures the machine as much as the code",
+          SkipUnless = nameof(TimingTests.Enabled), SkipType = typeof(TimingTests))]
     public void WritesDoNotStallTheCallingThreadWhenTheFileRolls()
     {
         // The justification for the asynchronous wrapper is the roll, not throughput: closing the
