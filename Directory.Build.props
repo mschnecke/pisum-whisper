@@ -7,10 +7,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
 
-    <!-- The development default. Every release overrides it from the tag: `release.yml`
-         strips the `v` and passes -p:Version=$VERSION to publish, and the same string to the
-         WiX build, the Info.plist substitution, the pkgbuild version argument and the nuspec,
-         so one version reaches every artifact of a release (design D8). -->
+    <!-- The development default, and the record of where the version has got to: it is what
+         `packaging/bump-version.sh` reads to work out the next one and what it rewrites, and so
+         what the tag of the next release will say. Every release still overrides it from that
+         tag: `release.yml` strips the `v` and passes -p:Version=$VERSION to publish, and the same
+         string to the WiX build, the Info.plist substitution, the pkgbuild version argument and
+         the nuspec, so one version reaches every artifact of a release (design D8). -->
     <Version>0.1.0</Version>
   </PropertyGroup>
 

@@ -806,6 +806,19 @@ WiX build, to the `Info.plist` substitution, to `pkgbuild` and to the nuspec, wi
 `Directory.Build.props`'s `<Version>0.1.0</Version>` the development default that a release always
 overrides.
 
+**A release starts in one of two ways, and the second one is why `bump` exists.** A `v*` tag pushed
+by hand still works unchanged. Running `Release` from the Actions tab — `patch`, `minor`, `major`,
+or an exact version for a pre-release — runs `packaging/bump-version.sh`, which rewrites
+`Directory.Build.props` and prints the new version, and then commits, tags and pushes it. **That run
+then carries on and publishes the release itself**, which is not tidiness: a push made with
+`GITHUB_TOKEN` deliberately raises no workflow event, so a bump job that stopped at the tag would
+leave a tag and no release. That is what `version`'s `needs: bump` plus
+`if: always() && (github.event_name == 'push' || needs.bump.result == 'success')` is for, and why
+every downstream job checks out `needs.version.outputs.tag` and names it in `tag_name` rather than
+reading `github.ref_name` — on a dispatch run that is the *branch*, not the tag being released.
+Change 12's design D8 called porting the reference's bump job a non-goal; it is a `.NET` rewrite
+rather than a port, which is what that decision said, and this is that rewrite.
+
 **Both platforms ship unsigned, by decision, and two consequences follow that are not free.** No
 Apple Developer ID and no Windows code-signing certificate: the reference has shipped eighteen
 releases unsigned through a public Homebrew cask, and a Developer ID is a purchase. So

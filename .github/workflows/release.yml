@@ -1,31 +1,107 @@
 name: Release
 
-# Pushing a version tag publishes a release carrying both installers, and then updates both package
-# managers (design D11). Tags are written by hand: porting the reference's version-bump job is a
-# stated non-goal, because it is tied to package.json and Cargo.toml.
+# Two ways in and one path out. Pushing a version tag publishes a release carrying both installers
+# and then updates both package managers (design D11); running the workflow by hand bumps the
+# version first, commits it, pushes the tag, and then does exactly the same thing.
+#
+# The dispatch run does not stop at the tag and wait to be started again by it. A push made with
+# GITHUB_TOKEN deliberately raises no workflow event on GitHub's side, so a bump job that only
+# tagged would leave a tag and no release. It feeds the run it was dispatched into instead, which is
+# what `version`'s `always()` and every downstream job's `ref` are for.
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Which part of the version to bump'
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      version:
+        description: 'An exact version instead, without the leading v (e.g. 0.2.0-rc.1)'
+        required: false
+        type: string
 
 permissions:
   contents: write
 
 jobs:
+  bump:
+    name: Bump the version
+    # Only the hand-started half. A tag push arrives with the bump already made, by this job on an
+    # earlier run or by a person.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The tags, so an existing one is refused here rather than by the push at the end of this
+          # job — after the version has already been committed to the branch.
+          fetch-depth: 0
+
+      - name: Write the new version
+        id: bump
+        # Through the inputs' environment rather than through ${{ }}, so a version string is data to
+        # this script and never a fragment of it.
+        env:
+          BUMP: ${{ inputs.bump }}
+          EXACT: ${{ inputs.version }}
+        run: |
+          VERSION="$(./packaging/bump-version.sh "${EXACT:-$BUMP}")"
+          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+            echo "::error::v$VERSION already exists; nothing was committed."
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and tag
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add Directory.Build.props
+          git commit -m "Bump the version to $VERSION"
+          git tag -a "v$VERSION" -m "Release v$VERSION"
+          # The branch first: a tag pointing at a commit that is not on the branch it was cut from
+          # is the failure worth avoiding, and it is the push more likely to be refused of the two.
+          git push origin "HEAD:$BRANCH"
+          git push origin "v$VERSION"
+
   version:
     name: Version
+    # `always()`, because a tag push skips `bump` and a skipped dependency would otherwise skip
+    # this job and the whole release with it.
+    needs: bump
+    if: always() && (github.event_name == 'push' || needs.bump.result == 'success')
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.derive.outputs.version }}
+      tag: ${{ steps.derive.outputs.tag }}
       prerelease: ${{ steps.derive.outputs.prerelease }}
     steps:
-      # One version, from the tag, and every artifact of the release derives from this (design D8).
-      # A tag carrying a pre-release part (v0.1.0-rc.1) publishes as a pre-release, which is what
-      # the release workflow is rehearsed with.
+      # One version, and every artifact of the release derives from this (design D8). A tag carrying
+      # a pre-release part (v0.1.0-rc.1) publishes as a pre-release, which is what the release
+      # workflow is rehearsed with.
+      #
+      # The tag is named here rather than read from github.ref_name downstream, because on a
+      # dispatch run that is the branch the workflow was started from, not the tag this release is.
       - id: derive
+        env:
+          BUMPED: ${{ needs.bump.outputs.version }}
         run: |
-          VERSION="${GITHUB_REF#refs/tags/v}"
+          VERSION="${BUMPED:-${GITHUB_REF#refs/tags/v}}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
           if [[ "$VERSION" == *-* ]]; then
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
           else
@@ -43,6 +119,10 @@ jobs:
         os: [windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The tag, which on a dispatch run is a commit made minutes ago by the bump job and is not
+          # what this run was started against.
+          ref: ${{ needs.version.outputs.tag }}
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -89,7 +169,7 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ needs.version.outputs.tag }}
           name: Pisum Whisper v${{ needs.version.outputs.version }}
           prerelease: ${{ needs.version.outputs.prerelease }}
           fail_on_unmatched_files: true
@@ -105,6 +185,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.tag }}
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -115,7 +197,7 @@ jobs:
         shell: pwsh
         run: |
           $version = "${{ needs.version.outputs.version }}"
-          $url = "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Pisum.Whisper_${version}_win-x64.msi"
+          $url = "https://github.com/${{ github.repository }}/releases/download/${{ needs.version.outputs.tag }}/Pisum.Whisper_${version}_win-x64.msi"
           # The published asset rather than the build output: the checksum has to cover exactly the
           # bytes a user's `choco install` will fetch, or it proves nothing about a tampered
           # download.

@@ -1,8 +1,5 @@
 name: CI
 
-# Every proposed change is built and tested on both supported platforms before it can be merged,
-# and each platform's installer is built too — so packaging cannot rot between releases (design
-# D11). Warnings are errors solution-wide, so a warning fails the build without a step for it.
 on:
   pull_request:
     branches: [main]
