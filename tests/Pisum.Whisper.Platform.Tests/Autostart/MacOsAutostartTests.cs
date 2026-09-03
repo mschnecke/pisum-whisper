@@ -44,11 +44,11 @@ public sealed class MacOsAutostartTests : IDisposable
     {
         var autostart = Create();
 
-        autostart.IsEnabled().ShouldBeFalse();
+        autostart.Read().ShouldBe(AutostartRegistration.Absent);
 
         autostart.Enable();
 
-        autostart.IsEnabled().ShouldBeTrue();
+        autostart.Read().ShouldBe(AutostartRegistration.Current);
         File.Exists(PlistPath()).ShouldBeTrue();
     }
 
@@ -61,9 +61,7 @@ public sealed class MacOsAutostartTests : IDisposable
     {
         Create().Enable();
 
-        var document = XDocument.Load(PlistPath());
-        var dictionary = document.Root!.Element("dict")!;
-        var children = dictionary.Elements().ToList();
+        var children = Children();
 
         Value(children, "Label").Value.ShouldBe("net.pisum.whisper");
         Value(children, "ProgramArguments").Elements("string").Single().Value
@@ -80,7 +78,46 @@ public sealed class MacOsAutostartTests : IDisposable
         autostart.Enable();
 
         Directory.GetFiles(_directory).Length.ShouldBe(1);
-        autostart.IsEnabled().ShouldBeTrue();
+        autostart.Read().ShouldBe(AutostartRegistration.Current);
+    }
+
+    /// <summary>
+    /// An agent naming something else — the install that replaced the build a developer was running,
+    /// or an application moved — is <c>Stale</c>, not <c>Absent</c> and emphatically not <c>Current</c>.
+    /// Reading it as merely "registered" is what let the machine go on launching the old path at
+    /// every login while the setting truthfully reported that start-at-login was on.
+    /// </summary>
+    [Fact]
+    public void AnAgentNamingAnotherExecutableIsStaleAndIsRepointedByEnabling()
+    {
+        var autostart = Create();
+        Directory.CreateDirectory(_directory);
+
+        File.WriteAllText(PlistPath(), Agent("/Applications/Somewhere Else.app/Contents/MacOS/Whisper"));
+
+        autostart.Read().ShouldBe(AutostartRegistration.Stale);
+
+        autostart.Enable();
+
+        autostart.Read().ShouldBe(AutostartRegistration.Current);
+        Value(Children(), "ProgramArguments").Elements("string").Single().Value
+            .ShouldBe(Environment.ProcessPath);
+        Directory.GetFiles(_directory).Length.ShouldBe(1);
+    }
+
+    /// <summary>
+    /// A file that is not a plist at all reads the same way, because the question is whether what is
+    /// on disk is what <c>Enable</c> would write — not whether it parses.
+    /// </summary>
+    [Fact]
+    public void AnAgentThatIsNotEvenAPlistIsStale()
+    {
+        var autostart = Create();
+        Directory.CreateDirectory(_directory);
+
+        File.WriteAllText(PlistPath(), "this is not a plist");
+
+        autostart.Read().ShouldBe(AutostartRegistration.Stale);
     }
 
     [Fact]
@@ -91,7 +128,7 @@ public sealed class MacOsAutostartTests : IDisposable
         autostart.Enable();
         autostart.Disable();
 
-        autostart.IsEnabled().ShouldBeFalse();
+        autostart.Read().ShouldBe(AutostartRegistration.Absent);
         File.Exists(PlistPath()).ShouldBeFalse();
     }
 
@@ -102,7 +139,7 @@ public sealed class MacOsAutostartTests : IDisposable
 
         Should.NotThrow(autostart.Disable);
 
-        autostart.IsEnabled().ShouldBeFalse();
+        autostart.Read().ShouldBe(AutostartRegistration.Absent);
     }
 
     [Fact]
@@ -114,7 +151,7 @@ public sealed class MacOsAutostartTests : IDisposable
         autostart.Disable();
         autostart.Enable();
 
-        autostart.IsEnabled().ShouldBeTrue();
+        autostart.Read().ShouldBe(AutostartRegistration.Current);
         Directory.GetFiles(_directory).Length.ShouldBe(1);
     }
 
@@ -128,6 +165,37 @@ public sealed class MacOsAutostartTests : IDisposable
     private string PlistPath()
     {
         return Path.Combine(_directory, "net.pisum.whisper.plist");
+    }
+
+    /// <summary>The written agent's <c>dict</c> children, which a plist pairs as key then value.</summary>
+    private List<XElement> Children()
+    {
+        return XDocument.Load(PlistPath()).Root!.Element("dict")!.Elements().ToList();
+    }
+
+    /// <summary>
+    /// A well-formed agent naming <paramref name="executablePath"/>, so that a stale registration is
+    /// a plausible one rather than a corrupt file. It is spelled out here rather than taken from the
+    /// production writer, or the test would agree with whatever that produced.
+    /// </summary>
+    private static string Agent(string executablePath)
+    {
+        return $"""
+                <?xml version="1.0" encoding="UTF-8"?>
+                <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+                <plist version="1.0">
+                  <dict>
+                    <key>Label</key>
+                    <string>net.pisum.whisper</string>
+                    <key>ProgramArguments</key>
+                    <array>
+                      <string>{executablePath}</string>
+                    </array>
+                    <key>RunAtLoad</key>
+                    <true />
+                  </dict>
+                </plist>
+                """;
     }
 
     /// <summary>The element after the <c>&lt;key&gt;</c> named <paramref name="key"/>, as a plist pairs them.</summary>

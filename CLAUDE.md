@@ -660,7 +660,7 @@ and activate an accessory application, spending exactly the focus the first sent
 `App.OnExit` closes what is still open, so a toast cannot outlive the dispatcher that owns it.
 
 **Autostart is reconciled, not toggled, and it reads before it writes.** `AutostartReconciler` is an
-`IHostedService` that compares `IAutostartService.IsEnabled()` with `Current.StartWithSystem` in
+`IHostedService` that compares `IAutostartService.Read()` with `Current.StartWithSystem` in
 `StartAsync` and on every `SettingsStore.Changed`, and writes only on a mismatch. Driving it from
 `GeneralViewModel`'s switch instead is the same amount of code and covers less: reconciling also
 covers the first launch, a settings file edited by hand and a registration some other tool removed,
@@ -669,6 +669,22 @@ through one path with one test. Reading first is the fix for a mistake already i
 and here the same shape would be a registry mutation on every save rather than a no-op. An
 `AutostartException` is caught and logged: a machine that refuses a `Run` value must not cost the
 user their dictation hotkey.
+
+**`Read` answers with three states and not a boolean, and the missing third one was a real defect.**
+`AutostartRegistration` is `Absent`, `Stale` or `Current`, where `Current` means *the registration is
+byte-for-byte what `Enable` would write right now* — the quoted `Run` command on Windows, the whole
+plist text on macOS, both compared against `Environment.ProcessPath`. It used to be `IsEnabled()`, and
+a registration naming an executable that is no longer this one answered `true`, agreed with an enabled
+setting, and was therefore never rewritten: **an install over a build a developer had been running
+went on launching the build output at every login**, while the General tab truthfully reported that
+start-at-login was on. Reproduced on this machine and fixed —
+`AutostartReconcilerTests.AStaleRegistrationIsRepointedAtTheRunningExecutable` is the guard and fails
+without it. Three consequences to keep: `Stale` is repointed with a single `Enable`, because both
+native implementations overwrite rather than append; the log line says `repointed at this executable`
+rather than `enabled`, because a registration that had to be corrected is not the same event as one
+created; and comparing the *whole* macOS plist rather than parsing out `ProgramArguments` is
+deliberate — it needs no parser and catches label and format drift too, and a cosmetically different
+plist being rewritten into the canonical one is harmless and happens once.
 
 Both native locations are injected, defaulting to the real ones, and that is what makes both halves
 testable — a private `HKCU` subkey on Windows, a temp directory on macOS. The macOS half writes only
@@ -853,8 +869,11 @@ labelled `change:NN`. **Changes 1 through 11 are archived** and their `applicati
 `settings-persistence`, `file-logging`, `audio-capture`, `audio-encoding`, `global-hotkey`,
 `gemini-transcription`, `text-output`, `dictation-pipeline`, `tray-icon`, `settings-window`,
 `notifications` and `autostart` specs are synced, so read every one of them from `openspec/specs/`
-like any other. Only change 12 (`add-packaging-ci` — `packaging`) is still active, and it now carries
-all four artifacts — `proposal.md`, `design.md`, `tasks.md` and a `packaging` delta spec. Its
+like any other. Two changes are active. Change 12 (`add-packaging-ci` — `packaging`) carries
+all four artifacts — `proposal.md`, `design.md`, `tasks.md` and a `packaging` delta spec — and
+`fix-stale-autostart-registration` carries four of its own with an `autostart` delta, being change
+12's own finding: a login registration naming an executable that is no longer this one was read as
+agreement and never rewritten. Its
 implementation has landed on `change/12-add-packaging-ci`; what is still open in `tasks.md` is the
 work that needs a Windows machine, a clean Mac, two repository secrets, a pushed tag, or a commit to
 the tap — read that file rather than assuming either extreme. An earlier version of this sentence

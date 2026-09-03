@@ -56,11 +56,27 @@ public sealed class MacOsAutostart : IAutostartService
     /// <summary>The plist this service writes, so a test need not hard-code the path twice.</summary>
     public string PlistPath => Path.Combine(_directory, FileName);
 
-    public bool IsEnabled()
+    public AutostartRegistration Read()
     {
         try
         {
-            return File.Exists(PlistPath);
+            if (!File.Exists(PlistPath))
+            {
+                return AutostartRegistration.Absent;
+            }
+
+            // The whole file rather than the ProgramArguments element alone, and so no parser: the
+            // question is whether what is on disk is what Enable would write now, and comparing the
+            // text answers it for the executable path, the label and the format at once. A plist
+            // that differs only cosmetically is rewritten into the canonical one, which is harmless
+            // — Enable overwrites — and leaves the comparison stable from then on.
+            // Environment.ProcessPath is null only for a host that cannot name its own executable,
+            // and an agent cannot be claimed as ours without it: Stale rather than a throw, so the
+            // setting being off can still remove it.
+            return Environment.ProcessPath is { } path
+                   && File.ReadAllText(PlistPath) == Plist(path)
+                ? AutostartRegistration.Current
+                : AutostartRegistration.Stale;
         }
         catch (Exception exception) when (IsFileSystemFailure(exception))
         {
@@ -76,7 +92,8 @@ public sealed class MacOsAutostart : IAutostartService
         {
             Directory.CreateDirectory(_directory);
 
-            // Overwritten rather than appended to, so enabling twice leaves one agent.
+            // Overwritten rather than appended to, so enabling twice leaves one agent — and
+            // repointing a stale one needs no separate delete.
             File.WriteAllText(PlistPath, Plist(ExecutablePath()), new UTF8Encoding(false));
         }
         catch (Exception exception) when (IsFileSystemFailure(exception))
@@ -141,8 +158,10 @@ public sealed class MacOsAutostart : IAutostartService
     }
 
     /// <remarks>
-    /// Before change 12 there is no <c>.app</c> bundle, so this points at a raw apphost. That is the
-    /// same trade the Windows half makes and is recorded in the change's <i>Risks</i>.
+    /// Under <c>dotnet run</c> this is a raw apphost in the build output; an installed build names
+    /// the executable inside <c>/Applications/Pisum Whisper.app</c>. <see cref="AutostartReconciler"/>
+    /// rewrites the one into the other on the first launch after an install, which is what
+    /// <see cref="AutostartRegistration.Stale"/> exists for.
     /// </remarks>
     private static string ExecutablePath()
     {

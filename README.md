@@ -225,8 +225,10 @@ per-user registration needing no elevation:
 
 What gets registered is the path of the executable that is running: the build output under `dotnet
 run`, and `/Applications/Pisum Whisper.app/Contents/MacOS/Pisum.Whisper.App` or the installed
-`Pisum.Whisper.App.exe` for an installed build. A registration that cannot be written costs you
-autostart and is logged; it never stops the application from starting.
+`Pisum.Whisper.App.exe` for an installed build. If a registration is already there but names a
+different executable — the build you had been running before you installed, say — it is rewritten on
+the next launch rather than left pointing at the old path. A registration that cannot be written costs
+you autostart and is logged; it never stops the application from starting.
 
 ## Logs
 

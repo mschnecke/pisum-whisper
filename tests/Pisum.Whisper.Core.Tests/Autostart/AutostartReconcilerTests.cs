@@ -60,24 +60,75 @@ public sealed class AutostartReconcilerTests : IDisposable
     public async Task TheRegistrationIsCreatedWhenTheSettingIsOnAndNothingIsRegistered()
     {
         Configure(true);
-        _autostart.Registered = false;
+        _autostart.Registration = AutostartRegistration.Absent;
 
         await StartAsync();
 
-        _autostart.Registered.ShouldBeTrue();
+        _autostart.Registration.ShouldBe(AutostartRegistration.Current);
         _autostart.Enables.ShouldBe(1);
         _autostart.Disables.ShouldBe(0);
+    }
+
+    /// <summary>
+    /// The bug this reconciler shipped with, and the reason the read is three-valued. A registration
+    /// naming an executable that is no longer this one agrees with an enabled setting on the only
+    /// question a boolean can ask, so it was never rewritten: an install over a build a developer had
+    /// been running went on launching the build output at every login, and the settings window
+    /// reported that start-at-login was on, which it was — for the wrong binary.
+    /// </summary>
+    [Fact]
+    public async Task AStaleRegistrationIsRepointedAtTheRunningExecutable()
+    {
+        Configure(true);
+        _autostart.Registration = AutostartRegistration.Stale;
+
+        await StartAsync();
+
+        _autostart.Registration.ShouldBe(AutostartRegistration.Current);
+        _autostart.Enables.ShouldBe(1);
+        _autostart.Disables.ShouldBe(0);
+    }
+
+    /// <summary>
+    /// Repointing is one write, not a delete and a create: both native implementations overwrite.
+    /// The log says which of the two happened, because a registration that had to be corrected is
+    /// not the same event as one that was created.
+    /// </summary>
+    [Fact]
+    public async Task RepointingIsReportedAsSomethingOtherThanEnabling()
+    {
+        Configure(true);
+        _autostart.Registration = AutostartRegistration.Stale;
+
+        await StartAsync();
+
+        _autostart.Writes.ShouldBe(1);
+        LogMessages().ShouldContain(message => message.Contains("repointed at this executable", StringComparison.Ordinal));
+    }
+
+    /// <summary>A stale registration is still a registration, so turning the setting off removes it.</summary>
+    [Fact]
+    public async Task AStaleRegistrationIsRemovedWhenTheSettingIsOff()
+    {
+        Configure(false);
+        _autostart.Registration = AutostartRegistration.Stale;
+
+        await StartAsync();
+
+        _autostart.Registration.ShouldBe(AutostartRegistration.Absent);
+        _autostart.Disables.ShouldBe(1);
+        _autostart.Enables.ShouldBe(0);
     }
 
     [Fact]
     public async Task TheRegistrationIsRemovedWhenTheSettingIsOffAndOneExists()
     {
         Configure(false);
-        _autostart.Registered = true;
+        _autostart.Registration = AutostartRegistration.Current;
 
         await StartAsync();
 
-        _autostart.Registered.ShouldBeFalse();
+        _autostart.Registration.ShouldBe(AutostartRegistration.Absent);
         _autostart.Disables.ShouldBe(1);
         _autostart.Enables.ShouldBe(0);
     }
@@ -88,12 +139,14 @@ public sealed class AutostartReconcilerTests : IDisposable
     /// <c>GlobalHotkeyService.OnSettingsChanged</c> already makes with a rebind that early-returned.
     /// </summary>
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task NothingIsWrittenWhenTheSettingAndTheRegistrationAgree(bool enabled)
+    [InlineData(true, AutostartRegistration.Current)]
+    [InlineData(false, AutostartRegistration.Absent)]
+    public async Task NothingIsWrittenWhenTheSettingAndTheRegistrationAgree(
+        bool enabled,
+        AutostartRegistration registration)
     {
         Configure(enabled);
-        _autostart.Registered = enabled;
+        _autostart.Registration = registration;
 
         await StartAsync();
 
@@ -109,14 +162,14 @@ public sealed class AutostartReconcilerTests : IDisposable
     public async Task TheRegistrationIsReconciledAgainWhenSettingsAreSaved()
     {
         Configure(false);
-        _autostart.Registered = false;
+        _autostart.Registration = AutostartRegistration.Absent;
 
         await StartAsync();
         _autostart.Writes.ShouldBe(0);
 
         Configure(true);
 
-        _autostart.Registered.ShouldBeTrue();
+        _autostart.Registration.ShouldBe(AutostartRegistration.Current);
         _autostart.Enables.ShouldBe(1);
     }
 
@@ -128,17 +181,17 @@ public sealed class AutostartReconcilerTests : IDisposable
     public async Task ARegistrationRemovedElsewhereIsRestoredOnTheNextStart()
     {
         Configure(true);
-        _autostart.Registered = true;
+        _autostart.Registration = AutostartRegistration.Current;
 
         await StartAsync();
         _autostart.Writes.ShouldBe(0);
 
         // Something else removed it while the application was not running.
-        _autostart.Registered = false;
+        _autostart.Registration = AutostartRegistration.Absent;
 
         await StartAsync();
 
-        _autostart.Registered.ShouldBeTrue();
+        _autostart.Registration.ShouldBe(AutostartRegistration.Current);
         _autostart.Enables.ShouldBe(1);
     }
 
@@ -162,7 +215,7 @@ public sealed class AutostartReconcilerTests : IDisposable
     public async Task StoppingUnsubscribes()
     {
         Configure(true);
-        _autostart.Registered = true;
+        _autostart.Registration = AutostartRegistration.Current;
 
         var reconciler = Reconciler();
         await reconciler.StartAsync(CancellationToken.None);

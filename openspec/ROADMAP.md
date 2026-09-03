@@ -72,6 +72,7 @@ Ordered by when each was proposed.
 | `settle-win-x64-verification-debt` | The eleven by-hand checks across seven archived changes that need nothing but the Windows machine this is developed on | nothing | Archived 2026-09-02, closes #30 |
 | `surface-settings-save-failures` | A settings write that never reached disk became an unobserved task exception, so the window looked like the save had worked | nothing | Archived 2026-09-02, closes #37 |
 | `ready-the-suite-for-ci` | Five write-failure tests whose `FileShare.None` arrangement only fails on Windows, and a latency test that gates itself instead of being filtered by CI, so the suite passes unattended on both platforms | **12** | Archived 2026-09-03, closes #49; win-x64 debt open on #50 |
+| `fix-stale-autostart-registration` | The reconciler asked "is something registered", so a registration naming an executable that is no longer this one read as agreement and was never rewritten — an install over a build went on launching the build at every login | nothing | Active; found by change 12's task 3.2 and reproduced on Apple Silicon 2026-09-03 |
 
 `add-settings-window` depends on `migrate-tests-to-xunit-v3`: Avalonia ships first-party headless
 test integration for xUnit and NUnit only — there is no `Avalonia.Headless.MSTest` and there never
@@ -126,7 +127,9 @@ Changes **1-11** are implemented and archived under `openspec/changes/archive/`,
 `global-hotkey`, `gemini-transcription`, `text-output`, `dictation-pipeline`, `tray-icon`,
 `settings-window`, `notifications` and `autostart` specs synced into `openspec/specs/`. Change **12**
 is **implemented** on `change/12-add-packaging-ci`, with all four artifacts written and its `packaging`
-delta spec waiting to be synced when it archives.
+delta spec waiting to be synced when it archives. `fix-stale-autostart-registration` is active
+alongside it, on the same branch, carrying an `autostart` delta of its own — it is change 12's own
+finding, and change 12's task 9.4 asks a question that this is the answer to.
 `report-startup-failures` is implemented and archived as well, on 2026-09-02, with its
 `file-logging`, `global-hotkey` and new `startup-diagnostics` specs synced. **7.1 has since closed in
 full, and 7.3 partly has** — the corrupt-settings reproduction that closed issue #20, three more

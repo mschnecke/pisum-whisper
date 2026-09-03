@@ -26,6 +26,15 @@ using Pisum.Whisper.Core.Settings;
 /// first and nothing is written or logged when the two already agree.
 /// </para>
 /// <para>
+/// <b>What it compares is not whether a registration exists.</b> It did once, and the state that
+/// survived was the one this exists to prevent: a registration naming an executable that is no
+/// longer this one — an install over a build a developer had been running, or an application moved —
+/// agreed with an enabled setting on the only question being asked, so it was never rewritten and
+/// the machine went on launching the old path at every login. <see cref="IAutostartService.Read"/>
+/// answers with <see cref="AutostartRegistration"/> instead, and only
+/// <see cref="AutostartRegistration.Current"/> is agreement.
+/// </para>
+/// <para>
 /// <b>A failure never stops the application starting.</b> A machine policy, a locked registry key or
 /// an unwritable home directory is a reason to lose autostart, not a reason to lose the dictation
 /// hotkey.
@@ -89,7 +98,9 @@ public sealed class AutostartReconciler : IHostedService, IDisposable
 
         try
         {
-            if (_autostart.IsEnabled() == wanted)
+            var registration = _autostart.Read();
+
+            if (registration == Agreement(wanted))
             {
                 // Nothing is written and nothing is logged: this is the ordinary case, once per save.
                 return;
@@ -97,6 +108,8 @@ public sealed class AutostartReconciler : IHostedService, IDisposable
 
             if (wanted)
             {
+                // Enable overwrites, so this is the one call for both "nothing is registered" and
+                // "something else is". Which of the two it was is what the log line distinguishes.
                 _autostart.Enable();
             }
             else
@@ -106,7 +119,7 @@ public sealed class AutostartReconciler : IHostedService, IDisposable
 
             _logger.LogInformation(
                 "Start at login was {Action} to match the setting.",
-                wanted ? "enabled" : "disabled");
+                Action(wanted, registration));
         }
         catch (AutostartException exception)
         {
@@ -115,5 +128,26 @@ public sealed class AutostartReconciler : IHostedService, IDisposable
                 "Start at login could not be brought to {Wanted}; the application continues without it.",
                 wanted);
         }
+    }
+
+    /// <summary>The one registration state that needs no write, for a given setting.</summary>
+    private static AutostartRegistration Agreement(bool wanted)
+    {
+        return wanted ? AutostartRegistration.Current : AutostartRegistration.Absent;
+    }
+
+    /// <summary>
+    /// What was actually done, in three words rather than two. A registration repointed at this
+    /// executable is not the same event as one created, and reporting both as "enabled" would leave
+    /// the log unable to say that anything had been wrong.
+    /// </summary>
+    private static string Action(bool wanted, AutostartRegistration registration)
+    {
+        if (!wanted)
+        {
+            return "disabled";
+        }
+
+        return registration == AutostartRegistration.Stale ? "repointed at this executable" : "enabled";
     }
 }
