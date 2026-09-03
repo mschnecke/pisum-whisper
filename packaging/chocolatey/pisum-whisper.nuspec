@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>pisum-whisper</id>
+    <!-- Rewritten from the tag by release.yml before `choco pack`, so this value is the
+         development default and never what is published. -->
+    <version>0.1.0</version>
+    <title>Pisum Whisper</title>
+    <authors>Michael Schnecke</authors>
+    <owners>mschnecke</owners>
+    <projectUrl>https://github.com/mschnecke/pisum-whisper</projectUrl>
+    <licenseUrl>https://github.com/mschnecke/pisum-whisper/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>
+Pisum Whisper is a hotkey-driven dictation utility. Hold a global hotkey to record speech, release to transcribe it with Google Gemini, and the transcript is pasted at the cursor position in whatever application you were already typing in.
+
+- Hold-to-record or toggle, on a hotkey you choose and can rebind without a restart
+- Transcription through Google Gemini, with a round-robin pool of API keys and categorised failures
+- Per-preset system prompts, so the same speech can be formatted differently
+- Tray-resident: no taskbar button and no window until you ask for one, with the icon reporting idle, recording or transcribing
+- Settings saved as you type them, and a rolling log at %USERPROFILE%\.pisum-whisper\logs
+
+Needs a Google Gemini API key, which you enter on the settings window's Providers tab.
+    </description>
+    <summary>Hotkey-driven dictation that pastes the transcript at the cursor</summary>
+    <releaseNotes>https://github.com/mschnecke/pisum-whisper/releases</releaseNotes>
+    <copyright>Copyright 2026 Michael Schnecke</copyright>
+    <tags>dictation transcription speech-to-text gemini hotkey tray admin</tags>
+    <packageSourceUrl>https://github.com/mschnecke/pisum-whisper/tree/main/packaging/chocolatey</packageSourceUrl>
+    <docsUrl>https://github.com/mschnecke/pisum-whisper#readme</docsUrl>
+    <bugTrackerUrl>https://github.com/mschnecke/pisum-whisper/issues</bugTrackerUrl>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

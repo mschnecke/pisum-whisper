@@ -1,0 +1,162 @@
+name: Release
+
+# Pushing a version tag publishes a release carrying both installers, and then updates both package
+# managers (design D11). Tags are written by hand: porting the reference's version-bump job is a
+# stated non-goal, because it is tied to package.json and Cargo.toml.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.derive.outputs.version }}
+      prerelease: ${{ steps.derive.outputs.prerelease }}
+    steps:
+      # One version, from the tag, and every artifact of the release derives from this (design D8).
+      # A tag carrying a pre-release part (v0.1.0-rc.1) publishes as a pre-release, which is what
+      # the release workflow is rehearsed with.
+      - id: derive
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "$VERSION" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Releasing $VERSION"
+
+  build:
+    name: Build (${{ matrix.os }})
+    needs: version
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Build the MSI
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 6.*
+          # A global tool lands in %USERPROFILE%\.dotnet\tools, which is on PATH for later steps
+          # but not for the rest of this one.
+          $env:PATH = "$env:USERPROFILE\.dotnet\tools;$env:PATH"
+          ./packaging/windows/build-msi.ps1 -Version ${{ needs.version.outputs.version }}
+
+      - name: Build the pkg
+        if: runner.os == 'macOS'
+        run: ./packaging/macos/build-pkg.sh "${{ needs.version.outputs.version }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.os }}
+          path: |
+            artifacts/*.msi
+            artifacts/*.pkg
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Publish the release
+    # Both build legs, so a release carrying only one platform is not a thing that can happen: if
+    # either fails, this job never runs and nothing is published. That is the spec's second
+    # scenario under *A tagged release publishes both installers*.
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List what will be published
+        run: ls -la artifacts
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Pisum Whisper v${{ needs.version.outputs.version }}
+          prerelease: ${{ needs.version.outputs.prerelease }}
+          fail_on_unmatched_files: true
+          files: |
+            artifacts/Pisum.Whisper_${{ needs.version.outputs.version }}_win-x64.msi
+            artifacts/Pisum.Whisper_${{ needs.version.outputs.version }}_osx-arm64.pkg
+
+  chocolatey:
+    name: Chocolatey
+    # Downstream of a published release, never beside it: the package points at the release asset
+    # and pins its checksum, so the asset has to exist first.
+    needs: [version, release]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Download the published MSI and record its checksum
+        id: checksum
+        shell: pwsh
+        run: |
+          $version = "${{ needs.version.outputs.version }}"
+          $url = "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Pisum.Whisper_${version}_win-x64.msi"
+          # The published asset rather than the build output: the checksum has to cover exactly the
+          # bytes a user's `choco install` will fetch, or it proves nothing about a tampered
+          # download.
+          Invoke-WebRequest -Uri $url -OutFile msi.msi
+          $sha = (Get-FileHash msi.msi -Algorithm SHA256).Hash
+          echo "sha256=$sha" >> $env:GITHUB_OUTPUT
+          echo "url=$url" >> $env:GITHUB_OUTPUT
+
+      - name: Point the package at this release
+        shell: pwsh
+        run: |
+          $version = "${{ needs.version.outputs.version }}"
+          $install = 'packaging/chocolatey/tools/chocolateyinstall.ps1'
+          (Get-Content $install -Raw) `
+            -replace "url64bit\s*=\s*'.*'", "url64bit       = '${{ steps.checksum.outputs.url }}'" `
+            -replace "checksum64\s*=\s*'.*'", "checksum64     = '${{ steps.checksum.outputs.sha256 }}'" `
+            | Set-Content $install
+          $nuspec = 'packaging/chocolatey/pisum-whisper.nuspec'
+          (Get-Content $nuspec -Raw) -replace '<version>.*</version>', "<version>$version</version>" | Set-Content $nuspec
+
+      - name: Pack and push
+        shell: pwsh
+        env:
+          MYGET_API_KEY: ${{ secrets.MYGET_API_KEY }}
+        run: |
+          if (-not $env:MYGET_API_KEY) { throw 'MYGET_API_KEY is not set on this repository.' }
+          choco pack packaging/chocolatey/pisum-whisper.nuspec --outputdirectory packaging/chocolatey
+          dotnet nuget push "packaging/chocolatey/pisum-whisper.${{ needs.version.outputs.version }}.nupkg" `
+            --source "https://www.myget.org/F/mschnecke/api/v3/index.json" `
+            --api-key $env:MYGET_API_KEY
+
+  homebrew:
+    name: Homebrew cask
+    needs: [version, release]
+    runs-on: ubuntu-latest
+    steps:
+      # The tap's own update-cask.yml takes it from here: it downloads the published .pkg, computes
+      # the sha256 and opens an auto-merged pull request against casks/pisum-whisper.rb.
+      - uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          repository: mschnecke/homebrew-pisum-whisper
+          event-type: update-cask
+          client-payload: '{"version": "${{ needs.version.outputs.version }}"}'

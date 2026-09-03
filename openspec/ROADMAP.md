@@ -125,7 +125,8 @@ Changes **1-11** are implemented and archived under `openspec/changes/archive/`,
 `application-host`, `settings-persistence`, `file-logging`, `audio-capture`, `audio-encoding`,
 `global-hotkey`, `gemini-transcription`, `text-output`, `dictation-pipeline`, `tray-icon`,
 `settings-window`, `notifications` and `autostart` specs synced into `openspec/specs/`. Change **12**
-has `proposal.md` only; its `specs`, `design` and `tasks` are written when its turn comes.
+is **implemented** on `change/12-add-packaging-ci`, with all four artifacts written and its `packaging`
+delta spec waiting to be synced when it archives.
 `report-startup-failures` is implemented and archived as well, on 2026-09-02, with its
 `file-logging`, `global-hotkey` and new `startup-diagnostics` specs synced. **7.1 has since closed in
 full, and 7.3 partly has** — the corrupt-settings reproduction that closed issue #20, three more
@@ -135,7 +136,10 @@ login-time half, so it still joins the table below rather than closing with it.
 
 **Eight archived changes carry unchecked tasks in the table below, thirteen in total, and they are
 not all macOS.** Counting `settle-win-x64-verification-debt`'s own seven boxes as well gives twenty
-across nine changes; the paragraph under the table reconciles the two. This
+across nine changes; the paragraph under the table reconciles the two. **Change 12's row is the ninth
+and is not one of them**: it is active rather than archived, so its five boxes are not in the archive
+count and will not be until it moves. It is listed here anyway because #52 was opened while it was
+still active, which is the standing decision working rather than an exception to it. This
 section previously named changes 8 to 11 and called that "a departure from how 1-7 were closed".
 Both halves were wrong: changes 1 and 7 are in the same state, so there was no departure — only the
 recording of it changed. Change 9's row is gone as of 2026-09-02: issue #31 closed all three of its
@@ -151,7 +155,8 @@ lists, in one sitting on an Apple M4.
 | 11 `add-system-integration` | 7.1, 7.4 | win-x64 for 7.1; 7.4 is a headless test plus a glance during 7.1 |
 | `migrate-tests-to-xunit-v3` | 5.4 | win-x64 — confirm Rider still discovers the tests |
 | `report-startup-failures` | 7.2, 7.3 | Apple Silicon for 7.2; win-x64 for 7.3's login-time half. 7.1 (all four fatal-dialog reproductions, closing #20) and 7.3's interactive-launch half both ran 2026-09-02. The `osascript` dialog has never been drawn |
-| `ready-the-suite-for-ci` | 1.1, 5.2, 5.3 | win-x64 for all three — the T1 failure-injection probe, the CI command, and the Windows half of the alone-runs. **The only row here tracked by an open issue** ([#50](https://github.com/mschnecke/pisum-whisper/issues/50)), opened before the archive rather than after |
+| `ready-the-suite-for-ci` | 1.1, 5.2, 5.3 | win-x64 for all three — the T1 failure-injection probe, the CI command, and the Windows half of the alone-runs. Tracked by [#50](https://github.com/mschnecke/pisum-whisper/issues/50), opened before the archive rather than after — the first row here to be, and no longer the only one |
+| 12 `add-packaging-ci` | 9.1–9.5 | a clean Windows 11 x64 machine for 9.1, a clean Apple Silicon Mac for 9.2 and 9.3, both for 9.4 and 9.5. Tracked by [#52](https://github.com/mschnecke/pisum-whisper/issues/52), the second row opened before its archive. Three of the five close a box above as well: **9.2** the macOS half of 8 / 6.4, **9.4** the login half of 11 / 7.1, **9.5** `report-startup-failures` / 7.2 |
 
 **Counting the archive gives 20, not 13, and both numbers are right.** `grep -c '^- \[ \]'` across
 `openspec/changes/archive/*/tasks.md` returns twenty unchecked boxes in nine changes. The eight
@@ -174,6 +179,15 @@ and the box count double-books. Neither is wrong, and the arithmetic was written
 2026-09-03 — a reader who audited the table against the archive found a seven-box discrepancy and no
 way to tell which side of it was in error.
 
+**Change 12's three double-bookings are the mirror of that table, not the same thing.**
+`settle-win-x64-verification-debt`'s six boxes were *only ever* someone else's work, filed twice
+because running other changes' checks was that change's whole job. Change 12's 9.2, 9.4 and 9.5 are
+its own checks — install from the `.pkg`, autostart at login from an installed build, a startup
+dialog from an installed build — which happen to be the first setup in which another change's open
+box is answerable at all. So they are counted **once**, in change 12's row, and the row names what
+else each would tick; they are not added to the three rows above. The five make eighteen open boxes
+across nine rows, thirteen of them in the archive.
+
 **The seventh box is not a proxy, and it can no longer be done as written.**
 `settle-win-x64-verification-debt`'s 7.2 says to post a results table on issue #30 as a comment and
 then close it. #30 was closed on 2026-09-02 without the comment. So it is a real eleventh item that
@@ -181,11 +195,14 @@ this table does not carry, it is a close-out rather than a check, and closing it
 what to do about an issue that is already shut — which is the same decision the paragraph below
 leaves open.
 
-**None of the ten is tracked by an issue.** #30 (win-x64) and #31 (Apple Silicon) were both closed
-on 2026-09-02 with work still open — #30 while six of its eleven checks had not run, #31 with change
-8's refused-microphone case abandoned rather than completed. This table is the only surviving
-record, which is the state the *Standing decisions* rule on moving open by-hand tasks to a tracking
-issue exists to prevent. Reopening the two, or opening one successor, is an open decision.
+**None of the ten is tracked by an issue** — the ten being the thirteen archived boxes less
+`ready-the-suite-for-ci`'s three, which #50 carries; change 12's five are on #52. #30 (win-x64) and
+#31 (Apple Silicon) were both closed on 2026-09-02 with work still open — #30 while six of its eleven
+checks had not run, #31 with change 8's refused-microphone case abandoned rather than completed. For
+those ten this table is the only surviving record, which is the state the *Standing decisions* rule
+on moving open by-hand tasks to a tracking issue exists to prevent. Reopening the two, or opening one
+successor, is an open decision. Three of them would be ticked by change 12's run anyway, which is a
+reason to sequence #52 first rather than a reason to leave them untracked.
 
 **Six of the ten need nothing but the Windows machine this is developed on**, and a seventh is
 11's 7.4 headless test. Two do need Apple Silicon and should be done in one pass — issue #31's
@@ -206,8 +223,10 @@ ran, not that it passed.
 
 This is deliberate. The four spikes in change 1 can invalidate design decisions downstream — if
 SharpHook cannot report key release, or miniaudio cannot resample, the affected designs change rather
-than the code. Writing detailed task breakdowns for change 12 today would produce artifacts that are
-stale before anyone reads them.
+than the code. This paragraph used to end by saying that writing a detailed task breakdown for change
+12 today would produce artifacts stale before anyone read them; that was true while its risks were
+unmeasured and stopped being true once it was planned and implemented, so the reasoning stands and
+the example has been retired.
 
 ## Standing decisions
 

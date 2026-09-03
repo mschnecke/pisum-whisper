@@ -1,0 +1,9 @@
+#!/bin/bash
+# Run as root by `installer` once the payload is in place — and by Homebrew's `pkg` stanza too.
+# The whole of it: clear quarantine, so the unsigned bundle opens from Finder with no Gatekeeper
+# detour (design D6). This is load-bearing rather than a workaround: a .dmg or a zipped .app has no
+# root script, which is what makes the .pkg the only viable shape for shipping unsigned.
+# Deliberately NOT the reference's two extra steps — an osascript notification (the application has
+# its own first-launch flow) and an `open` as the console user (a step with no benefit here).
+xattr -rd com.apple.quarantine "/Applications/Pisum Whisper.app" 2>/dev/null || true
+exit 0

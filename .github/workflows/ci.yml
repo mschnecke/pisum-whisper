@@ -1,0 +1,67 @@
+name: CI
+
+# Every proposed change is built and tested on both supported platforms before it can be merged,
+# and each platform's installer is built too — so packaging cannot rot between releases (design
+# D11). Warnings are errors solution-wide, so a warning fails the build without a step for it.
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # Both legs run to completion: which platform a change breaks is the useful part, and the
+      # legs differ on purpose — the macOS run reports 6 skipped and the Windows run 1.
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+
+    env:
+      # Never released; it exists so the packaging scripts get the one argument they take.
+      VERSION: 0.1.0-ci.${{ github.run_number }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore Pisum.Whisper.slnx
+
+      - name: Build
+        run: dotnet build Pisum.Whisper.slnx --no-restore
+
+      # One filter, and it is the only one this workflow will ever need (design D9). Anything that
+      # cannot run on a platform declares itself skipped with its reason in the runner output —
+      # `ManualTests`, `WindowsOnly` and `TimingTests` are the three gates that do it. A
+      # --filter-not-method here would print nothing and silently drop the count by one instead.
+      - name: Test
+        run: dotnet test Pisum.Whisper.slnx --filter-not-trait Category=Manual
+
+      - name: Build the MSI
+        if: runner.os == 'Windows'
+        run: |
+          dotnet tool install --global wix --version 6.*
+          # A global tool lands in %USERPROFILE%\.dotnet\tools, which is on PATH for later steps
+          # but not for the rest of this one.
+          $env:PATH = "$env:USERPROFILE\.dotnet\tools;$env:PATH"
+          ./packaging/windows/build-msi.ps1 -Version $env:VERSION
+        shell: pwsh
+
+      - name: Build the pkg
+        if: runner.os == 'macOS'
+        run: ./packaging/macos/build-pkg.sh "$VERSION"
+
+      - name: Upload the installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.os }}
+          path: |
+            artifacts/*.msi
+            artifacts/*.pkg
+          if-no-files-found: error
+          retention-days: 7

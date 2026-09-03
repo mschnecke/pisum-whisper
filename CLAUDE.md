@@ -778,6 +778,72 @@ Summarising to a line and a position would delete exactly what issue #20 holds u
 part. `StartupFailureTests.AParseFailureInsideAnApiKeyDisclosesNoPartOfIt` guards it against a
 genuine parse failure over a document holding a key.
 
+## Packaging and release
+
+`packaging/` holds everything that turns a build into an installer and nothing that is compiled into
+one; `.github/workflows/` holds the two workflows that run it. `ci.yml` builds, tests and packages
+both platforms on every pull request, and `release.yml` publishes both installers plus the two
+package-manager updates on a `v*` tag. Each script takes the version as its one argument and is the
+same command a person runs, so no step of a release exists only inside a workflow file. One version
+reaches every artifact, from the tag: `release.yml` strips the `v` and passes it to publish, to the
+WiX build, to the `Info.plist` substitution, to `pkgbuild` and to the nuspec, with
+`Directory.Build.props`'s `<Version>0.1.0</Version>` the development default that a release always
+overrides.
+
+**Both platforms ship unsigned, by decision, and two consequences follow that are not free.** No
+Apple Developer ID and no Windows code-signing certificate: the reference has shipped eighteen
+releases unsigned through a public Homebrew cask, and a Developer ID is a purchase. So
+
+- **the `.pkg`'s `postinstall` `xattr -rd com.apple.quarantine` is load-bearing, not a hack.** It is
+  what lets an unsigned bundle open from Finder with no Gatekeeper detour, and it is only available
+  because a `.pkg` has a root script — a `.dmg` or a zipped `.app` has none. The artifact format and
+  the signing decision are one decision, not two, which is why "why not ship a zip" has an answer.
+- **the macOS Accessibility grant is lost on every update**, because without a Developer ID macOS
+  has no stable identity to recognise the new build by. Ad-hoc signing does not fix this: an ad-hoc
+  signature's identity is its cdhash, which changes with the binary. It is disclosed in `README.md`
+  and in the cask's `caveats` rather than hidden, and reversing it is buying a certificate and
+  adding two `--sign` flags.
+
+What the ad-hoc re-sign *does* fix is worth keeping: `codesign --force --deep --sign - --identifier
+net.pisum.whisper` on the assembled bundle turns the SDK's `Identifier=apphost`, `Info.plist=not
+bound`, `Sealed Resources=none` into the real identifier with the plist bound and the resources
+sealed — so `LSUIElement` and the microphone purpose string are covered by the signature rather than
+loose beside it. arm64 Mach-O must carry at least an ad-hoc signature to execute at all, so
+"unsigned" here has always meant *no Developer ID*, never *no signature*.
+
+**The directory is `packaging/`, and it must not be renamed to `packages/`.** `.gitignore` carries
+`**/[Pp]ackages/*`, which is the reference project's name for this directory — so under that name
+every file in it is silently untracked, and the failure mode is a directory that is created,
+populated, committed empty, and a release that fails with no diff to look at. `git check-ignore -v
+packaging/windows/x` prints nothing and is the check.
+
+**Two native `.pdb` files are deleted after publish and the three managed ones are kept.** Measured
+on `win-x64`: `libSkiaSharp.pdb` is 84 MB and `libHarfBuzzSharp.pdb` 21 MB, so two files are 100 MB
+of a 228 MB payload, and they are native symbol files for third-party C++ nobody here will ever load
+into a debugger. Deleting them takes the payload to 128 MB. `-p:DebugType=none` would remove all
+five in one property and is rejected for exactly that reason: `DictationOrchestrator`'s catch-all
+and `StartupFailure.Describe` both log exceptions, and a stack trace without line numbers from an
+installed build is the report that cannot be acted on. 0.2 MB is not a trade. The pair is not
+published on `osx-arm64` at all, so `build-app.sh` deletes whatever is there rather than requiring
+both.
+
+**The Start-menu shortcut's AUMID satisfies nothing.** `<ShortcutProperty Key="System.AppUserModel.ID"
+Value="net.pisum.whisper" />` is set because a `Shell_NotifyIcon` balloon and a WinUI toast both need
+one before they reach a notification platform at all — and change 11 chose a drawn Avalonia window
+precisely so that it placed *no* requirement here. What the AUMID buys is that `spikes -- notify`'s
+three observational questions, held in the tree unrun for exactly this moment, become answerable
+alongside change 11's WinForms balloon control run. Answering them is a follow-up, not this change,
+and an earlier draft of change 12's proposal claiming the AUMID satisfied a change 11 requirement
+was withdrawn.
+
+Two smaller things the scripts encode. `<Files Include="publish\**" />` resolves relative to the
+`.wxs`, so `build-msi.ps1` publishes into `packaging/windows/publish/` and a `.gitignore` beside it
+keeps 128 MB untracked — there is no `heat` step and no generated component list, because WiX 5
+introduced `<Files>`. And **Windows Installer's `ProductVersion` is `major.minor.build` and nothing
+else**, so `build-msi.ps1` strips any pre-release suffix before passing it to `wix build` while the
+file name, the `Info.plist` and the nuspec keep the full string: a `v0.1.0-rc.1` tag produces
+`Pisum.Whisper_0.1.0-rc.1_win-x64.msi` whose ARP version reads `0.1.0`.
+
 ## Spec-driven workflow (OpenSpec)
 
 `openspec/config.yaml` sets `schema: spec-driven`. Change proposals live in `openspec/changes/`,
@@ -788,10 +854,13 @@ labelled `change:NN`. **Changes 1 through 11 are archived** and their `applicati
 `gemini-transcription`, `text-output`, `dictation-pipeline`, `tray-icon`, `settings-window`,
 `notifications` and `autostart` specs are synced, so read every one of them from `openspec/specs/`
 like any other. Only change 12 (`add-packaging-ci` — `packaging`) is still active, and it now carries
-all four artifacts — `proposal.md`, `design.md`, `tasks.md` and a `packaging` delta spec — with none
-of its 34 tasks implemented. An earlier version of this sentence called it "a lone `proposal.md` —
-no design, no tasks and no delta specs"; that was true until the planning commit on
-`change/12-add-packaging-ci`, and the delta spec is now the thing to sync when it archives.
+all four artifacts — `proposal.md`, `design.md`, `tasks.md` and a `packaging` delta spec. Its
+implementation has landed on `change/12-add-packaging-ci`; what is still open in `tasks.md` is the
+work that needs a Windows machine, a clean Mac, two repository secrets, a pushed tag, or a commit to
+the tap — read that file rather than assuming either extreme. An earlier version of this sentence
+called it "a lone `proposal.md` — no design, no tasks and no delta specs"; that was true until the
+planning commit on `change/12-add-packaging-ci`, and the delta spec is now the thing to sync when it
+archives.
 `migrate-tests-to-xunit-v3`, `report-startup-failures`, `fix-startup-ioexception-mislabeling`,
 `surface-settings-save-failures` and `ready-the-suite-for-ci` are archived as well; they carry no
 number, by the roadmap's own rule that off-sequence work gets a section instead of one. The second
