@@ -66,6 +66,7 @@ on the pipeline the twelve rows above sequence.
 |---|---|---|
 | `migrate-tests-to-xunit-v3` | MSTest to xUnit v3 across both test projects; `dotnet test` moves to Microsoft.Testing.Platform | 10 |
 | `report-startup-failures` | A native modal dialog for the four failures that prevent startup, and the notification transport for the two degraded conditions that reach nobody today | nothing |
+| `ready-the-suite-for-ci` | Five write-failure tests whose `FileShare.None` arrangement only fails on Windows, and a latency test that gates itself instead of being filtered by CI, so the suite passes unattended on both platforms | **12** |
 
 `add-settings-window` depends on it: Avalonia ships first-party headless test integration for xUnit
 and NUnit only — there is no `Avalonia.Headless.MSTest` and there never has been — so change 10
@@ -78,6 +79,16 @@ than a stage to the pipeline — and it exists because changes 9 and 11 each def
 `HotkeyAvailability.Failed` to the next change along, and change 11's own *Risks* recorded that its
 transport could not reach a failure raised before the dispatcher loop starts. It also closes issue
 #20. It is dependent on change 11 for the degraded half only; the dialog half depends on nothing.
+
+`ready-the-suite-for-ci` is the first off-sequence change that **blocks a numbered one**. Change 12
+adds the first CI this repository has had, and on `main` today its macOS leg would be red before a
+line of packaging is written: measured 2026-09-03, `dotnet test --filter-not-trait Category=Manual`
+gives 625 selected, 615 passed, **5 failed**, 5 skipped. The five are `PresetsViewModelTests` and
+`SettingsEditorTests` write-failure tests that hold the settings file open with `FileShare.None` —
+which blocks `File.Move` on Windows and not on macOS, where `rename(2)` ignores the destination's
+open descriptors. They were found by hand during issue #31's sitting, reported in PR #48's
+description, and left for an owner that PR's archive no longer has. Change 12's task group 5 cannot
+land green until this does. Tracked on issue #49.
 
 
 ## Artifact status

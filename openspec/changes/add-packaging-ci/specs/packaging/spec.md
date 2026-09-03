@@ -141,8 +141,10 @@ Every proposed change SHALL be built and tested on both supported platforms befo
 The build SHALL be treated as failed if it produces any compiler warning, because warnings are
 already errors in this solution.
 
-The test run SHALL exclude only those tests that require a person at the machine; every other test
-SHALL run on both platforms.
+Every test that can run unattended on a platform SHALL run there. A test that cannot SHALL declare
+itself skipped, with its reason visible in the run output, rather than being filtered out by the
+invocation continuous integration uses — so that what did not run, and why, is legible from the run
+itself.
 
 #### Scenario: A change that builds and passes
 
@@ -154,10 +156,10 @@ SHALL run on both platforms.
 - **WHEN** a pull request introduces a compiler warning
 - **THEN** the build fails
 
-#### Scenario: Tests needing a person are not run
+#### Scenario: A test that cannot run on this platform
 
-- **WHEN** the test suite runs in continuous integration
-- **THEN** the tests gated on a real microphone, clipboard or keyboard are skipped rather than failed
+- **WHEN** the test suite runs in continuous integration on a platform where a test cannot run — it needs a person, a device, or a machine quiet enough to measure
+- **THEN** that test is reported as skipped together with the reason it was skipped, and the run is not failed by it
 
 ### Requirement: Continuous integration proves the installers can still be built
 

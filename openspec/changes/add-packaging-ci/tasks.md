@@ -27,7 +27,7 @@
 ## 5. Continuous integration
 
 - [ ] 5.1 Write `.github/workflows/ci.yml` on `pull_request`: matrix over `windows-latest` and `macos-latest`, `actions/setup-dotnet` at the `global.json` version, restore, `dotnet build Pisum.Whisper.slnx`. Verify: a pull request shows both jobs green, and a deliberately introduced warning turns them red — warnings are errors solution-wide, and the spec requires the build to fail on one.
-- [ ] 5.2 Add the test step: `dotnet test Pisum.Whisper.slnx --filter-not-trait Category=Manual --filter-not-method '*WritesDoNotStallTheCallingThreadWhenTheFileRolls'`, with a comment naming why the second filter is there and that the bound belongs to `file-logging` (design D9). Verify: both jobs run 615 tests, the four manual ones report skipped, and ten consecutive runs are green — the point of the exclusion is that they *stay* green.
+- [ ] 5.2 Add the test step: `dotnet test Pisum.Whisper.slnx --filter-not-trait Category=Manual` — **one** filter (design D9). Verify: `windows-latest` reports 625 selected, 1 skipped, 624 passed; `macos-latest` reports 625 selected, 6 skipped, 619 passed — the counts differ by platform on purpose, and every skip prints its own reason. Ten consecutive runs stay green. **Blocked on `ready-the-suite-for-ci`**: on `main` today the macOS leg is 615 passed and 5 failed.
 - [ ] 5.3 Add the installer build to each matrix leg and upload it with `actions/upload-artifact` at 7 days' retention. Verify: a pull request produces a downloadable `.msi` and `.pkg`, and a deliberate break in a packaging script fails the check — the spec requirement *Continuous integration proves the installers can still be built*.
 
 ## 6. The release workflow

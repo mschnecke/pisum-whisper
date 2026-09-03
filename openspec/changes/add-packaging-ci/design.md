@@ -254,30 +254,39 @@ The reference's `workflow_dispatch` bump job — patch/minor/major, edit four fi
 `Cargo.toml`, so it is a rewrite rather than a port, and the proposal makes the hand-written tag a
 non-goal.
 
-### D9 — CI excludes the known-flaky latency test by name
-
-The test run is
+### D9 — The test run carries one filter, and every skip explains itself
 
 ```bash
-dotnet test Pisum.Whisper.slnx \
-  --filter-not-trait Category=Manual \
-  --filter-not-method '*WritesDoNotStallTheCallingThreadWhenTheFileRolls'
+dotnet test Pisum.Whisper.slnx --filter-not-trait Category=Manual
 ```
 
-`--filter-not-method` exists and both are "simple" filters combining with AND — confirmed against
-the runner's own `--help` on this machine, not assumed.
+One filter, and it is the only one this change will ever need. Anything that cannot run on a
+platform **declares itself skipped, with its reason, in the runner output** — which is what
+`ManualTests.Enabled`, `WindowsOnly.Enabled` and (after `ready-the-suite-for-ci`)
+`TimingTests.Enabled` are for. A name in a workflow file is invisible where it matters: a skip
+prints its reason beside the test, a `--filter-not-method` prints nothing and silently drops the
+count by one.
 
-`FileLoggingRotationTests.WritesDoNotStallTheCallingThreadWhenTheFileRolls` asserts a p99.9 write
-latency under 500 µs. `migrate-tests-to-xunit-v3`'s `design.md` records it failing about three times
-in twenty-two runs *on a developer machine*, and calls it "a known flake going into change 12's CI".
-A shared virtualised runner is materially noisier than that machine, so the honest expectation is
-that it fails often enough to train everyone to ignore a red check — which costs more than the test
-is worth.
+**An earlier draft of this design excluded the rotation latency test by name with
+`--filter-not-method`, and that was wrong twice.** It
+contradicted this change's own spec, which requires the run to exclude only tests that need a person
+at the machine — and that test needs no person, only a quiet machine. And it hid the omission in the
+place least likely to be read. `ready-the-suite-for-ci` moves the gate into the test instead, so
+there is nothing here to exclude.
 
-Excluding it by name is not a fix and is not pretending to be one. The bound belongs to the
-`file-logging` capability and so does the decision about what it should be; this change declines to
-change another capability's test while packaging it. The exclusion is one line, names the test, and
-carries the reason in a comment.
+**The macOS leg is red on `main` today, and not because of packaging.** Measured 2026-09-03: 625
+selected, 615 pass, **5 fail**, 5 skip — the five being `PresetsViewModelTests` and
+`SettingsEditorTests` write-failure tests whose `FileShare.None` arrangement is Windows-only, plus
+the rotation flake intermittently. `ready-the-suite-for-ci` fixes all of it and **blocks task group
+5 of this change**; see that change's `design.md` for the `rename(2)` versus `MoveFileEx`
+asymmetry behind it.
+
+Expected counts once it has landed, and they differ per platform on purpose:
+
+| | selected | skipped | passed |
+|---|---|---|---|
+| `windows-latest` | 625 | 1 (timing) | 624 |
+| `macos-latest` | 625 | 6 (timing + 5 `WindowsAutostartTests`) | 619 |
 
 ### D10 — The application icon is drawn once and committed as `.ico` and `.icns`
 
@@ -342,8 +351,8 @@ to macOS users at the moment they install.
 - **`macos-latest` being Apple Silicon is an assumption about GitHub's runner images.** → If it ever
   regresses to x64, the `osx-arm64` publish becomes a cross-compile and the R2R step is what breaks
   first. Detected by the release build failing, not silently.
-- **`FileLoggingRotationTests` flakes.** → D9 excludes it by name, with the reason recorded and the
-  fix assigned to `file-logging`.
+- **`FileLoggingRotationTests` flakes, and five App tests fail outright on macOS.** → Both are
+  `ready-the-suite-for-ci`'s, which blocks task group 5. Neither is worked around here.
 - **Three secrets do not exist**: `HOMEBREW_TAP_TOKEN`, `MYGET_API_KEY`, and whatever MyGet needs
   today. `gh secret list` is empty. → A prerequisite task, and the release workflow fails loudly on
   a missing one rather than skipping the step.
