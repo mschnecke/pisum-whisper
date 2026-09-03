@@ -132,11 +132,18 @@ cross one. This is an assumption about GitHub's runner images and is listed unde
 element, so the published directory is harvested with
 
 ```xml
-<Files Include="publish\**" />
+<Files Include="$(var.PublishDir)\**" />
 ```
 
 and there is no `heat`/HeatWave step and no generated component list to keep in sync — which is the
 single largest source of MSI maintenance and the reason older WiX advice does not apply here.
+
+The path is absolute and passed in by `build-msi.ps1`, as is the ARP icon's, because WiX resolves
+neither against the `.wxs`: a `SourceFile` is resolved against the *current directory* and a
+`<Files>` pattern against the current directory plus the enclosing `Directory/@Name` chain. Written
+relative they build only from `packaging/windows/`, and CI runs from the repository root — which is
+how the first CI run failed, `..\icon\app-icon.ico` looked for outside the checkout (WIX0103) and
+`publish\**` under a `Pisum Whisper\` directory that has never existed (WIX8601).
 
 *Per-machine*, into `ProgramFiles64Folder`, with the Start-menu shortcut in `ProgramMenuFolder`.
 Per-user would avoid elevation, but Chocolatey installs elevated and drives the MSI with `/qn`,

@@ -7,7 +7,7 @@ application or read at runtime; `dotnet build` and `dotnet test` never look in t
 |---|---|
 | `icon/` | the application icon — `app-icon.svg` is the source, `AppIcon.icns` (macOS) and `app-icon.ico` (Windows) are exported from it by hand and committed as binaries |
 | `macos/` | `build-app.sh` assembles `Pisum Whisper.app`, `build-pkg.sh` wraps it in a `.pkg`, `Info.plist.template` is the bundle's plist before version substitution, and `postinstall` is the root script the installer runs |
-| `windows/` | `Pisum.Whisper.wxs` is the WiX v6 source for the MSI and `build-msi.ps1` publishes and compiles it. The `.wxs` harvests `publish\**`, which resolves relative to the `.wxs` itself, so the payload is published into `windows/publish/` — kept untracked by the `.gitignore` beside it |
+| `windows/` | `Pisum.Whisper.wxs` is the WiX v6 source for the MSI and `build-msi.ps1` publishes and compiles it. The `.wxs` harvests the published directory, which `build-msi.ps1` passes as an absolute `-define` — WiX resolves a relative pattern against the *current directory*, not the `.wxs` — so the payload is published into `windows/publish/`, kept untracked by the `.gitignore` beside it |
 | `chocolatey/` | the Chocolatey package — `pisum-whisper.nuspec` and the `tools/` install and uninstall scripts, which download the released MSI rather than carrying it |
 
 Each script takes the version as its one argument and is the same command a person and a workflow

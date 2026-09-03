@@ -852,11 +852,20 @@ alongside change 11's WinForms balloon control run. Answering them is a follow-u
 and an earlier draft of change 12's proposal claiming the AUMID satisfied a change 11 requirement
 was withdrawn.
 
-Two smaller things the scripts encode. `<Files Include="publish\**" />` resolves relative to the
-`.wxs`, so `build-msi.ps1` publishes into `packaging/windows/publish/` and a `.gitignore` beside it
-keeps 128 MB untracked — there is no `heat` step and no generated component list, because WiX 5
-introduced `<Files>`. And **Windows Installer's `ProductVersion` is `major.minor.build` and nothing
-else**, so `build-msi.ps1` strips any pre-release suffix before passing it to `wix build` while the
+**Nothing in the `.wxs` resolves against the `.wxs`.** An earlier version of this paragraph said
+`<Files Include="publish\**" />` resolved relative to it; that is wrong in both halves, and the
+first CI run is what proved it. A `SourceFile` is resolved against the **current directory**, and a
+`<Files>` pattern against the current directory **plus the enclosing `Directory/@Name` chain** — so
+from the repository root, which is where CI invokes the script, `..\icon\app-icon.ico` was looked
+for outside the checkout (WIX0103) and `publish\**` under a `Pisum Whisper\` directory that has
+never existed (WIX8601, and then WIX8600 harvesting nothing). Both paths are therefore absolute
+`-define` values built by `build-msi.ps1` — `PublishDir` and `IconFile` — which also means the
+`.wxs` no longer builds by hand without them, the same way `Version` already made it so. The payload
+still goes to `packaging/windows/publish/`, where a `.gitignore` keeps 128 MB untracked, and there
+is still no `heat` step and no generated component list, because WiX 5 introduced `<Files>`.
+
+One smaller thing the scripts encode. **Windows Installer's `ProductVersion` is `major.minor.build`
+and nothing else**, so `build-msi.ps1` strips any pre-release suffix before passing it to `wix build` while the
 file name, the `Info.plist` and the nuspec keep the full string: a `v0.1.0-rc.1` tag produces
 `Pisum.Whisper_0.1.0-rc.1_win-x64.msi` whose ARP version reads `0.1.0`.
 

@@ -3,8 +3,16 @@
   packaging/windows/Pisum.Whisper.wxs — the whole MSI, for WiX v6 (design D4).
 
   Built by build-msi.ps1, which publishes into `publish\` beside this file and passes the version
-  as a preprocessor variable. There is no heat/HeatWave harvesting step and no generated component
-  list to keep in sync: WiX 5 introduced <Files>, which takes the published directory whole.
+  and both source paths as preprocessor variables. There is no heat/HeatWave harvesting step and no
+  generated component list to keep in sync: WiX 5 introduced <Files>, which takes the published
+  directory whole.
+
+  The two source paths are absolute and passed in rather than written here relative, because WiX
+  resolves neither of them against this file. A SourceFile is resolved against the *current
+  directory*, and a <Files> pattern against the current directory plus the enclosing Directory/@Name
+  chain - so run from the repository root, as CI runs it, `..\icon\app-icon.ico` was looked for
+  outside the checkout (WIX0103) and `publish\**` under a `Pisum Whisper\` directory that has never
+  existed (WIX8601, then WIX8600 harvesting nothing).
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
 
@@ -30,7 +38,7 @@
 
     <!-- The installed-programs list: an icon, and no Modify or Repair, because there is nothing to
          modify — no feature tree, no install-location choice (design Non-Goals). -->
-    <Icon Id="AppIcon.ico" SourceFile="..\icon\app-icon.ico" />
+    <Icon Id="AppIcon.ico" SourceFile="$(var.IconFile)" />
     <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
     <Property Id="ARPNOMODIFY" Value="1" />
     <Property Id="ARPNOREPAIR" Value="1" />
@@ -38,7 +46,7 @@
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="Pisum Whisper">
-        <Files Include="publish\**" />
+        <Files Include="$(var.PublishDir)\**" />
       </Directory>
     </StandardDirectory>
 

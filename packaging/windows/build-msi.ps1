@@ -23,9 +23,13 @@ $ErrorActionPreference = 'Stop'
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $root = Resolve-Path (Join-Path $scriptDir '..' '..')
 
-# <Files Include="publish\**" /> resolves relative to the .wxs, so the payload is published beside
-# it rather than under artifacts/. packaging/windows/.gitignore is what keeps 130 MB untracked.
+# The payload is published beside the .wxs rather than under artifacts/, and
+# packaging/windows/.gitignore is what keeps 130 MB untracked. Both this path and the ARP icon reach
+# wix as absolute -define values: WiX resolves a SourceFile against the current directory and a
+# <Files> pattern against the current directory plus the Directory/@Name chain, never against the
+# .wxs, so relative paths here built only when the current directory happened to be this one.
 $publishDir = Join-Path $scriptDir 'publish'
+$iconFile = Join-Path $root 'packaging' 'icon' 'app-icon.ico'
 $outputDir = Join-Path $root 'artifacts'
 $msi = Join-Path $outputDir "Pisum.Whisper_${Version}_win-x64.msi"
 
@@ -61,6 +65,8 @@ $payloadMb = [math]::Round((Get-ChildItem -Recurse -File $publishDir | Measure-O
 wix build `
     (Join-Path $scriptDir 'Pisum.Whisper.wxs') `
     -define "Version=$msiVersion" `
+    -define "PublishDir=$publishDir" `
+    -define "IconFile=$iconFile" `
     -arch x64 `
     -out $msi
 if ($LASTEXITCODE -ne 0) { throw "wix build failed with exit code $LASTEXITCODE" }
