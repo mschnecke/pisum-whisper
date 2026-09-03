@@ -22,12 +22,13 @@ everyone to ignore it.
   write succeeds and the "should have failed" assertions fail instead. A directory at the
   destination replaces it; neither platform renames over one. Reported in PR #48, owner long
   archived.
-- **Four `ToastPresenterTests` stop depending on what ran before them.** They assert `LiveCount`
-  after `Present`, and the job `Present` posts is **discarded, not deferred**, on the first
-  dispatcher cycle of a fresh headless session. Alone all four fail; beside siblings most pass;
-  across 38 suite runs they failed 10 times, four in the six run under CPU starvation. **A green
-  result there is contamination, not evidence.** One of them asserts three notifications and passes
-  alone *because* the first is eaten.
+- **Five `ToastPresenterTests` stop racing their own dwell.** They assert `LiveCount` after
+  `Present`, and the first `ToastWindow` of a headless session makes that `RunJobs()` call about
+  135 ms long while the injected dwell is 30 ms — so the notification is shown and then dismissed by
+  its own timer before the assertion. Alone all five fail; beside siblings most pass; across 38 suite
+  runs they failed 10 times, four in the six run under CPU starvation. **A green result there is
+  contamination, not evidence.** One of them asserts three notifications and passes alone *because*
+  the first is dismissed.
 - **The rotation latency test gates itself** on an environment variable shaped like
   `ManualTests.Enabled`, reporting **skipped with its reason** rather than vanishing behind a
   `--filter-not-method` nobody reads. *Its flakiness is `migrate-tests-to-xunit-v3`'s Windows

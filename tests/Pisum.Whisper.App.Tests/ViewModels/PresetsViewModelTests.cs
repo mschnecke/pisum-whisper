@@ -74,12 +74,17 @@ public sealed class PresetsViewModelTests : SettingsEditorTestBase
         var viewModel = NewViewModel(NewEditor(), notifications);
         Fill(viewModel, "Notes", "Turn my dictation into bullet points.");
 
-        // Locking the settings file exclusively forces the store's write to fail, the same shape a
-        // disk-full or permission-denied failure would take.
-        using (File.Open(Store.FilePath, FileMode.Open, FileAccess.Read, FileShare.None))
-        {
-            await viewModel.AddCommand.ExecuteAsync(null);
-        }
+        // A directory where the settings file belongs: File.Move cannot replace one on either
+        // platform, so the store's write fails. It stands in for the disk-full and
+        // permission-denied failures this path exists for, neither of which a test can arrange
+        // portably. The FileShare.None lock it replaces only failed on Windows, where File.Move is
+        // MoveFileEx and consults the destination's sharing mode; macOS renames with rename(2),
+        // which ignores open descriptors entirely and let the write succeed. It adds to the test's
+        // own temp directory rather than removing it, so Dispose's recursive delete still cleans up.
+        File.Delete(Store.FilePath);
+        Directory.CreateDirectory(Store.FilePath);
+
+        await viewModel.AddCommand.ExecuteAsync(null);
 
         Store.Current.Presets.ShouldNotContain(preset => preset.Name == "Notes");
         viewModel.NewName.ShouldBe("Notes");
@@ -118,10 +123,11 @@ public sealed class PresetsViewModelTests : SettingsEditorTestBase
         viewModel.Selected.Name = "Renamed";
         viewModel.Selected.SystemPrompt = "Be terse.";
 
-        using (File.Open(Store.FilePath, FileMode.Open, FileAccess.Read, FileShare.None))
-        {
-            await viewModel.SaveCommand.ExecuteAsync(null);
-        }
+        // A directory where the settings file belongs; see Add_WhenTheWriteFails for why.
+        File.Delete(Store.FilePath);
+        Directory.CreateDirectory(Store.FilePath);
+
+        await viewModel.SaveCommand.ExecuteAsync(null);
 
         var stored = Store.Current.Presets.Single(preset => preset.Id == "mine");
         stored.Name.ShouldBe("Custom");
@@ -174,10 +180,11 @@ public sealed class PresetsViewModelTests : SettingsEditorTestBase
 
         viewModel.Selected = viewModel.Presets.Single(preset => preset.Id == "de-transcribe");
 
-        using (File.Open(Store.FilePath, FileMode.Open, FileAccess.Read, FileShare.None))
-        {
-            await viewModel.ActivateCommand.ExecuteAsync(null);
-        }
+        // A directory where the settings file belongs; see Add_WhenTheWriteFails for why.
+        File.Delete(Store.FilePath);
+        Directory.CreateDirectory(Store.FilePath);
+
+        await viewModel.ActivateCommand.ExecuteAsync(null);
 
         Store.Current.ActivePresetId.ShouldBe(before);
         notifications.Forced.ShouldHaveSingleItem();
@@ -208,10 +215,11 @@ public sealed class PresetsViewModelTests : SettingsEditorTestBase
 
         viewModel.Selected = viewModel.Presets.Single(preset => preset.Id == "mine");
 
-        using (File.Open(Store.FilePath, FileMode.Open, FileAccess.Read, FileShare.None))
-        {
-            await viewModel.DeleteCommand.ExecuteAsync(null);
-        }
+        // A directory where the settings file belongs; see Add_WhenTheWriteFails for why.
+        File.Delete(Store.FilePath);
+        Directory.CreateDirectory(Store.FilePath);
+
+        await viewModel.DeleteCommand.ExecuteAsync(null);
 
         Store.Current.Presets.ShouldContain(preset => preset.Id == "mine");
         viewModel.Presets.ShouldContain(preset => preset.Id == "mine");

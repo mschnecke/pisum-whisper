@@ -192,6 +192,7 @@ public sealed class SettingsStorePresetRaceTests : IDisposable
         store.Save(seeded);
 
         var reads = 0;
+        var reading = new TaskCompletionSource();
         using var stop = new CancellationTokenSource();
         var reader = Task.Run(() =>
         {
@@ -200,8 +201,16 @@ public sealed class SettingsStorePresetRaceTests : IDisposable
                 var settings = store.Current;
                 _ = settings.Presets.First(preset => preset.Id == settings.ActivePresetId).SystemPrompt;
                 reads++;
+                reading.TrySetResult();
             }
         }, TestContext.Current.CancellationToken);
+
+        // The deletions must overlap the reader, and Task.Run only promises to queue it. On a
+        // starved pool the thirty writes below can run to completion before it is scheduled at all,
+        // which leaves reads at 0 and fails the guard at the end for a reason that has nothing to do
+        // with what this measures. Waiting for its first iteration makes the overlap a fact rather
+        // than a hope; the bound is here so a reader that never runs still fails rather than hangs.
+        await reading.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
 
         for (var index = 0; index < PresetCount; index++)
         {

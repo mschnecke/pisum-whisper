@@ -71,7 +71,7 @@ Ordered by when each was proposed.
 | `fix-startup-ioexception-mislabeling` | `StartupFailure.Describe` matched on exception *type*, so a missing tray asset's `FileNotFoundException` was reported as a settings error — telling the user the file holding their API keys was broken when it never was | nothing numbered; `surface-settings-save-failures` builds on it | Archived 2026-09-02, closes #34 |
 | `settle-win-x64-verification-debt` | The eleven by-hand checks across seven archived changes that need nothing but the Windows machine this is developed on | nothing | Archived 2026-09-02, closes #30 |
 | `surface-settings-save-failures` | A settings write that never reached disk became an unobserved task exception, so the window looked like the save had worked | nothing | Archived 2026-09-02, closes #37 |
-| `ready-the-suite-for-ci` | Five write-failure tests whose `FileShare.None` arrangement only fails on Windows, and a latency test that gates itself instead of being filtered by CI, so the suite passes unattended on both platforms | **12** | Active, #49 |
+| `ready-the-suite-for-ci` | Five write-failure tests whose `FileShare.None` arrangement only fails on Windows, and a latency test that gates itself instead of being filtered by CI, so the suite passes unattended on both platforms | **12** | Active, #49; win-x64 debt on #50 |
 
 `add-settings-window` depends on `migrate-tests-to-xunit-v3`: Avalonia ships first-party headless
 test integration for xUnit and NUnit only — there is no `Avalonia.Headless.MSTest` and there never
@@ -94,6 +94,16 @@ which blocks `File.Move` on Windows and not on macOS, where `rename(2)` ignores 
 open descriptors. They were found by hand during issue #31's sitting, reported in PR #48's
 description, and left for an owner that PR's archive no longer has. Change 12's task group 5 cannot
 land green until this does. Tracked on issue #49.
+
+**Its win-x64 debt was opened as #50 before archiving, not after, and that is the point.** Everything
+in the change is implemented and verified on Apple Silicon — sixteen full runs, ten at normal load
+and six under fourteen busy loops on a ten-core machine, all 625 selected / 619 passed / 6 skipped /
+0 failed, plus every repaired test run alone. Three checks need the Windows machine and cannot be
+run from a Mac: the T1 failure-injection probe (task 1.1), the CI command on win-x64 (5.2), and the
+Windows half of the alone-runs (5.3). Issues #30 and #31 were both closed on 2026-09-02 with work
+still open, which is how the *Artifact status* table below became the only surviving record of ten
+by-hand tasks. Opening #50 while this change is still active is the standing decision applied one
+step earlier than it has been before.
 
 **Three rows were missing until 2026-09-03, and the omission has a shape worth naming.** The table
 listed the two changes that were *planned* as off-sequence work and none of the three that began as

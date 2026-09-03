@@ -18,7 +18,7 @@ starvation — and what is in them:
   +--   5  PresetsViewModelTests (4)             --> FAIL, 12 runs of 12
   |        SettingsEditorTests (1)
   |
-  +--   4  ToastPresenterTests                   --> verdict depends on what ran first
+  +--   5  ToastPresenterTests                   --> verdict depends on what ran first
   |
   +--   1  SettingsStorePresetRaceTests          --> FAIL 2 of 38; diagnosed, see D1c
   |
@@ -38,6 +38,7 @@ Per-test measurement, all on this machine, all on `main` at `d8a596d`:
 | `ToastPresenterTests.ThreeStackAndAFourthClosesTheOldest` | **1/32 fail** | 0/6 | pass | not measured |
 | `ToastPresenterTests.PresentReturnsBeforeTheWindowExists` | 0/32 | 0/6 | pass | **fail** |
 | `ToastPresenterTests.PresentAfterTheUiThreadHasADispatcherShows` | 0/32 | 0/6 | pass | **fail** |
+| `ToastPresenterTests.ANotificationGoesAwayOnItsOwn` | 0/32 | 0/6 | pass | **fail** |
 | `SettingsStorePresetRaceTests.APresetIsDeleted…Repeatedly` | **1/32 fail** | **1/6 fail** | 0/60 | 0/60 |
 | `FileLoggingRotationTests.WritesDoNotStall…` | **0/32** | **0/6** | — | — |
 
@@ -96,10 +97,11 @@ construction. Only techniques that break the **path** or the **parent directory*
 
 - Deciding what the rotation latency bound should be. That is `file-logging`'s.
 - Changing `ToastPresenter`'s readiness gate. It fixed a real startup failure, and D1b's
-  investigation cleared it of any part in these four failures.
-- Moving `tests/Pisum.Whisper.App.Tests` off `PerTest` isolation. D1b is evidence that `PerTest`
-  isolates less than `CLAUDE.md` claims, and that is worth knowing, but changing the isolation mode
-  of a whole assembly to fix four tests is the larger change and would need its own argument.
+  investigation cleared it of any part in these five failures.
+- Moving `tests/Pisum.Whisper.App.Tests` off `PerTest` isolation. `PerTest` gives each test a fresh
+  dispatcher and therefore a fresh first-window cost, which is what makes D1b's failure reproducible
+  alone; changing a whole assembly's isolation mode to fix five tests is the larger change and would
+  need its own argument.
 - Auditing the remaining 611 tests for order dependence. The twelve runs plus the alone-runs of the
   repaired tests are the evidence, not a per-test review.
 
@@ -154,91 +156,115 @@ under the home directory" — and T2 **is** the third of those, where T1 simulat
 will ever be in. It is not chosen only because of the base-class cost. If the base is ever nested
 for another reason, T2 is the better arrangement.
 
-### D1b — The four `ToastPresenterTests` stop depending on the first posted job surviving
+### D1b — The five `ToastPresenterTests` stop racing their own dwell
 
-Investigated 2026-09-03 by driving the real `ToastPresenter` under `[AvaloniaFact]` in a throwaway
-probe outside this repository. **An earlier draft of this decision blamed
-`settle-win-x64-verification-debt`'s `Dispatcher.FromThread` readiness gate. That is wrong**, and
-the correction is the substance of this section.
+Investigated 2026-09-03, then **re-investigated during apply and rewritten**. Two earlier drafts of
+this decision were wrong, and the corrections are the substance of this section.
 
-**Refuted — the gate is innocent.** With a recording logger in place of `NullLogger`:
-
-```
-FromThread(body) is null? False   SAME OBJECT as Dispatcher.UIThread? True
-                                  FromThread hash=59891867  UIThread hash=59891867
-after Present #1  live=0 warnings=0
-after RunJobs #1  live=0 warnings=0        <-- the job is gone
-```
-
+**Refuted (first draft) — the readiness gate is innocent.** `settle-win-x64-verification-debt`'s
+`Dispatcher.FromThread` gate has no part in this. With a recording logger in place of `NullLogger`,
 `Dispatcher.FromThread(_uiThread)` returns non-null and is *reference-equal* to
-`Dispatcher.UIThread`, and **no warning is logged**. `Present` never reaches its early return, so
-the gate is not in the story. The thread was never wrong, which means the fix cannot be "name the
-right thread" — the shape the earlier draft proposed.
+`Dispatcher.UIThread`, and no warning is logged. `Present` never reaches its early return.
 
-Two further causes were tested and refuted. A posted job doing `new ToastWindow(...)` then `Show()`
-ran to completion with no exception, so construction is not throwing. And the 30 ms dwell cannot
-have elapsed early, because `timer.Start()` is called *inside* `Show`, which itself only runs during
-`RunJobs`.
-
-**Established — the job is discarded, not deferred.** Three `RunJobs()` calls with a sleep between
-them never recover it:
-
-```
-   4 of 12 runs   before=0  afterRunJobs1=0  afterRunJobs2=0  afterRunJobs3=0
-   8 of 12 runs   before=0  afterRunJobs1=1  afterRunJobs2=1  afterRunJobs3=1
-```
-
-`Present` posts to a live dispatcher, logs nothing, and the job vanishes.
-
-**Established — it is a Heisenbug, and that is why it survived being ticked green.** Each of these,
-run before the first `Present`, makes it disappear:
+**Refuted (second draft) — the job is not discarded.** The second draft concluded that the job
+`Present` posts "is discarded, not deferred", on the strength of three `RunJobs()` calls failing to
+recover it, and scoped this task to reading Avalonia's source for *why*. Reading it, and then
+measuring against it, shows there is no discard to explain. `Dispatcher.RunJobs` drains and does no
+first-call initialisation; `InvokeAsyncImpl` drops an operation only when the dispatcher has already
+finished shutting down or `RequestProcessing()` returns false, and in 12.1.1 `RequestProcessing()`
+returns `true` on every path. Inspecting the queue through `Dispatcher.GetJobs()` around a real
+`Present` settles it directly:
 
 ```
-  a bare Dispatcher.UIThread.RunJobs() with nothing posted   --> cured
-  a trivial Post(() => ran++) followed by RunJobs            --> cured
-  constructing a ToastWindow on the test thread              --> cured
-  merely adding more diagnostic logging                      --> cured
+before Present  [3 x DispatcherOperation/prio=Inactive/status=Pending]     <-- session setup
+after  Present  [3 x Inactive, 1 x DispatcherOperation/prio=Default/status=Pending]
+after  RunJobs  [3 x Inactive]                          live=0   <-- dequeued and executed
 ```
 
-The first two probes written for this investigation showed nothing for exactly that reason. Only a
-probe replicating the test character-for-character, with a single log line *after* the fact,
-reproduces it.
+The operation is enqueued, dequeued and run. With `Dispatcher.UIThread.UnhandledException` hooked,
+**nothing throws**. So the notification is created — and then taken away again.
 
-**The seven tests fall out of one rule: the first `Present` of a session is lost.**
+**Established — the dwell elapses inside the same `RunJobs()` call.** The first `ToastWindow` of a
+headless session costs about 135 ms, and the tests inject a 30 ms dwell:
+
+```
+  first  RunJobs of a session   134.9 ms   live=0
+  second Present, same session    0.8 ms   live=1
+```
+
+`Show` adds to `_live`, shows the window and calls `timer.Start()`; the rest of that 135 ms is still
+ahead of it, `ExecuteJob` calls `PromoteTimers()` on the way out, and the drain continues. The
+`DispatcherTimer` ticks, `Dismiss` removes the entry, and the test reads `LiveCount` as 0. Varying
+only the dwell, cold, locates the threshold between 30 ms and 100 ms:
+
+| dwell | first `RunJobs` | `LiveCount` |
+|---|---|---|
+| 30 ms | 134.9 ms | **0** |
+| 100 ms | 139.5 ms | 1 |
+| 200 ms | 135.8 ms | 1 |
+| 500 ms | 134.2 ms | 1 |
+| 5 min | 129.8 ms | 1 |
+
+**The second draft's premise, stated as a refutation, is what was actually wrong.** It reasoned that
+"the 30 ms dwell cannot have elapsed early, because `timer.Start()` is called *inside* `Show`, which
+itself only runs during `RunJobs`". Every clause of that is true and the conclusion does not follow:
+running *during* `RunJobs` is not protection when `RunJobs` is 135 ms long. Nothing elapsed early.
+
+**Every "cure" in the second draft's list is a warm-up, and that is why it read as a Heisenbug.**
+Constructing a `ToastWindow` on the test thread, or merely logging more, pays or defers the
+first-window cost. So does the passage of wall-clock time that a debugger or an extra probe buys.
+The one apparent counter-example, `Dispatcher.UIThread.RunJobs()` with nothing posted, does **not**
+work and was measured wrongly: the three jobs standing in a fresh session's queue are `Inactive`
+priority, below `RunJobs`' `MinimumActiveValue`, so a bare pump executes nothing and leaves the queue
+exactly as it found it.
+
+**The seven tests fall out of one rule: a notification whose dwell is shorter than the first show is
+gone before the assertion.**
 
 | Test | alone | why |
 |---|---|---|
-| `PresentReturnsBeforeTheWindowExists` | fail | one `Present`, expects 1 |
-| `PresentCompletesWhenCalledFromANonUiThread` | fail | one `Present`, expects 1 |
-| `PresentAfterTheUiThreadHasADispatcherShows` | fail | one `Present`, expects 1 |
-| `ANotificationGoesAwayOnItsOwn` | fail | one `Present`, expects 1 |
-| `ThreeStackAndAFourthClosesTheOldest` | **pass** | presents 4, expects 3 — **the lost one is what makes it 3** |
-| `CloseAllRemovesEveryLiveNotification` | **pass** | five-minute dwell, and asserts 0 after `CloseAll` |
+| `PresentReturnsBeforeTheWindowExists` | fail | 30 ms dwell, expects 1 |
+| `PresentCompletesWhenCalledFromANonUiThread` | fail | 30 ms dwell, expects 1 |
+| `PresentAfterTheUiThreadHasADispatcherShows` | fail | 30 ms dwell, expects 1 |
+| `ANotificationGoesAwayOnItsOwn` | fail | 30 ms dwell, expects 1 *before* waiting for 0 |
+| `ThreeStackAndAFourthClosesTheOldest` | **pass** | presents 4, expects 3 — **the first one's dwell is what makes it 3** |
+| `CloseAllRemovesEveryLiveNotification` | **pass** | **five-minute dwell** — the timer cannot fire |
 | `PresentBeforeTheUiThreadHasADispatcherIsDroppedAndLogged` | **pass** | a plain `[Fact]`, and it asserts the drop |
 
-**`ThreeStackAndAFourthClosesTheOldest` does not merely tolerate the defect — it depends on it.** It
-presents four and asserts three, and alone it gets three because one is eaten. Repairing the others
-will break it, and task 3.3 expects that rather than treating it as a regression.
+The sixth row is the confirmation rather than an exception: it is the only `[AvaloniaFact]` here that
+already sets a dwell it cannot race, and it is the only multi-`Present` one that passes alone. Both
+earlier drafts had this row in the table and neither read it.
 
-**The fix is to stop asserting through a single posted job.** What the four tests mean to check —
-that `Present` returns before the window exists, that it works from a pooled thread, that a fourth
-displaces the oldest — are all statements about `ToastPresenter`, none of which require the *first*
-job of a fresh session to survive. Making each test pump the dispatcher once before it begins is the
-smallest arrangement that removes the dependency, and it is an arrangement change, not a change to
-`ToastPresenter`.
+**`ThreeStackAndAFourthClosesTheOldest` does not merely tolerate the defect — it depends on it.** It
+presents four and asserts three, and alone it gets three because the first one's timer fires during
+the show. Repairing the others breaks it, and task 3.3 expects that.
+
+**`ANotificationGoesAwayOnItsOwn` is the fifth test, and both earlier drafts left it out.** It fails
+alone for the same reason, and it is the one test here that is genuinely *about* the dwell, so it
+cannot be repaired by lengthening one.
+
+**The fix is to stop racing the dwell.** Four of the five assert that a notification is *up*, and
+none of them is a statement about how long it stays: `Present` returns before the window exists, it
+works from a pooled thread, a fourth displaces the oldest. Those four take a dwell long enough that
+it cannot elapse during the show — five minutes, exactly what `CloseAllRemovesEveryLiveNotification`
+already does, named once as a constant rather than repeated. The fifth keeps its 30 ms and instead
+constructs and shows one `ToastWindow` first, so the ~135 ms is spent before any timer is running and
+the dwell it measures is its own. `ToastPresenter` is not changed and neither is the readiness gate.
+
+*Alternative rejected:* pumping the dispatcher once before each test body — the second draft's fix.
+Measured 0 of 4: it executes nothing, for the `Inactive`-priority reason above.
+
+*Alternative rejected:* warming a `ToastWindow` in all five and leaving every dwell at 30 ms. It
+passes 4 of 4, but a warmed first `RunJobs` still measures 34 ms against a 30 ms dwell, so it keeps
+the race and only shortens the odds. It is used for the fifth test **only**, where the dwell is the
+thing under test and there is no alternative.
 
 *Alternative rejected:* naming the dispatcher thread through the existing
-`internal ToastPresenter(TimeSpan, ILogger, Thread)` constructor. That was the earlier draft's fix
-and it addresses a cause that has been refuted; the thread is already right.
+`internal ToastPresenter(TimeSpan, ILogger, Thread)` constructor — the first draft's fix, for a cause
+that is refuted. The captured thread is already the right one.
 
-**What is still unknown, and it is one question rather than the whole mechanism.** Why a job posted
-to a non-null, reference-identical dispatcher is discarded on the first cycle of a fresh headless
-session. Two candidates were not separable from outside: the headless session replacing its
-dispatcher's queue after setup, or `RunJobs()`'s first invocation performing initialisation instead
-of draining. Separating them means reading Avalonia's `Dispatcher` and `AvaloniaHeadlessPlatform`
-source rather than running more experiments, which is what task 3.1 is now scoped to. **The fix does
-not depend on the answer** — that is the difference from the earlier draft, where the fix followed
-from the mechanism and so could not be written without it.
+**Nothing here is left open.** The second draft closed with one unknown — why Avalonia discards a job
+posted to a live, reference-identical dispatcher — and the answer is that it does not discard it.
 
 ### D1c — The preset race test waits for its reader to start
 
@@ -343,7 +369,7 @@ is the only one it will ever need.
 **The rule has a second edge, and D1b is the case for it.** A test that passes only because of what
 ran before it is not covered by "runs there" in any useful sense — it runs, and its result means
 nothing. So the verification for this change is deliberately *two* runs, not one: the whole suite,
-and each repaired test **on its own**. Task 4.3 is that second run, and it is the check that would
+and each repaired test **on its own**. Task 5.3 is that second run, and it is the check that would
 have caught the `ToastPresenterTests` regression when the gate was added, since the full-suite run
 that ticked those boxes was green three times in four.
 
@@ -371,15 +397,22 @@ mockable would be a larger change to shipped code than to the tests that are act
 - **Relaxing the latency bound to something a CI runner passes** — picks a number to fit the noisiest
   machine that will ever run it, which is how a bound stops meaning anything.
 - **Excluding by `--filter-not-method` in CI** — `add-packaging-ci`'s D9. See D3.
-- **Deleting the four `ToastPresenterTests`** — they cover a gate that prevents a real startup
-  failure, and the two that pass beside siblings do assert something true when the dispatcher is
-  found. The arrangement is wrong, not the intent.
+- **Deleting the five `ToastPresenterTests`** — they cover a gate that prevents a real startup
+  failure, and each of them asserts something true about `ToastPresenter`. The arrangement is wrong,
+  not the intent.
 - **Relaxing `ToastPresenter.Present` so the gate cannot drop a notification in tests** — changing
   shipped behaviour to make a test pass, and the behaviour it would change is the one 11/7.4 was
   written to protect. It would also fix nothing: D1b measured the gate not firing.
 - **Naming the dispatcher thread through the three-argument `ToastPresenter` constructor** — the
-  earlier draft's fix, for a cause that has since been refuted. The captured thread is already the
+  first draft's fix, for a cause that has since been refuted. The captured thread is already the
   one that owns the dispatcher.
+- **Pumping the dispatcher once before each test body** — the second draft's fix, measured 0 of 4.
+  A fresh session's queue holds three `Inactive`-priority jobs, which are below `RunJobs`'
+  `MinimumActiveValue`, so the pump executes nothing and the first-window cost is still ahead.
+- **Shortening the first window instead of lengthening the dwell** — warming a `ToastWindow` in all
+  five and leaving every dwell at 30 ms passes 4 of 4, but a warmed first `RunJobs` still measures
+  34 ms against a 30 ms dwell. It keeps the race and only shortens the odds, so it is used for
+  `ANotificationGoesAwayOnItsOwn` alone, where the dwell is the thing under test.
 - **Ordering the `ToastPresenterTests` so a dispatcher-warming test always runs first** — makes the
   contamination deliberate instead of accidental, and leaves every one of them still unable to run
   alone.
@@ -401,14 +434,17 @@ mockable would be a larger change to shipped code than to the tests that are act
   they were tolerating it failing. A named gate at least makes the omission visible.
 - **This change makes CI green without making the suite stronger.** → Accepted, and it is why the
   bound and the missing `file-logging` requirement are recorded here rather than quietly closed.
-- **D1b's remaining unknown is why Avalonia discards the job, and the fix does not wait on it.** →
-  The four causes that would have changed the fix — the readiness gate, the window constructor, the
-  dwell timer, a wrong captured thread — are all refuted with measurements. What is left is an
-  Avalonia internal, and task 3.1 is scoped to reading their source rather than blocking 3.2.
-- **The defect is cured by observing it.** → A bare `RunJobs()`, a trivial post, constructing a
-  window, or merely logging more all make it vanish, so any fix will *appear* to work whether or not
-  it addresses anything. That is why task 5.3 verifies each repaired test **alone**, which is the
-  only configuration in which the failure is deterministic.
+- **D1b was wrong twice before it was right, and both wrong drafts were written from measurements.**
+  → The first blamed the readiness gate, the second concluded the job was discarded; each was
+  refuted by measuring the next thing down. What broke the loop was inspecting the dispatcher queue
+  and the clock together rather than either alone. The residue is a rule rather than a reassurance:
+  in this suite, `LiveCount == 0` has two causes that look identical from outside, and only a
+  stopwatch tells them apart.
+- **The defect looks cured by observing it.** → Constructing a window or merely logging more makes
+  it vanish, because both pay or defer the ~135 ms first-window cost, so a fix that changes timing
+  will *appear* to work whether or not it addresses anything. The chosen fix does not change timing:
+  it removes the race by making the dwell unreachable. Task 5.3 still verifies each repaired test
+  **alone**, which is the only configuration in which the failure is deterministic.
 - **The `SettingsStorePresetRaceTests` failure is diagnosed and is not a product defect.** → See
   D1c. `SettingsStore.DeletePreset` held; the test's own anti-vacuous-pass guard fired because its
   reader task never got scheduled.
@@ -420,10 +456,9 @@ mockable would be a larger change to shipped code than to the tests that are act
 
 1. Re-run the probe on Windows (task 1.1). If T1 does not throw there, fall back to T3, which needs
    the same one-line arrangement and no base-class change.
-2. Read Avalonia's dispatcher source for D1b's remaining question (task 3.1). Unlike the earlier
-   plan this does **not** gate task 3.2 — the fix follows from the job being discarded, which is
-   measured, not from why.
-3. The five tests, the four `ToastPresenterTests`, the preset race test and the timing gate land
+2. Settle D1b's mechanism against Avalonia 12.1.1's dispatcher source and a queue-and-clock probe
+   (task 3.1b), because the second draft's fix does not survive it. This **does** gate task 3.2.
+3. The five tests, the five `ToastPresenterTests`, the preset race test and the timing gate land
    together in one pull request, verified two ways on both platforms: the whole suite ten times,
    **including runs under D1c's starvation recipe**, and each repaired test run on its own.
 4. `add-packaging-ci`'s D9, its spec requirement and its task 5.2 are amended in the same pull
@@ -440,15 +475,12 @@ mockable would be a larger change to shipped code than to the tests that are act
   spec has six requirements and none of them says this, so the 500 µs test currently guards an
   invariant that is written down nowhere. Out of scope here — but it is the reason D2 gates the test
   rather than deleting it.
-- **Why is a job posted to a live, reference-identical dispatcher discarded on a fresh headless
-  session's first cycle?** The one part of D1b still open. Two candidates were not separable from
-  outside — the session replacing its dispatcher's queue after setup, or `RunJobs()`'s first call
-  initialising rather than draining. It is deferrable: the fix follows from the job being discarded,
-  not from why, and the answer changes an explanatory comment rather than the arrangement.
 - **Does the rotation latency test still flake on Windows?** Twelve runs here say it does not flake
   on macOS; `migrate-tests-to-xunit-v3`'s note says it does there. Task 4.2 settles it, and a
   negative answer means D2's gate should be removed rather than kept.
-- **Do the four `ToastPresenterTests` fail alone on Windows too?** The whole of D1b is measured on
-  one Mac. If the ordering dependence is macOS-only the fix is unchanged, but the story of how it
-  went unnoticed is not — it would mean the win-x64 run that ticked 4.2 and 4.3 could not have seen
-  it at all.
+- **Do the five `ToastPresenterTests` fail alone on Windows too?** The whole of D1b is measured on
+  one Mac, and what it turns on — the first `ToastWindow` of a headless session costing more than a
+  30 ms dwell — is a per-machine number. A faster or slower first show changes how often it is seen,
+  never whether the race is there, so the fix is unchanged either way. What would change is the
+  story of how it went unnoticed: it would mean the win-x64 run that ticked 4.2 and 4.3 could not
+  have seen it at all.

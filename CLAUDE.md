@@ -78,6 +78,21 @@ dotnet test tests/Pisum.Whisper.Core.Tests --filter-namespace Pisum.Whisper.Core
 `Avalonia.Headless.XUnit` 12.1.1 is compiled against — 4.0.0 resolves silently against a major it was
 not built for, and the breakage would land in the settings window rather than here.
 
+**A test that cannot run somewhere declares itself skipped; it is never filtered out by the runner
+invocation.** That is the rule `ready-the-suite-for-ci` settled, and it is why the CI command carries
+exactly one filter and will only ever need one. A skip prints its reason in the runner output beside
+the test; a `--filter-not-method` in a workflow file prints nothing at all and silently drops the
+count by one. There are **three gates**, all the same shape — an `internal static` class with an
+`Enabled` property, named in `SkipUnless` and `SkipType`:
+
+| gate | opts in with | what it holds |
+|---|---|---|
+| `ManualTests` | `PISUM_WHISPER_RUN_MANUAL` | 4 tests needing a real mic, clipboard, keyboard or API key |
+| `WindowsOnly` | *(the running OS)* | 5 `WindowsAutostartTests`, which reach the registry |
+| `TimingTests` | `PISUM_WHISPER_RUN_TIMING` | 1 test whose p99.9 latency bound measures the machine |
+
+So a macOS run reports 6 skipped and a Windows run 1, each with its reason, and neither needs a flag.
+
 **The four manual tests need an environment variable, because a skipped test cannot be run.** xUnit
 has no runner option for it: `-explicit` covers explicit tests only. So `ManualCaptureSmokeTest`,
 `ManualTranscriptionSmokeTest`, `ManualClipboardRoundTrip` and `ManualDictationSmokeTest` are gated on
@@ -97,10 +112,16 @@ letting two run beside the suite is how you get a failure that means nothing.
 statics, no environment mutation, and every fixture builds its own
 `Path.Combine(Path.GetTempPath(), "pisum-whisper-tests", Guid.NewGuid().ToString("n"))`. Do not add
 `[assembly: CollectionBehavior(DisableTestParallelization = true)]`; if a new test needs isolation,
-isolate that class. The one that does is `FileLoggingRotationTests`, which asserts a p99.9 write
-latency under 500 µs and therefore measures the machine as much as the code — it sits in a
-`DisableParallelization` collection and is **still occasionally over the bound**. A lone failure
-there is a busy machine, not a regression in the logging path; two in a row is worth looking at. The
+isolate that class. The one that does is `FileLoggingRotationTests`, which sits in a
+`DisableParallelization` collection because one of its five tests,
+`WritesDoNotStallTheCallingThreadWhenTheFileRolls`, asserts a p99.9 write latency under 500 µs and
+therefore measures the machine as much as the code. **That one test is now gated on `TimingTests`**
+and reports skipped; the other four still run, which is what the collection is for. Serialising was
+not enough on its own — it was still occasionally over the bound — and the bound is `file-logging`'s
+to set, so `ready-the-suite-for-ci` gated it rather than relaxing or deleting it. The flakiness is a
+**Windows** measurement, roughly three failures in twenty-two runs on the developer machine; it
+failed 0 of 38 runs on Apple Silicon, six of them under deliberate CPU starvation. If it turns out
+not to flake on Windows either, the honest follow-up is removing the gate. The
 other thing parallelism exposed is subtler and worth copying: **`SimpleGlobalHook.IsRunning` is not a
 readiness signal.** It turns true before the provider's dispatch proc is installed, and an event
 posted in that window is answered with `Success` and then dropped for good — no later wait recovers
@@ -122,11 +143,11 @@ which is why every class deriving `DictationTestBase`, `FileLoggingTestBase` or
 `GlobalHotkeyServiceTestBase` is one: those bases create a temp home in their constructor.
 `Unit` means neither; in-memory objects and fakes only, including the Gemini tests, which drive a
 real `HttpClient` over a fake handler and never reach the network. The split is 28 / 55 / 4 classes and
-223 / 393 / 4 tests — they sum to 620, so exactly one category applies to every test.
+224 / 401 / 4 tests — they sum to 629, so exactly one category applies to every test.
 
 ```bash
-dotnet test Pisum.Whisper.slnx --filter-trait Category=Unit          # 223, no I/O at all
-dotnet test Pisum.Whisper.slnx --filter-not-trait Category=Manual    # 616, what CI should run
+dotnet test Pisum.Whisper.slnx --filter-trait Category=Unit          # 224, no I/O at all
+dotnet test Pisum.Whisper.slnx --filter-not-trait Category=Manual    # 625, what CI runs
 ```
 
 Keep the rule mechanical when adding a class: if its constructor or its base's reaches
@@ -568,7 +589,17 @@ application's lifetime to this window the day someone changes that.
 **`[AvaloniaFact]` tests serialize on one dispatcher** regardless of the suite's parallel-by-class, so
 `tests/Pisum.Whisper.App.Tests` is slower per test than the other two and the parallelism notes above
 do not apply to it. Isolation stays at the default `PerTest`: `PerAssembly` documents itself as unsafe
-for tests touching global state, which a settings window backed by a file-writing singleton is. The
+for tests touching global state, which a settings window backed by a file-writing singleton is.
+**`PerTest` is not sufficient either, and it is worth knowing why.** It resets the dispatcher before
+every test, but it cannot reset what Avalonia pays once per *process*: the first `ToastWindow` of a
+run costs about 135 ms where the second costs 0.8 ms. So a test that reads a value a timer can change
+— `ToastPresenter.LiveCount` after a `Present`, with a dwell injected at 30 ms — passes or fails
+according to whether a neighbour already paid that cost, which is exactly how four
+`ToastPresenterTests` sat green in the suite while failing every time they were run alone. The
+lesson generalises past those four: in this assembly, **run a new `[AvaloniaFact]` on its own before
+believing it**, and never write one whose assertion races a wall-clock timer. `ready-the-suite-for-ci`
+fixed those by giving the tests a dwell they cannot reach rather than by changing the isolation mode.
+The
 assembly declares `[assembly: AvaloniaTestApplication(typeof(TestAppBuilder))]`, and `TestAppBuilder`
 builds a bare `Application` with only `FluentTheme` — it cannot point at `App`, whose constructor takes
 an `IServiceProvider` and whose initialisation resolves an orchestrator and registers a tray icon.
