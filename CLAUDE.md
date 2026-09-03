@@ -878,14 +878,12 @@ labelled `change:NN`. **Changes 1 through 11 are archived** and their `applicati
 `settings-persistence`, `file-logging`, `audio-capture`, `audio-encoding`, `global-hotkey`,
 `gemini-transcription`, `text-output`, `dictation-pipeline`, `tray-icon`, `settings-window`,
 `notifications` and `autostart` specs are synced, so read every one of them from `openspec/specs/`
-like any other. One change is active: change 12 (`add-packaging-ci` — `packaging`), carrying
-all four artifacts — `proposal.md`, `design.md`, `tasks.md` and a `packaging` delta spec. Its
-implementation has landed on `change/12-add-packaging-ci`; what is still open in `tasks.md` is the
-work that needs a Windows machine, a clean Mac, two repository secrets, a pushed tag, or a commit to
-the tap — read that file rather than assuming either extreme. An earlier version of this sentence
-called it "a lone `proposal.md` — no design, no tasks and no delta specs"; that was true until the
-planning commit on `change/12-add-packaging-ci`, and the delta spec is now the thing to sync when it
-archives.
+like any other. **Change 12 archived on 2026-09-03 with its `packaging` spec synced, so all twelve
+are archived and no change is active.** It archived with twenty-three of its thirty-four boxes
+unticked, which is more open work than the whole rest of the archive carries: the scripts and both
+workflows are written and CI is green on both legs, but the release path has never executed once —
+no tag, no release, `gh secret list` empty, and the tap repository's cask and workflow uncommitted.
+Read its `tasks.md` before treating `packaging` as verified rather than intended.
 `migrate-tests-to-xunit-v3`, `report-startup-failures`, `fix-startup-ioexception-mislabeling`,
 `surface-settings-save-failures`, `ready-the-suite-for-ci` and `fix-stale-autostart-registration`
 are archived as well; they carry no
@@ -912,13 +910,14 @@ answered with two. Its `autostart` delta is synced. Its one open box — 5.2, th
 check, whose Apple Silicon twin 5.1 passed on 2026-09-03 — is tracked by nothing, so it archived in
 exactly the state the paragraph after next says the standing decision exists to prevent.
 
-**Ten archived changes carry unchecked manual-verification tasks, twenty-one boxes in total** — 1's
+**Eleven archived changes carry unchecked tasks, forty-four boxes in total** — 1's
 1.5a, 7's 3.3, 8's 6.3 and 6.4, 10's 6.4, 11's 7.1 and 7.4, `migrate-tests-to-xunit-v3`'s 5.4,
 `report-startup-failures`'s 7.2 and 7.3, `settle-win-x64-verification-debt`'s seven,
-`ready-the-suite-for-ci`'s 1.1, 5.2 and 5.3, and `fix-stale-autostart-registration`'s 5.2.
-**Twenty-one boxes are fifteen pieces of work**: six of
+`ready-the-suite-for-ci`'s 1.1, 5.2 and 5.3, `fix-stale-autostart-registration`'s 5.2, and change
+12's twenty-three. **Forty-four boxes are thirty-five pieces of work**: six of
 `settle-win-x64-verification-debt`'s seven are proxies pointing at another change's task and would
-tick it too, which `ROADMAP.md`'s *Artifact status* section sets out box by box. Trust that table
+tick it too, and three of change 12's hardware checks (9.2, 9.4, 9.5) each close a box in another
+change's row as well — which `ROADMAP.md`'s *Artifact status* section sets out box by box. Trust that table
 over any count written here.
 
 This sentence has now been wrong twice in the same way, and the shape is worth naming. It first
