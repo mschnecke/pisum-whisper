@@ -210,14 +210,25 @@ public sealed class SettingsStorePresetRaceTests : IDisposable
         // which leaves reads at 0 and fails the guard at the end for a reason that has nothing to do
         // with what this measures. Waiting for its first iteration makes the overlap a fact rather
         // than a hope; the bound is here so a reader that never runs still fails rather than hangs.
-        await reading.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
-
-        for (var index = 0; index < PresetCount; index++)
+        //
+        // The finally is what makes that bound honest. The reader's loop is tight and leaves only on
+        // the token, and disposing a CancellationTokenSource does not cancel it — so a wait that
+        // timed out would throw past the cancel and leave that loop spinning on a pool thread for
+        // the rest of the run, which is the hang this bound exists to avoid.
+        try
         {
-            store.DeletePreset($"mine-{index}");
+            await reading.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+            for (var index = 0; index < PresetCount; index++)
+            {
+                store.DeletePreset($"mine-{index}");
+            }
+        }
+        finally
+        {
+            await stop.CancelAsync();
         }
 
-        await stop.CancelAsync();
         await Should.NotThrowAsync(reader);
 
         // So a reader that never actually ran cannot pass this test by doing nothing.
