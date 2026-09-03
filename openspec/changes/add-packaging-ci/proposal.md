@@ -41,8 +41,8 @@ _None._
 ## Impact
 
 Depends on every preceding change; verification here is the sequence's acceptance test.
-**Task group 5 also depends on `ready-the-suite-for-ci`**: the suite does not pass unattended on
-macOS today, so `ci.yml` cannot land green first.
+**Task group 5 also depended on `ready-the-suite-for-ci`**, now archived on this branch: it waits
+on that merge, not on that change.
 
 **One claim is withdrawn.** The first draft said the shortcut's AUMID satisfies "the requirement
 recorded in `add-system-integration`". Change 11 records the opposite: it drew its own notification

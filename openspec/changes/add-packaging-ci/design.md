@@ -351,8 +351,11 @@ to macOS users at the moment they install.
 - **`macos-latest` being Apple Silicon is an assumption about GitHub's runner images.** → If it ever
   regresses to x64, the `osx-arm64` publish becomes a cross-compile and the R2R step is what breaks
   first. Detected by the release build failing, not silently.
-- **`FileLoggingRotationTests` flakes, and five App tests fail outright on macOS.** → Both are
-  `ready-the-suite-for-ci`'s, which blocks task group 5. Neither is worked around here.
+- **`FileLoggingRotationTests` flakes, and five App tests fail outright on macOS.** → Both were
+  `ready-the-suite-for-ci`'s and it has landed: the rotation test is gated on `TimingTests`, the
+  five write-failure tests are portable, and the macOS leg measured green on this branch on
+  2026-09-03. What is left of the risk is the merge — D9's numbers are `main`'s. Neither was
+  worked around here.
 - **Three secrets do not exist**: `HOMEBREW_TAP_TOKEN`, `MYGET_API_KEY`, and whatever MyGet needs
   today. `gh secret list` is empty. → A prerequisite task, and the release workflow fails loudly on
   a missing one rather than skipping the step.
