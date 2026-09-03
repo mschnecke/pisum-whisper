@@ -764,9 +764,13 @@ write that never reaches disk was an unobserved task exception, not a report —
 handling below now implement; it too is synced.
 
 **Changes 8, 10, 11 and `report-startup-failures` were all archived with their manual verification
-still open** — 8's tasks 6.3 and 6.4, 10's 6.4, 11's 7.1 and 7.4, and every one of
-`report-startup-failures`'s 7.1 to 7.3. Every one of them needs a person at a
-machine, and the macOS ones need Apple Silicon with Accessibility granted. An archived change here therefore does **not** certify
+still open** — 8's tasks 6.3 and 6.4, 10's 6.4, 11's 7.1 and 7.4, and `report-startup-failures`'s 7.2
+and 7.3. `report-startup-failures`'s 7.1 closed 2026-09-02, all four fatal-dialog reproductions run —
+the corrupt-settings one closed issue #20, the other three ran later that day under
+`settle-win-x64-verification-debt` — and 7.3's interactive-launch half passed alongside them, leaving
+only its login-time half, tracked on issue #30. Every one of these open items still needs a person at
+a machine, and the macOS ones need Apple Silicon with Accessibility granted. An archived change here
+therefore does **not** certify
 that its capability was verified on hardware: what each still owes, and the open design questions
 those runs would settle, stay in that change's archived `design.md` and are reflected nowhere under
 `openspec/specs/`. Read the archived `tasks.md` before treating a capability spec as verified

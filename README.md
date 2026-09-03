@@ -38,19 +38,29 @@ saved rather than continuing to show the edit.
 Only **change 12, packaging and CI**, is outstanding: there is no installer, no signed binary and no
 release pipeline, so the application is run from a build.
 
-One thing qualifies all of it. **No dictation has yet been run end to end by hand** on either
-platform — that is the first open verification task of change 8 — and changes 8, 10, 11 and
-`report-startup-failures` were each archived with their manual verification still open. The
-capabilities are complete in code and covered by tests rather than demonstrated on hardware; the
-macOS half of that verification has never been run at all, and the startup dialogs in particular
-have never been drawn on either platform.
+One thing still qualifies all of it. Dictation has now been run end to end by hand — on win-x64 in
+both hold and toggle mode, and on macOS too, as a byproduct of changes 9 and 11's own verification
+runs — but changes 8, 10, 11 and `report-startup-failures` were each archived with a piece of their
+manual verification still open: 8's transcription-budget measurement (win-x64) and its macOS
+refused-microphone case, whose one verification attempt was abandoned rather than completed; 10's
+win-x64 hotkey-recorder check; 11's win-x64 first-launch pass and a headless dispatcher test; and
+`report-startup-failures`'s Apple Silicon pass and the login-time half of its Windows foreground
+check. The capabilities are complete in code and covered by tests; what remains is measurement and a
+handful of by-hand checks, not a demonstration that the pipeline works at all — though the startup
+dialogs themselves have so far only been drawn on Windows, never on macOS.
 
-macOS is **partly verified**. Change 1's spikes were re-run on an Apple M4 (macOS 26.6.2) under
-[issue #15](https://github.com/mschnecke/pisum-whisper/issues/15), now closed: the global hook, its
-co-existence with Avalonia's run loop, capture and the menu-bar icon all pass. Two cells came back
-**FAIL** — the synthetic paste is not accepted by a foreign application, and the Accessibility grant
-does not survive a rebuild of an unsigned binary — and each has a documented fallback. The app
-itself has still never been run end to end on macOS. See the *Platform verification* matrix in
+macOS is **more thoroughly verified now**. Change 1's spikes were re-run on an Apple M4 (macOS
+26.6.2) under [issue #15](https://github.com/mschnecke/pisum-whisper/issues/15), now closed: the
+global hook, its co-existence with Avalonia's run loop, capture and the menu-bar icon all pass.
+[Issue #31](https://github.com/mschnecke/pisum-whisper/issues/31) carried the same sitting forward
+for changes 1, 7, 8, 9, 10 and 11 on 2026-09-02, and resolved both of the original spike's two
+**FAIL** cells: the synthetic paste a foreign application would not accept turns out not to reproduce
+through the shipped `TextOutput`/`MacOsClipboard`/`MacOsPasteProbe` path, which pastes correctly and
+repeatably, and the Accessibility grant does survive a rebuild when the process is launched through
+Rider (still unverified outside that ancestry, or for a packaged app — deferred to change 12). A real
+dictation has now run end to end on macOS as part of that sitting. Issue #31 stays open only for
+change 8's refused-microphone case, whose one verification attempt was abandoned rather than
+completed. See the *Platform verification* matrix in
 [`design.md`](openspec/changes/archive/2026-08-27-bootstrap-solution/design.md) for the detail.
 
 ## Prerequisites
