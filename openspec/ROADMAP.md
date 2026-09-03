@@ -71,7 +71,7 @@ Ordered by when each was proposed.
 | `fix-startup-ioexception-mislabeling` | `StartupFailure.Describe` matched on exception *type*, so a missing tray asset's `FileNotFoundException` was reported as a settings error — telling the user the file holding their API keys was broken when it never was | nothing numbered; `surface-settings-save-failures` builds on it | Archived 2026-09-02, closes #34 |
 | `settle-win-x64-verification-debt` | The eleven by-hand checks across seven archived changes that need nothing but the Windows machine this is developed on | nothing | Archived 2026-09-02, closes #30 |
 | `surface-settings-save-failures` | A settings write that never reached disk became an unobserved task exception, so the window looked like the save had worked | nothing | Archived 2026-09-02, closes #37 |
-| `ready-the-suite-for-ci` | Five write-failure tests whose `FileShare.None` arrangement only fails on Windows, and a latency test that gates itself instead of being filtered by CI, so the suite passes unattended on both platforms | **12** | Active, #49; win-x64 debt on #50 |
+| `ready-the-suite-for-ci` | Five write-failure tests whose `FileShare.None` arrangement only fails on Windows, and a latency test that gates itself instead of being filtered by CI, so the suite passes unattended on both platforms | **12** | Archived 2026-09-03, closes #49; win-x64 debt open on #50 |
 
 `add-settings-window` depends on `migrate-tests-to-xunit-v3`: Avalonia ships first-party headless
 test integration for xUnit and NUnit only — there is no `Avalonia.Headless.MSTest` and there never
@@ -85,9 +85,10 @@ than a stage to the pipeline — and it exists because changes 9 and 11 each def
 transport could not reach a failure raised before the dispatcher loop starts. It also closes issue
 #20. It is dependent on change 11 for the degraded half only; the dialog half depends on nothing.
 
-`ready-the-suite-for-ci` is the first off-sequence change that **blocks a numbered one**. Change 12
-adds the first CI this repository has had, and on `main` today its macOS leg would be red before a
-line of packaging is written: measured 2026-09-03, `dotnet test --filter-not-trait Category=Manual`
+`ready-the-suite-for-ci` is the first off-sequence change that **blocked a numbered one**, and it is
+implemented and archived as of 2026-09-03. Change 12 adds the first CI this repository has had, and
+on `main` its macOS leg would have been red before a line of packaging was written: measured
+2026-09-03, `dotnet test --filter-not-trait Category=Manual`
 gives 625 selected, 615 passed, **5 failed**, 5 skipped. The five are `PresetsViewModelTests` and
 `SettingsEditorTests` write-failure tests that hold the settings file open with `FileShare.None` —
 which blocks `File.Move` on Windows and not on macOS, where `rename(2)` ignores the destination's
@@ -132,7 +133,9 @@ fatal-dialog reproductions run the same day under `settle-win-x64-verification-d
 interactive-launch half alongside them. What is left is 7.2's Apple Silicon pass and 7.3's
 login-time half, so it still joins the table below rather than closing with it.
 
-**Seven archived changes carry unchecked tasks, ten in total, and they are not all macOS.** This
+**Eight archived changes carry unchecked tasks in the table below, thirteen in total, and they are
+not all macOS.** Counting `settle-win-x64-verification-debt`'s own seven boxes as well gives twenty
+across nine changes; the paragraph under the table reconciles the two. This
 section previously named changes 8 to 11 and called that "a departure from how 1-7 were closed".
 Both halves were wrong: changes 1 and 7 are in the same state, so there was no departure — only the
 recording of it changed. Change 9's row is gone as of 2026-09-02: issue #31 closed all three of its
@@ -148,10 +151,11 @@ lists, in one sitting on an Apple M4.
 | 11 `add-system-integration` | 7.1, 7.4 | win-x64 for 7.1; 7.4 is a headless test plus a glance during 7.1 |
 | `migrate-tests-to-xunit-v3` | 5.4 | win-x64 — confirm Rider still discovers the tests |
 | `report-startup-failures` | 7.2, 7.3 | Apple Silicon for 7.2; win-x64 for 7.3's login-time half. 7.1 (all four fatal-dialog reproductions, closing #20) and 7.3's interactive-launch half both ran 2026-09-02. The `osascript` dialog has never been drawn |
+| `ready-the-suite-for-ci` | 1.1, 5.2, 5.3 | win-x64 for all three — the T1 failure-injection probe, the CI command, and the Windows half of the alone-runs. **The only row here tracked by an open issue** ([#50](https://github.com/mschnecke/pisum-whisper/issues/50)), opened before the archive rather than after |
 
-**Counting the archive gives 17, not 10, and both numbers are right.** `grep -c '^- \[ \]'` across
-`openspec/changes/archive/*/tasks.md` returns seventeen unchecked boxes in eight changes. The seven
-rows above hold exactly ten of them. The other seven belong to
+**Counting the archive gives 20, not 13, and both numbers are right.** `grep -c '^- \[ \]'` across
+`openspec/changes/archive/*/tasks.md` returns twenty unchecked boxes in nine changes. The eight
+rows above hold exactly thirteen of them. The other seven belong to
 `settle-win-x64-verification-debt`, and **six of those seven are proxies** — its tasks are pointers
 at other changes' tasks, and each one says so in its own title:
 

@@ -40,13 +40,17 @@ release pipeline, so the application is run from a build.
 
 One thing still qualifies all of it. Dictation has now been run end to end by hand — on win-x64 in
 both hold and toggle mode, and on macOS too, as a byproduct of changes 9 and 11's own verification
-runs — but **seven** archived changes were each left with a piece of their manual verification open,
-ten checks in total: change 1's 44.1 kHz capture device; change 7's clipboard-history check; 8's
+runs — but **eight** archived changes were each left with a piece of their manual verification open,
+thirteen checks in total: change 1's 44.1 kHz capture device; change 7's clipboard-history check;
+8's
 transcription-budget measurement (win-x64) and its macOS refused-microphone case, whose one
 verification attempt was abandoned rather than completed; 10's win-x64 hotkey-recorder check; 11's
 win-x64 first-launch pass and a headless dispatcher test; the xUnit migration's Rider-discovery
-check; and `report-startup-failures`'s Apple Silicon pass and the login-time half of its Windows
-foreground check. The capabilities are complete in code and covered by tests; what remains is
+check; `report-startup-failures`'s Apple Silicon pass and the login-time half of its Windows
+foreground check; and `ready-the-suite-for-ci`'s three win-x64 checks — the only three of the
+thirteen tracked by an open issue
+([#50](https://github.com/mschnecke/pisum-whisper/issues/50)), because it was opened before that
+change was archived rather than after. The capabilities are complete in code and covered by tests; what remains is
 measurement and a handful of by-hand checks, not a demonstration that the pipeline works at all —
 though the startup dialogs themselves have so far only been drawn on Windows, never on macOS.
 

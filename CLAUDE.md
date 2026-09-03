@@ -787,12 +787,16 @@ labelled `change:NN`. **Changes 1 through 11 are archived** and their `applicati
 `settings-persistence`, `file-logging`, `audio-capture`, `audio-encoding`, `global-hotkey`,
 `gemini-transcription`, `text-output`, `dictation-pipeline`, `tray-icon`, `settings-window`,
 `notifications` and `autostart` specs are synced, so read every one of them from `openspec/specs/`
-like any other. Only change 12 (`add-packaging-ci` — `packaging`) is still active, and it is a lone
-`proposal.md` — no design, no tasks and no delta specs — so it is not archivable as it stands.
-`migrate-tests-to-xunit-v3`, `report-startup-failures`, `fix-startup-ioexception-mislabeling` and
-`surface-settings-save-failures` are archived as well; they carry no number, by the roadmap's own rule
-that off-sequence work gets a section instead of one. The second added `startup-diagnostics` and
-extended `file-logging` and `global-hotkey`, and all three are synced. The third closed issue #34,
+like any other. Only change 12 (`add-packaging-ci` — `packaging`) is still active, and it now carries
+all four artifacts — `proposal.md`, `design.md`, `tasks.md` and a `packaging` delta spec — with none
+of its 34 tasks implemented. An earlier version of this sentence called it "a lone `proposal.md` —
+no design, no tasks and no delta specs"; that was true until the planning commit on
+`change/12-add-packaging-ci`, and the delta spec is now the thing to sync when it archives.
+`migrate-tests-to-xunit-v3`, `report-startup-failures`, `fix-startup-ioexception-mislabeling`,
+`surface-settings-save-failures` and `ready-the-suite-for-ci` are archived as well; they carry no
+number, by the roadmap's own rule that off-sequence work gets a section instead of one. The second
+added `startup-diagnostics` and extended `file-logging` and `global-hotkey`, and all three are
+synced. The third closed issue #34,
 which `report-startup-failures`'s own archived `design.md` had already reproduced and deliberately
 deferred: `SettingsStore.Read` and `Write` now both wrap `IOException` and `UnauthorizedAccessException`
 into `SettingsException`, so `StartupFailure.Describe` no longer carries a type-matching arm that
@@ -802,14 +806,24 @@ failure is reported the same way on first launch and on a later save; both delta
 `startup-diagnostics` and `settings-persistence` — are synced. The fourth closed issue #37 — a settings
 write that never reaches disk was an unobserved task exception, not a report — and its
 `settings-window` delta is the one `SettingsEditor.Commit()` and `PresetsViewModel`'s notify-and-reload
-handling below now implement; it too is synced.
+handling below now implement; it too is synced. The fifth is the only one of them that **declared no
+delta spec at all** — its `specs` artifact is `skipped`, because making five write-failure tests
+portable, taking five `ToastPresenterTests` off a dwell race and gating one latency test changes no
+capability's behaviour — so archiving it synced nothing, and no `openspec/specs/` file moved.
 
-**Seven archived changes carry unchecked manual-verification tasks, ten in total** — 1's 1.5a, 7's
-3.3, 8's 6.3 and 6.4, 10's 6.4, 11's 7.1 and 7.4, `migrate-tests-to-xunit-v3`'s 5.4, and
-`report-startup-failures`'s 7.2 and 7.3. An earlier version of this sentence named only 8, 10, 11
-and `report-startup-failures`; `ROADMAP.md` corrected the same error in its *Artifact status*
-section and this is the same correction — changes 1, 7 and the xUnit migration are in exactly the
-same state, so there was never a departure to explain, only three rows left out of the count.
+**Nine archived changes carry unchecked manual-verification tasks, twenty boxes in total** — 1's
+1.5a, 7's 3.3, 8's 6.3 and 6.4, 10's 6.4, 11's 7.1 and 7.4, `migrate-tests-to-xunit-v3`'s 5.4,
+`report-startup-failures`'s 7.2 and 7.3, `settle-win-x64-verification-debt`'s seven, and
+`ready-the-suite-for-ci`'s 1.1, 5.2 and 5.3. **Twenty boxes are fourteen pieces of work**: six of
+`settle-win-x64-verification-debt`'s seven are proxies pointing at another change's task and would
+tick it too, which `ROADMAP.md`'s *Artifact status* section sets out box by box. Trust that table
+over any count written here.
+
+This sentence has now been wrong twice in the same way, and the shape is worth naming. It first
+named only 8, 10, 11 and `report-startup-failures` and called that a departure; then it said seven
+changes and ten, which counted the distinct work but not the archive. Both times the error was
+counting from memory rather than from `grep -c '^- \[ \]' openspec/changes/archive/*/tasks.md`,
+which is one command and settles it. Run it before amending this paragraph.
 
 `report-startup-failures`'s 7.1 closed 2026-09-02, all four fatal-dialog reproductions run — the
 corrupt-settings one closed issue #20, the other three ran later that day under
@@ -817,12 +831,19 @@ corrupt-settings one closed issue #20, the other three ran later that day under
 only its login-time half. Every one of these open items still needs a person at a machine, and the
 macOS ones need Apple Silicon with Accessibility granted.
 
-**All ten are currently tracked by nothing.** Issues #30 (win-x64) and #31 (Apple Silicon) were both
+**All but three are tracked by nothing.** Issues #30 (win-x64) and #31 (Apple Silicon) were both
 closed on 2026-09-02 with work still open — #30 while six of its eleven checks had not run, #31 with
 change 8's refused-microphone case abandoned rather than completed. `ROADMAP.md`'s *Artifact status*
 table is therefore the only surviving record, and that is exactly the state the standing decision
 about moving open by-hand tasks to a tracking issue exists to prevent. Verified 2026-09-03: both
 report `CLOSED`.
+
+The three exceptions are `ready-the-suite-for-ci`'s, and they are the standing decision finally
+applied **before** the archive rather than after it: issue
+[#50](https://github.com/mschnecke/pisum-whisper/issues/50) was opened while that change was still
+active, names its 1.1, 5.2 and 5.3, and is open. That is the
+pattern to copy when change 12 archives with by-hand tasks left — open the tracking issue first, and
+the archive stops being the only place the debt is written down.
 
 An archived change here therefore does **not** certify that its capability was verified on hardware:
 what each still owes, and the open design questions those runs would settle, stay in that change's
@@ -836,9 +857,15 @@ it is absent from the list this paragraph opens with. Drive the workflow with th
 (`explore`, `propose`, `apply`, `sync`, `archive`); the backing skills are in
 `.claude/skills/openspec-*`. The bottom of `openspec/config.yaml` carries the project context and
 the per-artifact rules, and both are **live, not the commented-out template**: `proposal`, `design`
-and `tasks` each have rules, `specs` deliberately has none, and the `openspec` CLI is not installed
-on this machine — so `/opsx:archive` and `/opsx:sync` are run by reading the change folder directly,
-and a spec sync is the no-rules case either way.
+and `tasks` each have rules, `specs` deliberately has none — so a spec sync is the no-rules case.
+**The `openspec` CLI is installed** — 1.11.0, at `/opt/homebrew/bin/openspec` — and an earlier
+version of this sentence said it was not, which sent `/opsx:archive` and `/opsx:sync` down a
+read-the-folder-by-hand path they no longer need. `openspec list --json`, `openspec status --change
+"<name>" --json` and `openspec instructions <artifact> --change "<name>" --json` all work and are
+what those commands should drive; `status` is the one that matters, because its `artifacts` array
+distinguishes `skipped` from merely absent, which reading the folder cannot. There is still no
+`openspec archive` step taken here — the move is `mv` into `openspec/changes/archive/`, so that the
+date prefix and the "already exists" check stay visible.
 
 **A commit that only touches `openspec/` must say so in its subject line.** A proposal's *What
 Changes* section is a list of imperatives — "Replace `MSTest` with `xunit.v3`", "Rewrite the
