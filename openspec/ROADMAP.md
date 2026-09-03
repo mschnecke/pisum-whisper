@@ -71,7 +71,7 @@ Ordered by when each was proposed.
 | `fix-startup-ioexception-mislabeling` | `StartupFailure.Describe` matched on exception *type*, so a missing tray asset's `FileNotFoundException` was reported as a settings error — telling the user the file holding their API keys was broken when it never was | nothing numbered; `surface-settings-save-failures` builds on it | Archived 2026-09-02, closes #34 |
 | `settle-win-x64-verification-debt` | The eleven by-hand checks across seven archived changes that need nothing but the Windows machine this is developed on | nothing | Archived 2026-09-02, closes #30 |
 | `surface-settings-save-failures` | A settings write that never reached disk became an unobserved task exception, so the window looked like the save had worked | nothing | Archived 2026-09-02, closes #37 |
-| `ready-the-suite-for-ci` | Five write-failure tests whose `FileShare.None` arrangement only fails on Windows, and a latency test that gates itself instead of being filtered by CI, so the suite passes unattended on both platforms | **12** | Archived 2026-09-03, closes #49; win-x64 debt open on #50 |
+| `ready-the-suite-for-ci` | Five write-failure tests whose `FileShare.None` arrangement only fails on Windows, and a latency test that gates itself instead of being filtered by CI, so the suite passes unattended on both platforms | **12** | Archived 2026-09-03, closes #49; win-x64 debt filed as #50, which is itself closed with all three unrun |
 | `fix-stale-autostart-registration` | The reconciler asked "is something registered", so a registration naming an executable that is no longer this one read as agreement and was never rewritten — an install over a build went on launching the build at every login | nothing | Archived 2026-09-03; found by change 12's task 3.2 and reproduced on Apple Silicon the same day; win-x64 check 5.2 open, tracked by nothing |
 
 `add-settings-window` depends on `migrate-tests-to-xunit-v3`: Avalonia ships first-party headless
@@ -97,15 +97,17 @@ open descriptors. They were found by hand during issue #31's sitting, reported i
 description, and left for an owner that PR's archive no longer has. Change 12's task group 5 cannot
 land green until this does. Tracked on issue #49.
 
-**Its win-x64 debt was opened as #50 before archiving, not after, and that is the point.** Everything
+**Its win-x64 debt was opened as #50 before archiving, not after — and #50 has since been closed with
+none of it run.** Everything
 in the change is implemented and verified on Apple Silicon — sixteen full runs, ten at normal load
 and six under fourteen busy loops on a ten-core machine, all 625 selected / 619 passed / 6 skipped /
 0 failed, plus every repaired test run alone. Three checks need the Windows machine and cannot be
 run from a Mac: the T1 failure-injection probe (task 1.1), the CI command on win-x64 (5.2), and the
 Windows half of the alone-runs (5.3). Issues #30 and #31 were both closed on 2026-09-02 with work
 still open, which is how the *Artifact status* table below became the only surviving record of ten
-by-hand tasks. Opening #50 while this change is still active is the standing decision applied one
-step earlier than it has been before.
+by-hand tasks. Opening #50 while this change was still active was the standing decision applied one
+step earlier than it had been before; closing it on 2026-09-03 with all three checks outstanding
+undid that, and made the table below the only record again.
 
 **Three rows were missing until 2026-09-03, and the omission has a shape worth naming.** The table
 listed the two changes that were *planned* as off-sequence work and none of the three that began as
@@ -142,7 +144,8 @@ not all macOS.** Counting `settle-win-x64-verification-debt`'s own seven boxes a
 across ten changes; the paragraph under the table reconciles the two. **Change 12's row is the tenth
 and is not one of them**: it is active rather than archived, so its five boxes are not in the archive
 count and will not be until it moves. It is listed here anyway because #52 was opened while it was
-still active, which is the standing decision working rather than an exception to it. This
+still active — the standing decision working, until #52 too was closed on 2026-09-03 with none of
+the five run. This
 section previously named changes 8 to 11 and called that "a departure from how 1-7 were closed".
 Both halves were wrong: changes 1 and 7 are in the same state, so there was no departure — only the
 recording of it changed. Change 9's row is gone as of 2026-09-02: issue #31 closed all three of its
@@ -158,9 +161,9 @@ lists, in one sitting on an Apple M4.
 | 11 `add-system-integration` | 7.1, 7.4 | win-x64 for 7.1; 7.4 is a headless test plus a glance during 7.1 |
 | `migrate-tests-to-xunit-v3` | 5.4 | win-x64 — confirm Rider still discovers the tests |
 | `report-startup-failures` | 7.2, 7.3 | Apple Silicon for 7.2; win-x64 for 7.3's login-time half. 7.1 (all four fatal-dialog reproductions, closing #20) and 7.3's interactive-launch half both ran 2026-09-02. The `osascript` dialog has never been drawn |
-| `ready-the-suite-for-ci` | 1.1, 5.2, 5.3 | win-x64 for all three — the T1 failure-injection probe, the CI command, and the Windows half of the alone-runs. Tracked by [#50](https://github.com/mschnecke/pisum-whisper/issues/50), opened before the archive rather than after — the first row here to be, and no longer the only one |
+| `ready-the-suite-for-ci` | 1.1, 5.2, 5.3 | win-x64 for all three — the T1 failure-injection probe, the CI command, and the Windows half of the alone-runs. Was tracked by [#50](https://github.com/mschnecke/pisum-whisper/issues/50), opened before the archive rather than after; #50 reports `CLOSED` as of 2026-09-03 with all three unrun, so tracked by nothing today |
 | `fix-stale-autostart-registration` | 5.2 | win-x64 — with `HKCU\...\Run\Pisum Whisper` naming another path, confirm the value is rewritten and the log line says repointed rather than enabled. Its Apple Silicon twin 5.1 ran 2026-09-03 and passed. Tracked by nothing |
-| 12 `add-packaging-ci` | 9.1–9.5 | a clean Windows 11 x64 machine for 9.1, a clean Apple Silicon Mac for 9.2 and 9.3, both for 9.4 and 9.5. Tracked by [#52](https://github.com/mschnecke/pisum-whisper/issues/52), the second row opened before its archive. Three of the five close a box above as well: **9.2** the macOS half of 8 / 6.4, **9.4** the login half of 11 / 7.1, **9.5** `report-startup-failures` / 7.2 |
+| 12 `add-packaging-ci` | 9.1–9.5 | a clean Windows 11 x64 machine for 9.1, a clean Apple Silicon Mac for 9.2 and 9.3, both for 9.4 and 9.5. Was tracked by [#52](https://github.com/mschnecke/pisum-whisper/issues/52), opened before its archive; #52 reports `CLOSED` as of 2026-09-03 with none of the five run. Three of the five close a box above as well: **9.2** the macOS half of 8 / 6.4, **9.4** the login half of 11 / 7.1, **9.5** `report-startup-failures` / 7.2 |
 
 **Counting the archive gives 21, not 14, and both numbers are right.** `grep -c '^- \[ \]'` across
 `openspec/changes/archive/*/tasks.md` returns twenty-one unchecked boxes in ten changes. The nine
@@ -199,16 +202,22 @@ this table does not carry, it is a close-out rather than a check, and closing it
 what to do about an issue that is already shut — which is the same decision the paragraph below
 leaves open.
 
-**None of the eleven is tracked by an issue** — the eleven being the fourteen archived boxes less
-`ready-the-suite-for-ci`'s three, which #50 carries; change 12's five are on #52. #30 (win-x64) and
-#31 (Apple Silicon) were both closed on 2026-09-02 with work still open — #30 while six of its eleven
-checks had not run, #31 with change 8's refused-microphone case abandoned rather than completed. For
-those eleven this table is the only surviving record, which is the state the *Standing decisions* rule
-on moving open by-hand tasks to a tracking issue exists to prevent. Reopening the two, or opening one
-successor, is an open decision. Three of them would be ticked by change 12's run anyway, which is a
-reason to sequence #52 first rather than a reason to leave them untracked.
+**None of the fourteen is tracked by an open issue, and neither are change 12's five.**
+`ready-the-suite-for-ci`'s three are among the fourteen and were on
+[#50](https://github.com/mschnecke/pisum-whisper/issues/50); change 12's five sit outside the archive
+count and were on [#52](https://github.com/mschnecke/pisum-whisper/issues/52). Both issues were
+opened while their change was still active — the standing decision applied exactly as written — and
+both report `CLOSED` as of 2026-09-03 with none of the eight run. #30 (win-x64) and #31 (Apple Silicon) went the
+same way on 2026-09-02 with work still open — #30 while six of its eleven checks had not run, #31
+with change 8's refused-microphone case abandoned rather than completed. Four tracking issues, all
+four shut with their checks outstanding: for every one of the fourteen boxes this table is the only
+surviving record, which is exactly the state the *Standing decisions* rule on moving open by-hand
+tasks to a tracking issue exists to prevent. **The rule is not what failed — closing the issues is**,
+so a fifth issue helps only if it then stays open. Reopening the four, or opening one successor, is
+an open decision. Three of them would be ticked by change 12's hardware run anyway, which is a reason
+to sequence that run first rather than a reason to leave them untracked.
 
-**Seven of the eleven need nothing but the Windows machine this is developed on**, and an eighth is
+**Ten of the fourteen need nothing but the Windows machine this is developed on**, and an eleventh is
 11's 7.4 headless test. Two do need Apple Silicon and should be done in one pass — issue #31's
 successor, once hardware is available again; one needs a 44.1 kHz input device and is not about
 either platform.

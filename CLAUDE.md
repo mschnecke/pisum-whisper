@@ -878,11 +878,8 @@ labelled `change:NN`. **Changes 1 through 11 are archived** and their `applicati
 `settings-persistence`, `file-logging`, `audio-capture`, `audio-encoding`, `global-hotkey`,
 `gemini-transcription`, `text-output`, `dictation-pipeline`, `tray-icon`, `settings-window`,
 `notifications` and `autostart` specs are synced, so read every one of them from `openspec/specs/`
-like any other. Two changes are active. Change 12 (`add-packaging-ci` — `packaging`) carries
-all four artifacts — `proposal.md`, `design.md`, `tasks.md` and a `packaging` delta spec — and
-`fix-stale-autostart-registration` carries four of its own with an `autostart` delta, being change
-12's own finding: a login registration naming an executable that is no longer this one was read as
-agreement and never rewritten. Its
+like any other. One change is active: change 12 (`add-packaging-ci` — `packaging`), carrying
+all four artifacts — `proposal.md`, `design.md`, `tasks.md` and a `packaging` delta spec. Its
 implementation has landed on `change/12-add-packaging-ci`; what is still open in `tasks.md` is the
 work that needs a Windows machine, a clean Mac, two repository secrets, a pushed tag, or a commit to
 the tap — read that file rather than assuming either extreme. An earlier version of this sentence
@@ -890,7 +887,8 @@ called it "a lone `proposal.md` — no design, no tasks and no delta specs"; tha
 planning commit on `change/12-add-packaging-ci`, and the delta spec is now the thing to sync when it
 archives.
 `migrate-tests-to-xunit-v3`, `report-startup-failures`, `fix-startup-ioexception-mislabeling`,
-`surface-settings-save-failures` and `ready-the-suite-for-ci` are archived as well; they carry no
+`surface-settings-save-failures`, `ready-the-suite-for-ci` and `fix-stale-autostart-registration`
+are archived as well; they carry no
 number, by the roadmap's own rule that off-sequence work gets a section instead of one. The second
 added `startup-diagnostics` and extended `file-logging` and `global-hotkey`, and all three are
 synced. The third closed issue #34,
@@ -906,12 +904,19 @@ write that never reaches disk was an unobserved task exception, not a report —
 handling below now implement; it too is synced. The fifth is the only one of them that **declared no
 delta spec at all** — its `specs` artifact is `skipped`, because making five write-failure tests
 portable, taking five `ToastPresenterTests` off a dwell race and gating one latency test changes no
-capability's behaviour — so archiving it synced nothing, and no `openspec/specs/` file moved.
+capability's behaviour — so archiving it synced nothing, and no `openspec/specs/` file moved. The
+sixth is change 12's own finding, archived 2026-09-03: a login registration naming an executable that
+is no longer this one was read as agreement and never rewritten, so `IAutostartService.Read()` now
+answers with the three states described under *Notifications and autostart* where `IsEnabled()`
+answered with two. Its `autostart` delta is synced. Its one open box — 5.2, the win-x64 reconcile
+check, whose Apple Silicon twin 5.1 passed on 2026-09-03 — is tracked by nothing, so it archived in
+exactly the state the paragraph after next says the standing decision exists to prevent.
 
-**Nine archived changes carry unchecked manual-verification tasks, twenty boxes in total** — 1's
+**Ten archived changes carry unchecked manual-verification tasks, twenty-one boxes in total** — 1's
 1.5a, 7's 3.3, 8's 6.3 and 6.4, 10's 6.4, 11's 7.1 and 7.4, `migrate-tests-to-xunit-v3`'s 5.4,
-`report-startup-failures`'s 7.2 and 7.3, `settle-win-x64-verification-debt`'s seven, and
-`ready-the-suite-for-ci`'s 1.1, 5.2 and 5.3. **Twenty boxes are fourteen pieces of work**: six of
+`report-startup-failures`'s 7.2 and 7.3, `settle-win-x64-verification-debt`'s seven,
+`ready-the-suite-for-ci`'s 1.1, 5.2 and 5.3, and `fix-stale-autostart-registration`'s 5.2.
+**Twenty-one boxes are fifteen pieces of work**: six of
 `settle-win-x64-verification-debt`'s seven are proxies pointing at another change's task and would
 tick it too, which `ROADMAP.md`'s *Artifact status* section sets out box by box. Trust that table
 over any count written here.
@@ -928,19 +933,22 @@ corrupt-settings one closed issue #20, the other three ran later that day under
 only its login-time half. Every one of these open items still needs a person at a machine, and the
 macOS ones need Apple Silicon with Accessibility granted.
 
-**All but three are tracked by nothing.** Issues #30 (win-x64) and #31 (Apple Silicon) were both
+**Every one of them is tracked by nothing.** Issues #30 (win-x64) and #31 (Apple Silicon) were both
 closed on 2026-09-02 with work still open — #30 while six of its eleven checks had not run, #31 with
 change 8's refused-microphone case abandoned rather than completed. `ROADMAP.md`'s *Artifact status*
 table is therefore the only surviving record, and that is exactly the state the standing decision
 about moving open by-hand tasks to a tracking issue exists to prevent. Verified 2026-09-03: both
 report `CLOSED`.
 
-The three exceptions are `ready-the-suite-for-ci`'s, and they are the standing decision finally
-applied **before** the archive rather than after it: issue
+`ready-the-suite-for-ci`'s three used to be the exception, and were the standing decision applied
+**before** the archive rather than after it: issue
 [#50](https://github.com/mschnecke/pisum-whisper/issues/50) was opened while that change was still
-active, names its 1.1, 5.2 and 5.3, and is open. That is the
-pattern to copy when change 12 archives with by-hand tasks left — open the tracking issue first, and
-the archive stops being the only place the debt is written down.
+active and names its 1.1, 5.2 and 5.3. **It reports `CLOSED` as of 2026-09-03 with none of the three
+run**, as does [#52](https://github.com/mschnecke/pisum-whisper/issues/52) for change 12's five — so
+the pattern was applied and then undone, twice, and neither issue is a surviving record today.
+Opening the issue first is still the thing to copy when change 12 archives with by-hand tasks left;
+what #50 and #52 show is that it only works if the issue then stays open, which makes closing one a
+decision to take deliberately rather than as housekeeping.
 
 An archived change here therefore does **not** certify that its capability was verified on hardware:
 what each still owes, and the open design questions those runs would settle, stay in that change's
