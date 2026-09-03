@@ -3,7 +3,8 @@
 See `proposal.md` — *Why*. What follows is measured on Apple Silicon (macOS 26.6.2, SDK `10.0.400`)
 on 2026-09-03, against `main` at `d8a596d`.
 
-Twelve full runs of the CI command, and what is in them:
+Thirty-eight full runs of the CI command — thirty-two at normal load, six under deliberate CPU
+starvation — and what is in them:
 
 ```
  629 tests
@@ -17,11 +18,11 @@ Twelve full runs of the CI command, and what is in them:
   +--   5  PresetsViewModelTests (4)             --> FAIL, 12 runs of 12
   |        SettingsEditorTests (1)
   |
-  +--   3  ToastPresenterTests                   --> verdict depends on what ran first
+  +--   4  ToastPresenterTests                   --> verdict depends on what ran first
   |
-  +--   1  SettingsStorePresetRaceTests          --> FAIL once in 12, unexplained
+  +--   1  SettingsStorePresetRaceTests          --> FAIL 2 of 38; diagnosed, see D1c
   |
-  +-- 611  everything else                       --> pass
+  +-- 610  everything else                       --> pass
 ```
 
 **Two of the three groups are the same category of problem as the skipping one** — a test that
@@ -30,21 +31,27 @@ a reason, one fails outright, one passes or fails according to its neighbours.
 
 Per-test measurement, all on this machine, all on `main` at `d8a596d`:
 
-| Test | full suite | class alone | test alone |
-|---|---|---|---|
-| the five write-failure tests | **12/12 fail** | fail | fail |
-| `ToastPresenterTests.PresentCompletes…FromANonUiThread` | **3/12 fail** | **10/10 fail** | fail |
-| `ToastPresenterTests.PresentReturnsBeforeTheWindowExists` | 0/12 | pass | **fail** |
-| `ToastPresenterTests.PresentAfterTheUiThreadHasADispatcherShows` | 0/12 | pass | **fail** |
-| `SettingsStorePresetRaceTests.APresetIsDeleted…Repeatedly` | 1/12 fail | — | — |
-| `FileLoggingRotationTests.WritesDoNotStall…` | **0/12** | — | — |
+| Test | suite, 32 runs | suite, 6 starved | class alone | test alone |
+|---|---|---|---|---|
+| the five write-failure tests | **32/32 fail** | **6/6 fail** | fail | fail |
+| `ToastPresenterTests.PresentCompletes…FromANonUiThread` | **5/32 fail** | **4/6 fail** | **10/10 fail** | fail |
+| `ToastPresenterTests.ThreeStackAndAFourthClosesTheOldest` | **1/32 fail** | 0/6 | pass | not measured |
+| `ToastPresenterTests.PresentReturnsBeforeTheWindowExists` | 0/32 | 0/6 | pass | **fail** |
+| `ToastPresenterTests.PresentAfterTheUiThreadHasADispatcherShows` | 0/32 | 0/6 | pass | **fail** |
+| `SettingsStorePresetRaceTests.APresetIsDeleted…Repeatedly` | **1/32 fail** | **1/6 fail** | 0/60 | 0/60 |
+| `FileLoggingRotationTests.WritesDoNotStall…` | **0/32** | **0/6** | — | — |
+
+**Starvation is the instrument.** Fourteen busy loops on a ten-core machine turn two of these rows
+from rare into routine, and change nothing about the rest. Both are thread-pool scheduling failures,
+and a shared CI runner is a starved machine by construction — so the starved column is the better
+predictor of what a pull request will see.
 
 **The last row is why this design was rewritten.** An earlier draft treated the rotation latency
 test as the thing that would make CI red, on the strength of `migrate-tests-to-xunit-v3`'s note
 calling it "a known flake going into change 12's CI". That measurement was taken on **Windows**. It
 was quoted into a macOS-facing design without being re-run, and it does not reproduce here: zero
-failures in twelve runs. The gate in D2 is kept because the Windows evidence still stands, but it is
-not the macOS problem and this design no longer says it is.
+failures in thirty-eight runs, six of them starved. The gate in D2 is kept because the Windows
+evidence still stands, but it is not the macOS problem and this design no longer says it is.
 
 `CLAUDE.md` states 620 tests and a `223 / 393 / 4` class split. Neither is current;
 `surface-settings-save-failures` and others have landed since.
@@ -89,10 +96,10 @@ construction. Only techniques that break the **path** or the **parent directory*
 
 - Deciding what the rotation latency bound should be. That is `file-logging`'s.
 - Changing `ToastPresenter`'s readiness gate. It is correct and it fixed a real startup failure; the
-  three tests around it are what is wrong.
+  four tests around it are what is wrong.
 - Moving `tests/Pisum.Whisper.App.Tests` off `PerTest` isolation. D1b is evidence that `PerTest`
   isolates less than `CLAUDE.md` claims, and that is worth knowing, but changing the isolation mode
-  of a whole assembly to fix three tests is the larger change and would need its own argument.
+  of a whole assembly to fix four tests is the larger change and would need its own argument.
 - Auditing the remaining 611 tests for order dependence. The twelve runs plus the alone-runs of the
   repaired tests are the evidence, not a per-test review.
 
@@ -147,7 +154,7 @@ under the home directory" — and T2 **is** the third of those, where T1 simulat
 will ever be in. It is not chosen only because of the base-class cost. If the base is ever nested
 for another reason, T2 is the better arrangement.
 
-### D1b — The three `ToastPresenterTests` name the dispatcher thread they mean
+### D1b — The four `ToastPresenterTests` name the dispatcher thread they mean
 
 `settle-win-x64-verification-debt`'s task 4.3 added a readiness gate to `ToastPresenter.Present`,
 correctly — raising a notification from a pooled thread before Avalonia is initialised permanently
@@ -164,23 +171,26 @@ if (dispatcher is null)
 dispatcher.Post(() => Show(title, message));
 ```
 
-Three `[AvaloniaFact]` tests construct the presenter with the two-argument constructor, which
-captures `Thread.CurrentThread`, and then assert `LiveCount`. When `Dispatcher.FromThread` returns
-null for that captured thread the gate drops the notification and the assertion reads
-`should be 1 but was 0`. Whether it returns null depends on what has already run in the session —
-see the table in *Context*.
+Four `[AvaloniaFact]` tests construct the presenter with the two-argument constructor, which
+captures `Thread.CurrentThread`, and then assert `LiveCount` —
+`PresentReturnsBeforeTheWindowExists`, `PresentCompletesWhenCalledFromANonUiThread`,
+`ThreeStackAndAFourthClosesTheOldest` and `PresentAfterTheUiThreadHasADispatcherShows`. When
+`Dispatcher.FromThread` returns null for that captured thread the gate drops the notification and
+the assertion reads `should be 1 but was 0`. Whether it returns null depends on what has already run
+in the session — see the table in *Context*.
 
 **These are not flaky tests; they are order-dependent ones, and a passing run is contamination.**
 The distinction matters for what gets fixed. A flake is a test that sometimes loses a race with
 itself. These lose a race with the *scheduler*: `PresentCompletes…FromANonUiThread` fails 10 times
-in 10 when its class runs, and 3 times in 12 when the whole suite does, because more neighbours
-mean a better chance one of them registered a dispatcher first.
+in 10 when its class runs, and 5 times in 32 when the whole suite does, because more neighbours
+mean a better chance one of them registered a dispatcher first — and 4 times in 6 when the pool is
+starved, because a contended scheduler undoes that luck.
 
 The arrangement is what changes, not `ToastPresenter`. The type already carries the constructor for
 it — `internal ToastPresenter(TimeSpan dwell, ILogger logger, Thread uiThread)`, whose summary says
 it exists "so a test can name one that owns no dispatcher".
 `PresentBeforeTheUiThreadHasADispatcherIsDroppedAndLogged` uses it to name a thread deliberately
-without one, and is the only test in the class that passes alone. The three that fail should name
+without one, and is the only test in the class that passes alone. The four that fail should name
 the thread that *does* own the dispatcher, rather than assuming the thread they happen to be
 constructed on is it.
 
@@ -194,8 +204,56 @@ that is known would be guessing, and the guess would pass — which is exactly h
 `Program.Main` constructs the presenter on the main thread before `StartWithClassicDesktopLifetime`,
 so the null branch is precisely the pre-dispatcher window the gate was built for, and the
 `AutostartReconciler` path that motivated 4.3 runs before Avalonia either way. Nothing here
-contradicts that. But the only evidence that the gate behaves correctly *after* startup is three
+contradicts that. But the only evidence that the gate behaves correctly *after* startup is four
 tests that pass for the wrong reason, so there is currently no evidence either way.
+
+### D1c — The preset race test waits for its reader to start
+
+Reproduced and diagnosed 2026-09-03. It is **not** a product defect, which is the opposite of what
+an earlier draft of this design guessed.
+
+```
+  the test alone, 60 runs                              0 hits
+  Core.Tests assembly alone, 25 runs                   0 hits
+  full suite, normal load, 32 runs                     1 hit
+  full suite, 14 busy loops on a 10-core box, 6 runs   1 hit
+```
+
+The captured failure is the last assertion in the test, and the line above it is what settles the
+question:
+
+```csharp
+await stop.CancelAsync();
+await Should.NotThrowAsync(reader);      // <-- PASSED
+
+// So a reader that never actually ran cannot pass this test by doing nothing.
+reads.ShouldBeGreaterThan(0);            // <-- failed: reads was 0
+```
+
+`Should.NotThrowAsync(reader)` passed, so the reader never threw and
+`SettingsStore.DeletePreset`'s clone-and-replace survived exactly the concurrent read it exists to
+survive. What failed is the test's guard against measuring nothing, and it fired correctly:
+`Task.Run` queues the reader, the thirty `DeletePreset` calls run to completion, `CancelAsync`
+fires, and on a starved pool the reader reaches its first iteration only after all of that — so
+`reads` is 0.
+
+The window the reader needs is however long thirty writes take. On an idle machine that is plenty;
+on a contended one it is sometimes nothing, which is why 60 isolated runs could not produce it and
+six starved ones did.
+
+**The fix is to remove the hope, not the guard.** The reader signals its first iteration through a
+`TaskCompletionSource`, and the test awaits that — bounded, so a genuinely dead reader still fails
+rather than hanging — before entering the deletion loop. `reads > 0` then holds by construction and
+the assertion goes back to meaning what it says. Nothing in `SettingsStore` changes.
+
+*Alternative rejected:* deleting the `reads.ShouldBeGreaterThan(0)` guard, which is the one line
+standing between this test and a vacuous pass. Its comment says so, and the comment is right.
+
+**The starvation recipe is the useful residue.** Fourteen busy loops on a ten-core machine moved
+this from 1-in-32 to 1-in-6, and moved `PresentCompletes…FromANonUiThread` from 5-in-32 to 4-in-6.
+Both are thread-pool scheduling failures, and a shared CI runner is a starved machine by
+construction — so the recipe is how this class of defect is reproduced on demand rather than waited
+for, and task 5.1 uses it.
 
 ### D2 — The latency test gates itself on `PISUM_WHISPER_RUN_TIMING`
 
@@ -280,7 +338,7 @@ mockable would be a larger change to shipped code than to the tests that are act
 - **Relaxing the latency bound to something a CI runner passes** — picks a number to fit the noisiest
   machine that will ever run it, which is how a bound stops meaning anything.
 - **Excluding by `--filter-not-method` in CI** — `add-packaging-ci`'s D9. See D3.
-- **Deleting the three `ToastPresenterTests`** — they cover a gate that prevents a real startup
+- **Deleting the four `ToastPresenterTests`** — they cover a gate that prevents a real startup
   failure, and the two that pass beside siblings do assert something true when the dispatcher is
   found. The arrangement is wrong, not the intent.
 - **Relaxing `ToastPresenter.Present` so the gate cannot drop a notification in tests** — changing
@@ -312,11 +370,9 @@ mockable would be a larger change to shipped code than to the tests that are act
   reason the tests currently do. If 3.1 cannot establish which thread owns the dispatcher, the
   fallback is the `WindowsOnly`-shaped one: gate the three on a condition that is *checked*, so they
   skip with a reason instead of passing by luck.
-- **The `SettingsStorePresetRaceTests` failure is unexplained.** → It appeared once in twelve runs
-  and its message was not captured. Task 3.4 tries to reproduce it and, failing that, records it as
-  seen-once rather than pretending it did not happen. It is the one thing here that might be a
-  product defect rather than a test defect, since the reader it asserts against is the transcription
-  path's real read of `Current.Presets`.
+- **The `SettingsStorePresetRaceTests` failure is diagnosed and is not a product defect.** → See
+  D1c. `SettingsStore.DeletePreset` held; the test's own anti-vacuous-pass guard fired because its
+  reader task never got scheduled.
 - **Twelve runs is a thin sample.** → It is enough to overturn the earlier draft, which rested on
   zero runs on this platform, and not enough to bound a rate. Where the design says "3 in 12" it
   means the observation, not a probability.
@@ -327,9 +383,9 @@ mockable would be a larger change to shipped code than to the tests that are act
    the same one-line arrangement and no base-class change.
 2. Establish the dispatcher-thread mechanism (task 3.1) before writing anything for D1b. This is the
    one place in the change where measuring first is load-bearing rather than tidy.
-3. The five tests, the three `ToastPresenterTests` and the timing gate land together, in one pull
-   request, verified two ways on both platforms: the whole suite ten times, and each repaired test
-   run on its own.
+3. The five tests, the four `ToastPresenterTests`, the preset race test and the timing gate land
+   together in one pull request, verified two ways on both platforms: the whole suite ten times,
+   **including runs under D1c's starvation recipe**, and each repaired test run on its own.
 4. `add-packaging-ci`'s D9, its spec requirement and its task 5.2 are amended in the same pull
    request, so its committed design never describes a filter that no longer exists.
 
@@ -350,7 +406,7 @@ mockable would be a larger change to shipped code than to the tests that are act
 - **Does the rotation latency test still flake on Windows?** Twelve runs here say it does not flake
   on macOS; `migrate-tests-to-xunit-v3`'s note says it does there. Task 4.2 settles it, and a
   negative answer means D2's gate should be removed rather than kept.
-- **Do the three `ToastPresenterTests` fail alone on Windows too?** The whole of D1b is measured on
+- **Do the four `ToastPresenterTests` fail alone on Windows too?** The whole of D1b is measured on
   one Mac. If the ordering dependence is macOS-only the fix is unchanged, but the story of how it
   went unnoticed is not — it would mean the win-x64 run that ticked 4.2 and 4.3 could not have seen
   it at all.
