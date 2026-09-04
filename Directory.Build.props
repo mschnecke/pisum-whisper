@@ -13,7 +13,7 @@
          tag: `release.yml` strips the `v` and passes -p:Version=$VERSION to publish, and the same
          string to the WiX build, the Info.plist substitution, the pkgbuild version argument and
          the nuspec, so one version reaches every artifact of a release (design D8). -->
-    <Version>1.0.1</Version>
+    <Version>1.0.2</Version>
   </PropertyGroup>
 
 </Project>
