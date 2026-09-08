@@ -45,7 +45,13 @@ public sealed class GeminiKeyProbe(IHttpClientFactory httpClientFactory, ILogger
                             && entry.SupportedGenerationMethods?.Contains("generateContent") == true)
             .Select(entry =>
             {
-                var id = entry.Name![ModelPrefix.Length..];
+                // Only when it is actually there, mirroring the reference's
+                // `strip_prefix("models/").unwrap_or(&m.name)` (`ai/gemini.rs:264`): an unprefixed
+                // name is passed through rather than having seven characters cut off it.
+                var name = entry.Name!;
+                var id = name.StartsWith(ModelPrefix, StringComparison.Ordinal)
+                    ? name[ModelPrefix.Length..]
+                    : name;
                 return new GeminiModel(id, string.IsNullOrWhiteSpace(entry.DisplayName) ? id : entry.DisplayName);
             })
             .ToList();

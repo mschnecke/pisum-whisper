@@ -42,6 +42,21 @@ public sealed class GeminiKeyProbeTests
     }
 
     [Fact]
+    public async Task ListModels_PassesThroughANameThatCarriesNoPrefix()
+    {
+        const string body = """
+                            { "models": [ { "name": "gemini-2.5-pro",
+                                           "supportedGenerationMethods": [ "generateContent" ] } ] }
+                            """;
+
+        var handler = new StubHttpMessageHandler().Respond(HttpStatusCode.OK, body);
+
+        var models = await Probe(handler).ListModelsAsync(ApiKey, CancellationToken.None);
+
+        models.Single().Id.ShouldBe("gemini-2.5-pro");
+    }
+
+    [Fact]
     public async Task ListModels_FallsBackToTheIdWhenThereIsNoDisplayName()
     {
         var handler = new StubHttpMessageHandler().Respond(HttpStatusCode.OK, ModelsBody);
